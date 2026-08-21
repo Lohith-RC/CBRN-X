@@ -1,42 +1,116 @@
-import React, { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Play, RotateCcw, Send, Activity, Eye, Compass, Flame, Volume2, Cpu, Video, FastForward, SkipForward } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Shield, CheckCircle, Crosshair, Radio, Play, Compass, Flame, Video, Zap, Eye } from 'lucide-react';
+import PostProcessing from './PostProcessing';
+import Hotspots from './Hotspots';
+import { useCursorParallax, CursorParallaxLayer } from './CursorParallax';
 
-// Video Playlist Mapping for Protocol Stages
-const VIDEO_STAGES = {
-  0: { src: '/videos/1.mp4', label: 'EXPLOSION CUTSCENE // BAY 03 ALARM', autoNext: false },
-  1: { src: '/videos/2.mp4', label: 'STAGE 1: INITIAL ASSESSMENT & HAZARD PERIMETER', autoNext: false },
-  2: { src: '/videos/5.mp4', label: 'STAGE 2: PPE DONNING — RESPIRATOR & GLOVES', autoNext: false },
-  3: { src: '/videos/6.mp4', label: 'STAGE 2: PPE DONNING — HAZMAT SUIT ZIPPER', autoNext: false },
-  4: { src: '/videos/7.mp4', label: 'STAGE 2: PPE COMPLETE // PROTOCOL LEVEL 2 AUTHORIZED', autoNext: false },
-  5: { src: '/videos/8.mp4', label: 'STAGE 3: ENTRY TO BAY 03 & PID DETECTOR PICKUP', autoNext: false },
-  6: { src: '/videos/9.mp4', label: 'STAGE 4: PID DETECTOR DRUM SCAN (CHLORINE AGENT)', autoNext: false },
-  7: { src: '/videos/3.mp4', label: 'STAGE 5: CONTROL TERMINAL SENSOR (412.5 PPM)', autoNext: false }
+// ──────────────────────────────────────────────────────────────────
+// GAME STAGE DEFINITIONS — Video assets mapped to interactive states
+// Each stage: video src, hotspot set key, HUD objective text
+// Videos start PAUSED. They only play on user interaction.
+// ──────────────────────────────────────────────────────────────────
+const GAME_STAGES = {
+  BRIEFING:       { video: '/videos/1.mp4', hotspots: 'BRIEFING',       objective: 'ASSESS THE SITUATION. CLICK ON THE PPE TABLE OR SURVEY THE BAY.' },
+  PPE_STATION:    { video: '/videos/2.mp4', hotspots: 'PPE_STATION',    objective: 'CLICK ON EACH PPE ITEM TO EQUIP: MASK → SUIT → GLOVES' },
+  DONNING_MASK:   { video: '/videos/5.mp4', hotspots: 'DONNING_MASK',   objective: 'CLICK TO SECURE THE RESPIRATOR VISOR SEAL' },
+  DONNING_SUIT:   { video: '/videos/6.mp4', hotspots: 'DONNING_SUIT',   objective: 'CLICK TO ZIP THE HAZMAT SUIT' },
+  DONNING_GLOVES: { video: '/videos/7.mp4', hotspots: 'DONNING_GLOVES', objective: 'CLICK TO SNAP THE GLOVE SEALS' },
+  PPE_COMPLETE:   { video: '/videos/4.mp4', hotspots: 'PPE_COMPLETE',   objective: 'PPE DONNING COMPLETE. CLICK THE DOOR TO ENTER BAY 03.' },
+  BAY_ENTRY:      { video: '/videos/8.mp4', hotspots: 'BAY_ENTRY',      objective: 'INSIDE BAY 03. CLICK DRUMS TO SCAN OR CHECK THE CONSOLE.' },
+  DRUM_SCAN:      { video: '/videos/9.mp4', hotspots: 'DRUM_SCAN',      objective: 'LEAK CONFIRMED: DRUM #3 (CHLORINE). CLICK TO SEAL OR EVACUATE.' },
+  CONSOLE_CHECK:  { video: '/videos/3.mp4', hotspots: 'CONSOLE_CHECK',  objective: 'CONTROL TERMINAL: GAS CONCENTRATION 412.5 PPM. CLICK TO READ.' },
+  CONTAINMENT:    { video: '/videos/8.mp4', hotspots: 'CONTAINMENT',    objective: 'HAZARD SEALED. CLICK CIVILIANS TO EVACUATE OR PROCEED TO DECON.' },
+  DECON:          { video: '/videos/4.mp4', hotspots: 'DECON',          objective: 'CLICK TO COMPLETE DECONTAMINATION SHOWER SEQUENCE.' },
+  MISSION_END:    { video: '/videos/1.mp4', hotspots: 'BRIEFING',       objective: '✅ MISSION ACCOMPLISHED — ALL PROTOCOLS EXECUTED SUCCESSFULLY.' },
 };
 
 export default function App() {
-  const videoRef = useRef(null);
-  const mountRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStageIdx, setCurrentStageIdx] = useState(0);
-  const [hudMessage, setHudMessage] = useState('PRESS [E] TO DON PPE MASK, SUIT, AND GLOVES');
-  const [ppmReading, setPpmReading] = useState(12.4);
-  const [ppeState, setPpeState] = useState({ mask: false, suit: false, gloves: false });
+  // ── Core Game State ──
+  const [gameStage, setGameStage] = useState(null); // null = pre-game lobby
+  const [isActive, setIsActive] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [telemetryLogs, setTelemetryLogs] = useState([]);
-  const [leakingDrumFound, setLeakingDrumFound] = useState(false);
+
+  // ── Scoring & Protocol State ──
+  const [ppeState, setPpeState] = useState({ mask: false, suit: false, gloves: false });
+  const [ppmReading, setPpmReading] = useState(12.4);
+  const [leakFound, setLeakFound] = useState(false);
   const [civiliansEvacuated, setCiviliansEvacuated] = useState(0);
   const [contained, setContained] = useState(false);
-  const [deconComplete, setDeconComplete] = useState(false);
   const [compassHeading, setCompassHeading] = useState(150);
 
-  const stateRef = useRef({
-    hasPpe: false,
-    inHazardZone: false,
-    sessionId: null
-  });
+  // ── Post-Processing State ──
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [screenShake, setScreenShake] = useState(false);
 
-  // Start new backend session
+  // ── Video Ref (paused by default, plays on interaction) ──
+  const videoRef = useRef(null);
+  const stateRef = useRef({ sessionId: null, hasPpe: false });
+
+  // ── Cursor Parallax Engine ──
+  const parallax = useCursorParallax(isActive, 12);
+
+  // ── Track cursor position for post-processing ──
+  const handleMouseMove = useCallback((e) => {
+    setCursorPos({ x: e.clientX, y: e.clientY });
+    // Update compass heading based on horizontal cursor position
+    const normalizedX = e.clientX / window.innerWidth;
+    setCompassHeading(Math.round(normalizedX * 360));
+  }, []);
+
+  // ──────────────────────────────────────────────────────────────
+  // VIDEO CONTROL: Play-on-interaction, freeze-on-end
+  // ──────────────────────────────────────────────────────────────
+  const playVideoForStage = useCallback((stageName) => {
+    const stage = GAME_STAGES[stageName];
+    if (!stage || !videoRef.current) return;
+
+    const video = videoRef.current;
+    video.src = stage.video;
+    video.load();
+
+    // Play the video segment, then FREEZE on last frame
+    video.oncanplay = () => {
+      video.play().catch(() => {});
+    };
+    video.onended = () => {
+      video.pause(); // Freeze on last frame — no loop
+    };
+  }, []);
+
+  // ──────────────────────────────────────────────────────────────
+  // TRANSITION TO A NEW STAGE (video + hotspots + HUD update)
+  // ──────────────────────────────────────────────────────────────
+  const transitionTo = useCallback((stageName) => {
+    setGameStage(stageName);
+    playVideoForStage(stageName);
+
+    // Trigger screen shake on explosive/impactful transitions
+    if (['BRIEFING', 'BAY_ENTRY', 'DRUM_SCAN'].includes(stageName)) {
+      setScreenShake(true);
+      setTimeout(() => setScreenShake(false), 400);
+    }
+  }, [playVideoForStage]);
+
+  // ──────────────────────────────────────────────────────────────
+  // BACKEND TELEMETRY (REST streaming to Port 8080)
+  // ──────────────────────────────────────────────────────────────
+  const logEvent = useCallback(async (eventType, eventData = '{}') => {
+    const sid = stateRef.current.sessionId || sessionId;
+    setTelemetryLogs(prev => [`[${new Date().toLocaleTimeString()}] ${eventType}`, ...prev.slice(0, 4)]);
+    if (!sid) return;
+    try {
+      await fetch('/api/events/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, eventType, eventData })
+      });
+    } catch (_) {}
+  }, [sessionId]);
+
+  // ──────────────────────────────────────────────────────────────
+  // START SESSION (click INITIATE DEPLOYMENT)
+  // ──────────────────────────────────────────────────────────────
   const startSession = async () => {
     try {
       const res = await fetch('/api/sessions/start', {
@@ -51,314 +125,455 @@ export default function App() {
       const data = await res.json();
       setSessionId(data.sessionId);
       stateRef.current.sessionId = data.sessionId;
-      setTelemetryLogs([`Session started: ${data.sessionId} [Port 5000 -> Port 8080]`]);
-      setIsPlaying(true);
-      setCurrentStageIdx(0);
-    } catch (err) {
-      const demoId = 'sess-video-5000';
+    } catch (_) {
+      const demoId = 'sess-game-5000';
       setSessionId(demoId);
       stateRef.current.sessionId = demoId;
-      setIsPlaying(true);
-      setCurrentStageIdx(0);
     }
+    setIsActive(true);
+    transitionTo('BRIEFING');
   };
 
-  const logEvent = async (eventType, eventData = '{}') => {
-    const currentSess = stateRef.current.sessionId || sessionId;
-    setTelemetryLogs(prev => [`[${new Date().toLocaleTimeString()}] ${eventType}`, ...prev.slice(0, 4)]);
-    if (!currentSess) return;
-    try {
-      await fetch('/api/events/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: currentSess, eventType, eventData })
-      });
-    } catch (ignored) {}
-  };
+  // ──────────────────────────────────────────────────────────────
+  // HOTSPOT ACTION DISPATCHER (all visual progression is click-driven)
+  // ──────────────────────────────────────────────────────────────
+  const handleHotspotAction = useCallback((action) => {
+    switch (action) {
+      case 'SURVEY_BAY':
+        logEvent('survey_bay_exterior', '{"area":"BAY_03_EXT"}');
+        // Re-play briefing video from start
+        if (videoRef.current) { videoRef.current.currentTime = 0; videoRef.current.play().catch(() => {}); }
+        break;
 
-  const advanceVideoStage = (targetIdx) => {
-    const nextIdx = targetIdx !== undefined ? targetIdx : (currentStageIdx + 1) % Object.keys(VIDEO_STAGES).length;
-    setCurrentStageIdx(nextIdx);
-    if (videoRef.current) {
-      videoRef.current.src = VIDEO_STAGES[nextIdx].src;
-      videoRef.current.play().catch(() => {});
-    }
-  };
+      case 'GO_PPE_STATION':
+        logEvent('approach_ppe_station', '{}');
+        transitionTo('PPE_STATION');
+        break;
 
-  const equipPpeItem = (item) => {
-    setPpeState(prev => {
-      const updated = { ...prev, [item]: true };
-      const allDone = updated.mask && updated.suit && updated.gloves;
+      case 'DON_MASK':
+        setPpeState(prev => ({ ...prev, mask: true }));
+        logEvent('ppe_item_equipped', '{"item":"mask"}');
+        transitionTo('DONNING_MASK');
+        break;
 
-      if (item === 'mask') advanceVideoStage(2);
-      else if (item === 'suit') advanceVideoStage(3);
-      else if (item === 'gloves') advanceVideoStage(4);
+      case 'SEAL_MASK':
+        logEvent('mask_sealed', '{"status":"sealed"}');
+        transitionTo('PPE_STATION');
+        break;
 
-      if (allDone) {
+      case 'DON_SUIT':
+        setPpeState(prev => ({ ...prev, suit: true }));
+        logEvent('ppe_item_equipped', '{"item":"suit"}');
+        transitionTo('DONNING_SUIT');
+        break;
+
+      case 'ZIP_SUIT':
+        logEvent('suit_zipped', '{"status":"sealed"}');
+        transitionTo('PPE_STATION');
+        break;
+
+      case 'DON_GLOVES':
+        setPpeState(prev => ({ ...prev, gloves: true }));
+        logEvent('ppe_item_equipped', '{"item":"gloves"}');
         stateRef.current.hasPpe = true;
-        setHudMessage('PPE DONNING COMPLETE. PROTOCOL LEVEL 2 AUTHORIZED');
         logEvent('ppe_donning_completed', '{"status":"complete"}');
-      } else {
-        logEvent('ppe_item_equipped', `{"item":"${item}"}`);
-      }
-      return updated;
-    });
-  };
+        transitionTo('DONNING_GLOVES');
+        break;
 
-  const handleDrumClick = (drumIndex) => {
-    if (drumIndex === 3) {
-      setLeakingDrumFound(true);
-      advanceVideoStage(6); // Play PID Detector Scan Video (9.mp4)
-      setPpmReading(412.5);
-      setHudMessage('LEAK SOURCE CONFIRMED: DRUM #3 (CHLORINE AGENT). PRESS [R] TO ESCORT CIVILIANS');
-      logEvent('leak_source_identified', '{"correct":true,"drumId":"DRUM-03"}');
-    } else {
-      setHudMessage(`INCORRECT SCAN: DRUM #${drumIndex} IS INTACT (-5 PENALTY)`);
-      logEvent('leak_source_identified', `{"correct":false,"drumId":"DRUM-0${drumIndex}"}`);
+      case 'SNAP_GLOVES':
+        transitionTo('PPE_COMPLETE');
+        break;
+
+      case 'ENTER_BAY':
+        logEvent('entered_bay_03', '{}');
+        transitionTo('BAY_ENTRY');
+        break;
+
+      case 'SCAN_DRUM_3':
+        setLeakFound(true);
+        setPpmReading(412.5);
+        logEvent('leak_source_identified', '{"correct":true,"drumId":"DRUM-03"}');
+        transitionTo('DRUM_SCAN');
+        break;
+
+      case 'SCAN_DRUM_1':
+        logEvent('leak_source_identified', '{"correct":false,"drumId":"DRUM-01"}');
+        // Stay on same stage, just log the penalty
+        if (videoRef.current) { videoRef.current.currentTime = 0; videoRef.current.play().catch(() => {}); }
+        break;
+
+      case 'CHECK_CONSOLE':
+        logEvent('console_checked', '{"ppm":"412.5"}');
+        transitionTo('CONSOLE_CHECK');
+        break;
+
+      case 'READ_PPM':
+        setPpmReading(412.5);
+        logEvent('ppm_reading_taken', '{"value":412.5}');
+        transitionTo('BAY_ENTRY');
+        break;
+
+      case 'APPLY_SEALANT':
+        setContained(true);
+        logEvent('containment_completed', '{"drumId":"DRUM-03"}');
+        transitionTo('CONTAINMENT');
+        break;
+
+      case 'EVACUATE_CIV':
+        setCiviliansEvacuated(prev => {
+          const next = prev + 1;
+          logEvent('civilian_evacuated', `{"civilianId":"CIV-0${next}"}`);
+          return next;
+        });
+        // Re-play current stage video to show the evacuation action
+        if (videoRef.current) { videoRef.current.currentTime = 0; videoRef.current.play().catch(() => {}); }
+        break;
+
+      case 'DECON_SHOWER':
+        logEvent('decon_entered', '{}');
+        transitionTo('DECON');
+        break;
+
+      case 'COMPLETE_DECON':
+        logEvent('decontamination_completed', '{"archway":true}');
+        transitionTo('MISSION_END');
+        break;
+
+      default:
+        break;
     }
-  };
+  }, [logEvent, transitionTo]);
 
-  const evacuateCivilian = () => {
-    if (civiliansEvacuated < 2) {
-      const nextCount = civiliansEvacuated + 1;
-      setCiviliansEvacuated(nextCount);
-      logEvent('civilian_evacuated', `{"civilianId":"CIV-0${nextCount}"}`);
-      if (nextCount === 2) {
-        setHudMessage('CIVILIANS ESCORTED TO SAFE ZONE. PRESS [F] TO APPLY CONTAINMENT SEALANT');
-      }
-    }
-  };
-
-  const applyContainment = () => {
-    if (!leakingDrumFound) {
-      setHudMessage('CONFIRM LEAK SOURCE BEFORE APPLYING CONTAINMENT');
-      return;
-    }
-    setContained(true);
-    setHudMessage('HAZARD SEALED! PRESS [SPACE] TO ENTER DECONTAMINATION ARCHWAY');
-    logEvent('containment_completed', '{"drumId":"DRUM-03"}');
-  };
-
-  const passDecon = () => {
-    setDeconComplete(true);
-    setHudMessage('DECONTAMINATION SHOWER COMPLETE. MISSION ACCOMPLISHED!');
-    logEvent('decontamination_completed', '{"archway":true}');
-  };
-
-  const finishMission = async () => {
-    const currentSess = stateRef.current.sessionId || sessionId;
-    if (currentSess) {
-      try {
-        await fetch(`/api/sessions/${currentSess}/complete`, { method: 'POST' });
-      } catch (ignored) {}
-    }
-    setIsPlaying(false);
-    alert('Mission Complete! Telemetry logged to Port 8080 and visible on Admin Dashboard (Port 3000).');
-  };
-
-  // Keyboard Command Handlers (WASD + E, F, R, Space)
+  // ──────────────────────────────────────────────────────────────
+  // KEYBOARD SHORTCUTS (E, F, R, Space, WASD) — all trigger
+  // the same hotspot actions, not passive video switches
+  // ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!isPlaying) return;
+      if (!isActive || !gameStage) return;
       switch (e.key.toLowerCase()) {
+        case 'e':
+          // Equip next PPE item or interact with nearest hotspot
+          if (!ppeState.mask) handleHotspotAction('DON_MASK');
+          else if (!ppeState.suit) handleHotspotAction('DON_SUIT');
+          else if (!ppeState.gloves) handleHotspotAction('DON_GLOVES');
+          else if (gameStage === 'PPE_COMPLETE') handleHotspotAction('ENTER_BAY');
+          break;
+        case 'f':
+          if (leakFound) handleHotspotAction('APPLY_SEALANT');
+          break;
+        case 'r':
+          handleHotspotAction('EVACUATE_CIV');
+          break;
+        case ' ':
+          e.preventDefault();
+          if (gameStage === 'DECON') handleHotspotAction('COMPLETE_DECON');
+          else if (contained) handleHotspotAction('DECON_SHOWER');
+          break;
         case 'w':
         case 'arrowup':
-        case 's':
-        case 'arrowdown':
-          advanceVideoStage(5); // Bay 03 Entry Video (8.mp4)
+          if (gameStage === 'BRIEFING') handleHotspotAction('GO_PPE_STATION');
+          else if (gameStage === 'PPE_COMPLETE') handleHotspotAction('ENTER_BAY');
           break;
         case 'a':
         case 'arrowleft':
-          setCompassHeading(h => (h - 5 + 360) % 360);
+          setCompassHeading(h => (h - 8 + 360) % 360);
           break;
         case 'd':
         case 'arrowright':
-          setCompassHeading(h => (h + 5) % 360);
-          break;
-        case 'e':
-          if (!ppeState.mask) equipPpeItem('mask');
-          else if (!ppeState.suit) equipPpeItem('suit');
-          else if (!ppeState.gloves) equipPpeItem('gloves');
-          break;
-        case 'f':
-          applyContainment();
-          break;
-        case 'r':
-          evacuateCivilian();
-          break;
-        case ' ':
-          passDecon();
+          setCompassHeading(h => (h + 8) % 360);
           break;
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, ppeState, civiliansEvacuated, leakingDrumFound]);
+  }, [isActive, gameStage, ppeState, leakFound, contained, handleHotspotAction]);
 
+  // ──────────────────────────────────────────────────────────────
+  // FINISH MISSION
+  // ──────────────────────────────────────────────────────────────
+  const finishMission = async () => {
+    const sid = stateRef.current.sessionId || sessionId;
+    if (sid) {
+      try { await fetch(`/api/sessions/${sid}/complete`, { method: 'POST' }); } catch (_) {}
+    }
+    setIsActive(false);
+    setGameStage(null);
+  };
+
+  // ──────────────────────────────────────────────────────────────
+  // DERIVED STATE
+  // ──────────────────────────────────────────────────────────────
+  const currentStageDef = gameStage ? GAME_STAGES[gameStage] : null;
+  const allPpeDone = ppeState.mask && ppeState.suit && ppeState.gloves;
+
+  // ──────────────────────────────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────────────────────────────
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#05080c', position: 'relative' }}>
-      {/* Handheld Mobile Video / Bodycam Scanline Overlay */}
-      <div className="bodycam-overlay" />
+    <div
+      style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#05080c', position: 'relative', cursor: isActive ? 'crosshair' : 'default' }}
+      onMouseMove={handleMouseMove}
+    >
+      {/* ── Post-Processing Canvas Overlay ── */}
+      <PostProcessing cursorPos={cursorPos} isActive={isActive} screenShake={screenShake} />
 
-      {/* Top Header Watermark (Extracted from MP4 CCTV Header) */}
-      <header style={{ padding: '10px 24px', background: 'rgba(7, 10, 15, 0.95)', borderBottom: '1px solid rgba(245, 130, 32, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
+      {/* ── CCTV / Bodycam Header Bar ── */}
+      <header style={{
+        padding: '10px 24px',
+        background: 'rgba(7, 10, 15, 0.95)',
+        borderBottom: '1px solid rgba(245, 130, 32, 0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        zIndex: 25
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <Shield size={22} color="var(--accent-ndrf-orange)" />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#fff', letterSpacing: '0.5px' }}>
                 CAM_BAY03_EXT // 21-AUG-2026 // 10:03:13 UTC
               </span>
-              <span className="badge badge-pending" style={{ fontSize: '0.65rem' }}>
-                <Radio size={12} className="warning-led" /> VIDEO CINEMATIC SIMULATOR [PORT 5000]
+              <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Radio size={11} className="warning-led" /> {isActive ? 'REC ●' : 'STANDBY'}
               </span>
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              CBRS-X Trainee VR First-Person Simulation Interface (SIH260088)
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+              CBRS-X Interactive Simulation Engine // SIH260088 // PORT 5000
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
-            ID VALIDATED: [cite: TRN-4089]
-          </div>
-          {!isPlaying ? (
+          {isActive && gameStage && (
+            <div style={{
+              fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)',
+              background: 'rgba(0, 242, 254, 0.08)', border: '1px solid rgba(0, 242, 254, 0.25)',
+              padding: '4px 10px', borderRadius: '4px'
+            }}>
+              STAGE: {gameStage.replace(/_/g, ' ')}
+            </div>
+          )}
+          {!isActive ? (
             <button className="btn-tactical" onClick={startSession}>
               <Play size={14} /> INITIATE DEPLOYMENT
             </button>
           ) : (
             <button className="btn-tactical" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} onClick={finishMission}>
-              <CheckCircle size={14} /> COMPLETE MISSION
+              <CheckCircle size={14} /> END MISSION
             </button>
           )}
         </div>
       </header>
 
-      {/* Main Simulation Viewport (Synchronized Video Player + Canvas HUD) */}
+      {/* ── Main Interactive Viewport ── */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {!isPlaying ? (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-secondary)', zIndex: 20 }}>
-            <Flame size={56} color="var(--accent-ndrf-orange)" className="handheld-motion" />
-            <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800' }}>Trainee First-Person VR Viewport (Port 5000)</h2>
-            <p style={{ maxWidth: '540px', textAlign: 'center', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-              Cinematic Video Asset Integration & VR Simulation Interface. Plays synchronized footage clips (`1.mp4` – `9.mp4`) based on user protocol actions, streaming live REST telemetry to Port 8080.
+        {!isActive ? (
+          /* ── Pre-Game Lobby ── */
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', zIndex: 20, position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
+              <Flame size={64} color="var(--accent-ndrf-orange)" className="handheld-motion" />
+              <div style={{
+                position: 'absolute', top: -4, right: -4,
+                width: 14, height: 14, borderRadius: '50%',
+                background: 'var(--accent-red)',
+                animation: 'pulseRed 1s infinite'
+              }} />
+            </div>
+            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '800', letterSpacing: '1px' }}>
+              CBRN-X INTERACTIVE SIMULATION ENGINE
+            </h2>
+            <p style={{ maxWidth: '580px', textAlign: 'center', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              <strong style={{ color: 'var(--accent-ndrf-orange)' }}>Game-Like Interactive Environment.</strong> Click on scene objects to progress. Videos play on your actions and freeze on completion. Cursor movement drives parallax depth. All events stream live to Port 8080.
             </p>
-            <button className="btn-tactical" style={{ padding: '12px 28px', fontSize: '0.9rem' }} onClick={startSession}>
-              <Play size={16} /> INITIATE DEPLOYMENT
-            </button>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button className="btn-tactical" style={{ padding: '14px 32px', fontSize: '0.95rem' }} onClick={startSession}>
+                <Zap size={18} /> INITIATE DEPLOYMENT
+              </button>
+            </div>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '24px', color: 'var(--text-secondary)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+              <span>🖱️ CLICK to interact</span>
+              <span>⌨️ E/F/R/SPACE shortcuts</span>
+              <span>🎯 CURSOR drives parallax</span>
+            </div>
           </div>
         ) : (
+          /* ── Active Game Viewport ── */
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-            
-            {/* HTML5 Video Player Background (Synchronized MP4 Video Assets) */}
+
+            {/* ── Video Layer (PAUSED by default, plays on interaction) ── */}
             <video
               ref={videoRef}
-              src={VIDEO_STAGES[currentStageIdx].src}
-              autoPlay
-              loop
-              muted
+              preload="auto"
               playsInline
+              muted
               style={{
-                width: '100%',
-                height: '100%',
+                width: '100%', height: '100%',
                 objectFit: 'cover',
-                position: 'absolute',
-                inset: 0,
-                zIndex: 1
+                position: 'absolute', inset: 0, zIndex: 1,
+                filter: `saturate(1.3) contrast(1.1) sepia(0.05)`,
+                transition: 'filter 0.3s ease'
               }}
             />
 
-            {/* Visor Frame Overlay */}
-            {ppeState.mask && (
-              <div style={{
-                position: 'absolute',
-                inset: 0,
-                pointerEvents: 'none',
-                border: '32px solid rgba(15, 23, 42, 0.85)',
-                borderRadius: '120px',
-                boxShadow: 'inset 0 0 70px rgba(0, 0, 0, 0.95)',
-                zIndex: 15
+            {/* ── Video Crossfade Overlay (brief white flash on stage transitions) ── */}
+            {screenShake && (
+              <div className="screen-shake-flash" style={{
+                position: 'absolute', inset: 0, zIndex: 2,
+                background: 'rgba(245, 130, 32, 0.12)',
+                animation: 'fadeOut 0.4s ease forwards'
               }} />
             )}
 
-            {/* Interactive VR HUD Overlay */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              padding: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              zIndex: 20
+            {/* ── Gas Mask Visor Frame (when mask equipped) ── */}
+            {ppeState.mask && (
+              <div className="visor-frame" style={{
+                position: 'absolute', inset: 0, zIndex: 14, pointerEvents: 'none',
+              }}>
+                {/* Visor glass with breathing fog */}
+                <div className="visor-glass" />
+              </div>
+            )}
+
+            {/* ── Interactive Hotspot Layer (clickable scene regions) ── */}
+            {currentStageDef && (
+              <Hotspots
+                stage={currentStageDef.hotspots}
+                onAction={handleHotspotAction}
+                cursorPos={cursorPos}
+              />
+            )}
+
+            {/* ── HUD Overlay (parallax-shifted by cursor position) ── */}
+            <CursorParallaxLayer subscribe={parallax.subscribe} depth={0.5} style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              padding: '18px', display: 'flex', flexDirection: 'column',
+              justifyContent: 'space-between', zIndex: 20
             }}>
-              {/* Top Objective, Stage Banner & Compass Heading Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(245, 130, 32, 0.5)', padding: '10px 18px', borderRadius: '8px', color: 'var(--accent-ndrf-orange)', fontWeight: '700', fontSize: '0.85rem' }}>
-                  🎯 OBJECTIVE: {hudMessage}
+              {/* ── Top HUD Row ── */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                {/* Objective Banner */}
+                <div style={{
+                  background: 'rgba(7, 10, 15, 0.92)', border: '1px solid rgba(245, 130, 32, 0.5)',
+                  padding: '10px 18px', borderRadius: '8px',
+                  color: 'var(--accent-ndrf-orange)', fontWeight: '700', fontSize: '0.82rem',
+                  maxWidth: '480px', lineHeight: '1.4'
+                }}>
+                  🎯 {currentStageDef?.objective}
                 </div>
 
-                {/* Video Scene Track Indicator */}
-                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid var(--accent-cyan)', padding: '6px 14px', borderRadius: '8px', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Video size={14} /> {VIDEO_STAGES[currentStageIdx].label}
-                </div>
+                {/* Right HUD Cluster */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                  {/* Compass */}
+                  <div style={{
+                    background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(0, 242, 254, 0.3)',
+                    padding: '5px 14px', borderRadius: '6px',
+                    color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '0.76rem',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}>
+                    <Compass size={14} color="var(--accent-cyan)" /> N {compassHeading}°
+                  </div>
 
-                {/* PID Gas Detector Reading Widget */}
-                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(0, 242, 254, 0.5)', padding: '10px 18px', borderRadius: '8px', color: ppmReading > 200 ? 'var(--accent-red)' : 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.9rem' }}>
-                  📟 PID DETECTOR: {ppmReading} PPM
-                </div>
-              </div>
+                  {/* PID Gas Detector */}
+                  <div style={{
+                    background: 'rgba(7, 10, 15, 0.9)',
+                    border: `1px solid ${ppmReading > 200 ? 'rgba(239, 68, 68, 0.6)' : 'rgba(0, 242, 254, 0.4)'}`,
+                    padding: '8px 16px', borderRadius: '6px',
+                    color: ppmReading > 200 ? 'var(--accent-red)' : 'var(--accent-cyan)',
+                    fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.85rem'
+                  }}>
+                    📟 {ppmReading} PPM {ppmReading > 200 && <span className="warning-led">⚠️ DANGER</span>}
+                  </div>
 
-              {/* Reticle Crosshair */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(0, 242, 254, 0.8)' }}>
-                <Crosshair size={32} />
-              </div>
-
-              {/* Bottom Interactive Tactical Controls */}
-              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-                
-                {/* PPE Donning Controls */}
-                <div className="glass-hud" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)' }}>[E] PPE LOCKER:</span>
-                  <button className="btn-tactical" style={{ background: ppeState.mask ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('mask')}>
-                    {ppeState.mask ? '✅ Mask' : '😷 Don Mask [E]'}
-                  </button>
-                  <button className="btn-tactical" style={{ background: ppeState.suit ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('suit')}>
-                    {ppeState.suit ? '✅ Suit' : '🥼 Don Suit [E]'}
-                  </button>
-                  <button className="btn-tactical" style={{ background: ppeState.gloves ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('gloves')}>
-                    {ppeState.gloves ? '✅ Gloves' : '🧤 Don Gloves [E]'}
-                  </button>
-                </div>
-
-                {/* Scene Sequence Selectors */}
-                <div className="glass-hud" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <button className="btn-tactical" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => advanceVideoStage(0)}>🎬 Intro</button>
-                  <button className="btn-tactical" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => advanceVideoStage(5)}>🏃 Entry</button>
-                  <button className="btn-tactical" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => advanceVideoStage(6)}>📟 PID Scan</button>
-                  <button className="btn-tactical" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => advanceVideoStage(7)}>💻 Console</button>
-                </div>
-
-                {/* Tactical Actions */}
-                <div className="glass-hud" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button className="btn-tactical" onClick={() => handleDrumClick(3)}>🔍 Scan Drum #3 (Leaking)</button>
-                  <button className="btn-tactical" onClick={() => handleDrumClick(1)}>❌ Scan Drum #1 (Wrong)</button>
-                  <button className="btn-tactical" onClick={evacuateCivilian}>🏃 Evacuate Civilian ({civiliansEvacuated}/2) [R]</button>
-                  <button className="btn-tactical" onClick={applyContainment}>🛠️ Apply Sealant [F]</button>
-                  <button className="btn-tactical" onClick={passDecon}>Shower Decon [SPACE]</button>
+                  {/* PPE Status Badges */}
+                  <div style={{
+                    background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(255,255,255,0.1)',
+                    padding: '6px 12px', borderRadius: '6px',
+                    fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: '#fff',
+                    display: 'flex', gap: '8px'
+                  }}>
+                    <span style={{ color: ppeState.mask ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                      {ppeState.mask ? '✅' : '⬜'} MASK
+                    </span>
+                    <span style={{ color: ppeState.suit ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                      {ppeState.suit ? '✅' : '⬜'} SUIT
+                    </span>
+                    <span style={{ color: ppeState.gloves ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                      {ppeState.gloves ? '✅' : '⬜'} GLOVES
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* ── Center Reticle Crosshair ── */}
+              <div style={{
+                position: 'absolute', top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px'
+              }}>
+                <Crosshair size={36} color="rgba(0, 242, 254, 0.7)" strokeWidth={1.5} />
+                <span style={{
+                  fontSize: '0.65rem', fontFamily: 'var(--font-mono)',
+                  color: 'rgba(0, 242, 254, 0.5)', letterSpacing: '1px'
+                }}>
+                  CLICK TO INTERACT
+                </span>
+              </div>
+
+              {/* ── Bottom HUD Row ── */}
+              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px' }}>
+                {/* Left: Current video scene tag */}
+                <div className="glass-hud" style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Video size={14} color="var(--accent-cyan)" />
+                  <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                    {currentStageDef?.video.replace('/videos/', '').toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                    {gameStage === 'MISSION_END' ? '// COMPLETE' : '// PAUSED UNTIL CLICK'}
+                  </span>
+                </div>
+
+                {/* Center: Keyboard shortcut legend */}
+                <div className="glass-hud" style={{ padding: '6px 14px', fontSize: '0.68rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                  <strong style={{ color: '#fff' }}>E</strong>=PPE &nbsp;
+                  <strong style={{ color: '#fff' }}>F</strong>=Seal &nbsp;
+                  <strong style={{ color: '#fff' }}>R</strong>=Evac &nbsp;
+                  <strong style={{ color: '#fff' }}>SPACE</strong>=Decon &nbsp;
+                  <strong style={{ color: '#fff' }}>W</strong>=Advance
+                </div>
+
+                {/* Right: Mission stats */}
+                <div className="glass-hud" style={{ padding: '8px 14px', fontSize: '0.72rem', fontFamily: 'var(--font-mono)', display: 'flex', gap: '12px' }}>
+                  <span style={{ color: leakFound ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                    LEAK: {leakFound ? '✅' : '❓'}
+                  </span>
+                  <span style={{ color: civiliansEvacuated >= 2 ? 'var(--accent-green)' : 'var(--accent-yellow)' }}>
+                    EVAC: {civiliansEvacuated}/2
+                  </span>
+                  <span style={{ color: contained ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                    SEAL: {contained ? '✅' : '❌'}
+                  </span>
+                </div>
+              </div>
+            </CursorParallaxLayer>
           </div>
         )}
       </div>
 
-      {/* Live Telemetry Footer Bar */}
-      <footer style={{ padding: '8px 24px', background: '#05080c', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
-        <div>📡 LIVE HTTP TELEMETRY STREAM (PORT 5000 ➔ PORT 8080): {telemetryLogs[0] || 'Idle'}</div>
-        <div>ADMIN VIEW ON PORT 3000</div>
+      {/* ── Telemetry Footer ── */}
+      <footer style={{
+        padding: '7px 24px', background: '#05080c',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        fontSize: '0.72rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 25
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Eye size={12} />
+          <span>TELEMETRY (5000→8080): {telemetryLogs[0] || 'Awaiting interaction...'}</span>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', color: 'var(--text-secondary)' }}>
+          <span>CURSOR: {cursorPos.x},{cursorPos.y}</span>
+          <span>ADMIN: PORT 3000</span>
+        </div>
       </footer>
     </div>
   );
