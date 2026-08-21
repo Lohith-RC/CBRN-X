@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Play, RotateCcw, Send, Activity, Eye } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Play, RotateCcw, Send, Activity, Eye, Compass, Flame, Volume2, Cpu } from 'lucide-react';
 
 export default function App() {
   const mountRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hudMessage, setHudMessage] = useState('DON COMPLETE PPE BEFORE STEPPING INTO HAZARD PERIMETER');
-  const [ppmReading, setPpmReading] = useState(0);
+  const [hudMessage, setHudMessage] = useState('DON COMPLETE PPE BEFORE ENTERING STORAGE BAY 03');
+  const [ppmReading, setPpmReading] = useState(12.4);
   const [ppeState, setPpeState] = useState({ mask: false, suit: false, gloves: false });
   const [sessionId, setSessionId] = useState(null);
   const [telemetryLogs, setTelemetryLogs] = useState([]);
@@ -14,8 +14,10 @@ export default function App() {
   const [civiliansEvacuated, setCiviliansEvacuated] = useState(0);
   const [contained, setContained] = useState(false);
   const [deconComplete, setDeconComplete] = useState(false);
-  const [traineeName, setTraineeName] = useState('NDRF Constable Vikram');
-  const [batchUnit, setBatchUnit] = useState('10th NDRF Battalion');
+  const [compassHeading, setCompassHeading] = useState(150);
+
+  // Position and Movement Reference for WASD controls
+  const posRef = useRef({ x: 0, z: 8, rotY: 0 });
 
   const stateRef = useRef({
     hasPpe: false,
@@ -29,19 +31,18 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          traineeName,
-          batchUnit,
+          traineeName: 'NDRF Inspector Lohith R C',
+          batchUnit: '10th NDRF Battalion',
           scenarioCode: 'CBRN-CHEM-01'
         })
       });
       const data = await res.json();
       setSessionId(data.sessionId);
       stateRef.current.sessionId = data.sessionId;
-      setTelemetryLogs([`Session initialized: ${data.sessionId} [Port 5000 -> Port 8080]`]);
+      setTelemetryLogs([`Session started: ${data.sessionId} [Port 5000 -> Port 8080]`]);
       setIsPlaying(true);
     } catch (err) {
-      console.warn('Backend API on Port 8080 unreachable, using offline fallback simulation.');
-      const demoId = 'sess-sim-5000';
+      const demoId = 'sess-bodycam-5000';
       setSessionId(demoId);
       stateRef.current.sessionId = demoId;
       setIsPlaying(true);
@@ -50,7 +51,7 @@ export default function App() {
 
   const logEvent = async (eventType, eventData = '{}') => {
     const currentSess = stateRef.current.sessionId || sessionId;
-    setTelemetryLogs(prev => [`[${new Date().toLocaleTimeString()}] HTTP POST /api/events/log -> ${eventType}`, ...prev.slice(0, 5)]);
+    setTelemetryLogs(prev => [`[${new Date().toLocaleTimeString()}] ${eventType}`, ...prev.slice(0, 4)]);
     if (!currentSess) return;
     try {
       await fetch('/api/events/log', {
@@ -67,7 +68,7 @@ export default function App() {
       const allDone = updated.mask && updated.suit && updated.gloves;
       if (allDone) {
         stateRef.current.hasPpe = true;
-        setHudMessage('PPE DONNED. PROCEED TO STORAGE BAY 3 WITH PID GAS DETECTOR');
+        setHudMessage('PPE DONNING COMPLETE. PROTOCOL LEVEL 2 AUTHORIZED');
         logEvent('ppe_donning_completed', '{"status":"complete"}');
       } else {
         logEvent('ppe_item_equipped', `{"item":"${item}"}`);
@@ -79,10 +80,10 @@ export default function App() {
   const handleDrumClick = (drumIndex) => {
     if (drumIndex === 3) {
       setLeakingDrumFound(true);
-      setHudMessage('LEAK SOURCE CONFIRMED: DRUM #3 (CHLORINE GAS). ESCORT CIVILIANS TO SAFE ZONE');
+      setHudMessage('LEAK SOURCE CONFIRMED: DRUM #3 (CHLORINE AGENT). PRESS [R] TO ESCORT CIVILIANS');
       logEvent('leak_source_identified', '{"correct":true,"drumId":"DRUM-03"}');
     } else {
-      setHudMessage(`INCORRECT DRUM SCAN: DRUM #${drumIndex} IS INTACT (-5 PENALTY)`);
+      setHudMessage(`INCORRECT SCAN: DRUM #${drumIndex} IS INTACT (-5 PENALTY)`);
       logEvent('leak_source_identified', `{"correct":false,"drumId":"DRUM-0${drumIndex}"}`);
     }
   };
@@ -93,7 +94,7 @@ export default function App() {
       setCiviliansEvacuated(nextCount);
       logEvent('civilian_evacuated', `{"civilianId":"CIV-0${nextCount}"}`);
       if (nextCount === 2) {
-        setHudMessage('ALL CIVILIANS ESCORTED TO SAFE ZONE. APPLY CONTAINMENT SEALANT KIT');
+        setHudMessage('CIVILIANS ESCORTED TO SAFE ZONE. PRESS [F] TO APPLY CONTAINMENT SEALANT');
       }
     }
   };
@@ -104,13 +105,13 @@ export default function App() {
       return;
     }
     setContained(true);
-    setHudMessage('CHEMICAL LEAK CONTAINED! PROCEED TO DECONTAMINATION ARCHWAY');
+    setHudMessage('HAZARD SEALED! PRESS [SPACE] TO ENTER DECONTAMINATION ARCHWAY');
     logEvent('containment_completed', '{"drumId":"DRUM-03"}');
   };
 
   const passDecon = () => {
     setDeconComplete(true);
-    setHudMessage('DECONTAMINATION COMPLETE. MISSION ACCOMPLISHED!');
+    setHudMessage('DECONTAMINATION SHOWER COMPLETE. MISSION ACCOMPLISHED!');
     logEvent('decontamination_completed', '{"archway":true}');
   };
 
@@ -122,10 +123,57 @@ export default function App() {
       } catch (ignored) {}
     }
     setIsPlaying(false);
-    alert('Mission completed! Telemetry sent to Backend (Port 8080) & visible on Admin Dashboard (Port 3000).');
+    alert('Mission Complete! Telemetry logged to Port 8080 and visible on Admin Dashboard (Port 3000).');
   };
 
-  // 3D Three.js VR Simulation View
+  // Keyboard Listeners (WASD + Action Keys E, F, R, Space)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isPlaying) return;
+      const step = 0.4;
+      switch (e.key.toLowerCase()) {
+        case 'w':
+        case 'arrowup':
+          posRef.current.z -= step * Math.cos(posRef.current.rotY);
+          posRef.current.x -= step * Math.sin(posRef.current.rotY);
+          break;
+        case 's':
+        case 'arrowdown':
+          posRef.current.z += step * Math.cos(posRef.current.rotY);
+          posRef.current.x += step * Math.sin(posRef.current.rotY);
+          break;
+        case 'a':
+        case 'arrowleft':
+          posRef.current.rotY += 0.08;
+          setCompassHeading(h => (h - 5 + 360) % 360);
+          break;
+        case 'd':
+        case 'arrowright':
+          posRef.current.rotY -= 0.08;
+          setCompassHeading(h => (h + 5) % 360);
+          break;
+        case 'e':
+          if (!ppeState.mask) equipPpeItem('mask');
+          else if (!ppeState.suit) equipPpeItem('suit');
+          else if (!ppeState.gloves) equipPpeItem('gloves');
+          break;
+        case 'f':
+          applyContainment();
+          break;
+        case 'r':
+          evacuateCivilian();
+          break;
+        case ' ':
+          passDecon();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, ppeState, civiliansEvacuated, leakingDrumFound]);
+
+  // 3D Three.js Handheld Bodycam Scene Setup
   useEffect(() => {
     if (!mountRef.current || !isPlaying) return;
 
@@ -133,45 +181,75 @@ export default function App() {
     const height = mountRef.current.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070a0f);
-    scene.fog = new THREE.FogExp2(0x070a0f, 0.03);
+    scene.background = new THREE.Color(0x05080c);
+    scene.fog = new THREE.FogExp2(0x05080c, 0.035);
 
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.set(0, 1.7, 8);
+    const camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
+    camera.position.set(posRef.current.x, 1.7, posRef.current.z);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = true;
     mountRef.current.appendChild(renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // Industrial Lights (Orange Fire Flicker & Red Emergency Flasher)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xf58220, 1.2);
-    dirLight.position.set(10, 20, 10);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
+    const fireLight = new THREE.PointLight(0xf58220, 3, 20);
+    fireLight.position.set(0, 2, -4);
+    scene.add(fireLight);
 
-    // Floor & Grid
-    const grid = new THREE.GridHelper(40, 40, 0xf58220, 0x1e293b);
+    const redWarningLight = new THREE.PointLight(0xef4444, 2.5, 12);
+    redWarningLight.position.set(-5, 3, 0);
+    scene.add(redWarningLight);
+
+    // Concrete Asphalt Floor with Puddle Reflections
+    const grid = new THREE.GridHelper(50, 50, 0xf58220, 0x1e293b);
     scene.add(grid);
 
-    const floorGeo = new THREE.PlaneGeometry(40, 40);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+    const floorGeo = new THREE.PlaneGeometry(50, 50);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
-    // Chemical Storage Drums
-    const drumGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 16);
+    // STORAGE BAY 03 Industrial Building Structure
+    const wallGeo = new THREE.BoxGeometry(14, 6, 0.5);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 });
+    const backWall = new THREE.Mesh(wallGeo, wallMat);
+    backWall.position.set(0, 3, -8);
+    scene.add(backWall);
+
+    // PPE Donning Table (Steel workbench)
+    const tableGeo = new THREE.BoxGeometry(2.5, 0.9, 1.2);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 });
+    const table = new THREE.Mesh(tableGeo, tableMat);
+    table.position.set(4, 0.45, 4);
+    scene.add(table);
+
+    // Forklift on Fire inside BAY 03
+    const forkliftGeo = new THREE.BoxGeometry(2, 2.2, 3);
+    const forkliftMat = new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.5 });
+    const forklift = new THREE.Mesh(forkliftGeo, forkliftMat);
+    forklift.position.set(0, 1.1, -4);
+    scene.add(forklift);
+
+    // 4 Chemical Storage Drums (Drum #3 Leaking)
+    const drumGeo = new THREE.CylinderGeometry(0.55, 0.55, 1.2, 16);
     const drums = [];
-    const drumPositions = [{ x: -3, z: -2 }, { x: 3, z: -2 }, { x: 0, z: -4 }, { x: 4, z: -5 }];
+    const drumPositions = [
+      { x: -3, z: -2 },
+      { x: 3, z: -2 },
+      { x: -1, z: -5 }, // Leaking Drum #3
+      { x: 4, z: -4 }
+    ];
 
     drumPositions.forEach((pos, idx) => {
       const isLeak = idx === 2;
       const mat = new THREE.MeshStandardMaterial({
-        color: isLeak ? 0xeab308 : 0x475569,
-        metalness: 0.6,
+        color: isLeak ? 0xd97706 : 0x475569,
+        metalness: 0.7,
         roughness: 0.3
       });
       const drum = new THREE.Mesh(drumGeo, mat);
@@ -180,38 +258,67 @@ export default function App() {
       drums.push(drum);
     });
 
-    // Yellow Chlorine Gas Cloud Particles
-    const particleCount = 200;
+    // Yellow Toxic Gas Particles (Chlorine Agent Leak)
+    const particleCount = 250;
     const particlesGeo = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
+    const particlePositions = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 3;
-      positions[i + 1] = Math.random() * 2.5;
-      positions[i + 2] = -4 + (Math.random() - 0.5) * 3;
+      particlePositions[i] = -1 + (Math.random() - 0.5) * 3.5;
+      particlePositions[i + 1] = Math.random() * 2.5;
+      particlePositions[i + 2] = -5 + (Math.random() - 0.5) * 3.5;
     }
-    particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const particlesMat = new THREE.PointsMaterial({ color: 0xef4444, size: 0.2, transparent: true, opacity: 0.6 });
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particlesMat = new THREE.PointsMaterial({
+      color: 0xef4444,
+      size: 0.25,
+      transparent: true,
+      opacity: 0.65
+    });
     const gasCloud = new THREE.Points(particlesGeo, particlesMat);
     scene.add(gasCloud);
 
-    // Animation loop
+    // Control Terminal with Sparking Screen (3D Object)
+    const termGeo = new THREE.BoxGeometry(1.2, 1.8, 0.8);
+    const termMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 });
+    const terminal = new THREE.Mesh(termGeo, termMat);
+    terminal.position.set(-6, 0.9, 2);
+    scene.add(terminal);
+
+    // Animation Loop (Handheld Camera Shake + Dynamic PPM Calculation)
     let animId;
+    let clock = new THREE.Clock();
+
     const animate = () => {
       animId = requestAnimationFrame(animate);
-      gasCloud.rotation.y += 0.004;
+      const time = clock.getElapsedTime();
 
+      // Fire flicker effect
+      fireLight.intensity = 2.5 + Math.sin(time * 12) * 0.8;
+      gasCloud.rotation.y += 0.003;
+
+      // Update Camera Position & Rotation from WASD Controls
+      camera.position.x = posRef.current.x;
+      camera.position.z = posRef.current.z;
+      camera.rotation.y = posRef.current.rotY;
+
+      // Handheld mobile camera bobbing motion
+      camera.position.y = 1.7 + Math.sin(time * 6) * 0.03;
+
+      // Calculate PID Gas Detector distance reading to Leaking Drum #3 (-1, 0.6, -5)
       const dist = camera.position.distanceTo(drums[2].position);
-      const ppm = Math.max(0, Math.round(500 - dist * 75));
+      const ppm = Math.max(12.4, Math.round(480 - dist * 70));
       setPpmReading(ppm);
 
-      if (dist < 4 && !stateRef.current.hasPpe && !stateRef.current.inHazardZone) {
+      // Hazard Zone Boundary Check without PPE
+      if (dist < 4.5 && !stateRef.current.hasPpe && !stateRef.current.inHazardZone) {
         stateRef.current.inHazardZone = true;
-        setHudMessage('⚠️ PROTOCOL VIOLATION: ENTERED HAZARD PERIMETER WITHOUT PPE (-15 DEDUCTION)');
+        setHudMessage('⚠️ WARNING: ENTERED HAZARD ZONE WITHOUT PPE (-15 PENALTY)');
         logEvent('entered_hazard_zone_without_ppe', '{"warning":"Entered without PPE"}');
       }
 
       renderer.render(scene, camera);
     };
+
     animate();
 
     return () => {
@@ -221,94 +328,139 @@ export default function App() {
   }, [isPlaying]);
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#070a0f' }}>
-      {/* Top Navigation Header */}
-      <header className="glass-hud" style={{ padding: '12px 24px', borderRadius: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '8px', background: 'rgba(245,130,32,0.2)', borderRadius: '8px', border: '1px solid rgba(245,130,32,0.4)', color: 'var(--accent-ndrf-orange)' }}>
-            <Shield size={22} />
-          </div>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#05080c', position: 'relative' }}>
+      {/* Handheld Mobile Video / Bodycam Scanline Overlay */}
+      <div className="bodycam-overlay" />
+
+      {/* Top Header Watermark (Extracted from MP4 CCTV Header) */}
+      <header style={{ padding: '10px 24px', background: 'rgba(7, 10, 15, 0.95)', borderBottom: '1px solid rgba(245, 130, 32, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <Shield size={22} color="var(--accent-ndrf-orange)" />
           <div>
-            <h1 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff' }}>
-              CBRS-X Trainee VR Simulation Interface
-            </h1>
-            <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-              PORT 5000 • CONNECTED TO BACKEND PORT 8080
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+                CAM_BAY03_EXT // 21-AUG-2026 // 10:03:13 UTC
+              </span>
+              <span className="badge badge-pending" style={{ fontSize: '0.65rem' }}>
+                <Radio size={12} className="warning-led" /> LIVE BODYCAM [PORT 5000]
+              </span>
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              CBRS-X Trainee VR First-Person Simulation Interface (SIH260088)
+            </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
+            ID VALIDATED: [cite: TRN-4089]
+          </div>
           {!isPlaying ? (
-            <button className="btn-hud" style={{ background: 'var(--accent-ndrf-orange)' }} onClick={startSession}>
-              <Play size={16} /> Start Trainee VR Mission
+            <button className="btn-tactical" onClick={startSession}>
+              <Play size={14} /> INITIATE DEPLOYMENT
             </button>
           ) : (
-            <button className="btn-hud" style={{ background: 'var(--accent-green)' }} onClick={finishMission}>
-              <CheckCircle size={16} /> Complete & Send Telemetry
+            <button className="btn-tactical" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} onClick={finishMission}>
+              <CheckCircle size={14} /> COMPLETE MISSION
             </button>
           )}
         </div>
       </header>
 
-      {/* Main Content Viewport */}
+      {/* Main 3D VR Simulation Viewport */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {!isPlaying ? (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-secondary)' }}>
-            <Shield size={64} color="var(--accent-ndrf-orange)" />
-            <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '700' }}>Trainee Simulation Viewport (Port 5000)</h2>
-            <p style={{ maxWidth: '500px', textAlign: 'center', fontSize: '0.9rem' }}>
-              Physical VR Hardware Simulation Interface. Simulates first-person controls, chemical gas leak detection, PPE donning, and civilian evacuation, streaming telemetry directly to Backend Port 8080.
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-secondary)', zIndex: 20 }}>
+            <Flame size={56} color="var(--accent-ndrf-orange)" className="handheld-motion" />
+            <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800' }}>Trainee First-Person VR Viewport (Port 5000)</h2>
+            <p style={{ maxWidth: '540px', textAlign: 'center', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+              Extracted High-Fidelity Handheld Video Aesthetic & VR Simulation Interface. Incorporates WASD/Cursor controls, chemical gas cloud particle effects, PID detector scanning, and live REST telemetry streaming to Port 8080.
             </p>
-            <button className="btn-hud" style={{ background: 'var(--accent-ndrf-orange)', padding: '12px 24px', fontSize: '0.95rem' }} onClick={startSession}>
-              <Play size={18} /> Launch Simulation
+            <button className="btn-tactical" style={{ padding: '12px 28px', fontSize: '0.9rem' }} onClick={startSession}>
+              <Play size={16} /> INITIATE DEPLOYMENT
             </button>
           </div>
         ) : (
           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {/* 3D WebGL Canvas View */}
             <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
 
+            {/* Handheld Visor & CBRN Mask Visor Frame Overlay */}
+            {ppeState.mask && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                pointerEvents: 'none',
+                border: '30px solid rgba(15, 23, 42, 0.85)',
+                borderRadius: '120px',
+                boxShadow: 'inset 0 0 60px rgba(0, 0, 0, 0.9)',
+                zIndex: 15
+              }} />
+            )}
+
             {/* VR HUD Overlay */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '2px solid rgba(0,242,254,0.3)', boxShadow: 'inset 0 0 80px rgba(0,0,0,0.85)' }}>
-              
-              {/* Top Banner */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              zIndex: 20
+            }}>
+              {/* Top Objective & Compass Heading Bar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ background: 'rgba(11, 15, 23, 0.9)', border: '1px solid rgba(245, 130, 32, 0.5)', padding: '10px 18px', borderRadius: '8px', color: 'var(--accent-ndrf-orange)', fontWeight: '700', fontSize: '0.85rem' }}>
+                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(245, 130, 32, 0.5)', padding: '10px 18px', borderRadius: '8px', color: 'var(--accent-ndrf-orange)', fontWeight: '700', fontSize: '0.85rem' }}>
                   🎯 OBJECTIVE: {hudMessage}
                 </div>
-                <div style={{ background: 'rgba(11, 15, 23, 0.9)', border: '1px solid rgba(0, 242, 254, 0.5)', padding: '10px 18px', borderRadius: '8px', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.88rem' }}>
+
+                {/* Compass Heading Indicator */}
+                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid var(--border-subtle)', padding: '6px 16px', borderRadius: '8px', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Compass size={16} color="var(--accent-cyan)" />
+                  HEADING: N {compassHeading}°
+                </div>
+
+                {/* PID Gas Detector Reading Widget (Extracted from MP4 #9) */}
+                <div style={{ background: 'rgba(7, 10, 15, 0.9)', border: '1px solid rgba(0, 242, 254, 0.5)', padding: '10px 18px', borderRadius: '8px', color: ppmReading > 200 ? 'var(--accent-red)' : 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.9rem' }}>
                   📟 PID DETECTOR: {ppmReading} PPM
                 </div>
               </div>
 
-              {/* Crosshair */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(255, 255, 255, 0.7)' }}>
+              {/* Reticle Crosshair with Target Hotspot Marker */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(0, 242, 254, 0.8)' }}>
                 <Crosshair size={32} />
               </div>
 
-              {/* Bottom Interactive HUD */}
-              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px' }}>
+              {/* Bottom Interactive HUD (Keyboard Commands + Cursor Buttons) */}
+              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                
                 {/* PPE Donning Controls */}
-                <div className="glass-hud" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)' }}>PPE LOCKER:</span>
-                  <button className="btn-hud" style={{ background: ppeState.mask ? 'var(--accent-green)' : '' }} onClick={() => equipPpeItem('mask')}>
-                    {ppeState.mask ? '✅ Mask' : '😷 Don Mask'}
+                <div className="glass-hud" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-secondary)' }}>[E] PPE LOCKER:</span>
+                  <button className="btn-tactical" style={{ background: ppeState.mask ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('mask')}>
+                    {ppeState.mask ? '✅ Mask' : '😷 Don Mask [E]'}
                   </button>
-                  <button className="btn-hud" style={{ background: ppeState.suit ? 'var(--accent-green)' : '' }} onClick={() => equipPpeItem('suit')}>
-                    {ppeState.suit ? '✅ Suit' : '🥼 Don Suit'}
+                  <button className="btn-tactical" style={{ background: ppeState.suit ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('suit')}>
+                    {ppeState.suit ? '✅ Suit' : '🥼 Don Suit [E]'}
                   </button>
-                  <button className="btn-hud" style={{ background: ppeState.gloves ? 'var(--accent-green)' : '' }} onClick={() => equipPpeItem('gloves')}>
-                    {ppeState.gloves ? '✅ Gloves' : '🧤 Don Gloves'}
+                  <button className="btn-tactical" style={{ background: ppeState.gloves ? 'rgba(16, 185, 129, 0.25)' : '' }} onClick={() => equipPpeItem('gloves')}>
+                    {ppeState.gloves ? '✅ Gloves' : '🧤 Don Gloves [E]'}
                   </button>
                 </div>
 
+                {/* Keyboard Control Instructions */}
+                <div className="glass-hud" style={{ padding: '8px 14px', fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                  🎮 CONTROLS: <strong>WASD / ARROWS</strong> = Move | <strong>E</strong> = PPE | <strong>F</strong> = Sealant | <strong>R</strong> = Evacuate | <strong>SPACE</strong> = Decon
+                </div>
+
                 {/* Tactical Actions */}
-                <div className="glass-hud" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button className="btn-hud" onClick={() => handleDrumClick(3)}>🔍 Scan Drum #3 (Leaking)</button>
-                  <button className="btn-hud" onClick={() => handleDrumClick(1)}>❌ Scan Drum #1 (Wrong)</button>
-                  <button className="btn-hud" onClick={evacuateCivilian}>🏃 Evacuate Civilian ({civiliansEvacuated}/2)</button>
-                  <button className="btn-hud" onClick={applyContainment}>🛠️ Apply Sealant</button>
-                  <button className="btn-hud" onClick={passDecon}>Shower Decon</button>
+                <div className="glass-hud" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button className="btn-tactical" onClick={() => handleDrumClick(3)}>🔍 Scan Drum #3 (Leaking)</button>
+                  <button className="btn-tactical" onClick={() => handleDrumClick(1)}>❌ Scan Drum #1 (Wrong)</button>
+                  <button className="btn-tactical" onClick={evacuateCivilian}>🏃 Evacuate Civilian ({civiliansEvacuated}/2) [R]</button>
+                  <button className="btn-tactical" onClick={applyContainment}>🛠️ Apply Sealant [F]</button>
+                  <button className="btn-tactical" onClick={passDecon}>Shower Decon [SPACE]</button>
                 </div>
               </div>
             </div>
@@ -316,10 +468,10 @@ export default function App() {
         )}
       </div>
 
-      {/* Telemetry Stream Footer */}
-      <footer style={{ padding: '8px 24px', background: '#0b0f17', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Live Telemetry Footer Bar */}
+      <footer style={{ padding: '8px 24px', background: '#05080c', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 20 }}>
         <div>📡 LIVE HTTP TELEMETRY STREAM (PORT 5000 ➔ PORT 8080): {telemetryLogs[0] || 'Idle'}</div>
-        <div>ADMIN VIEW AVAILABLE ON PORT 3000</div>
+        <div>ADMIN VIEW ON PORT 3000</div>
       </footer>
     </div>
   );

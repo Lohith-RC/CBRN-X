@@ -2,12 +2,12 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --bg-dark: #070a0f;
-  --bg-card: rgba(15, 23, 42, 0.85);
+  --bg-dark: #05080c;
   --accent-ndrf-orange: #f58220;
   --accent-cyan: #00f2fe;
   --accent-green: #10b981;
   --accent-red: #ef4444;
+  --accent-yellow: #eab308;
 
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
@@ -25,33 +25,74 @@ body {
   font-family: var(--font-sans);
   height: 100vh;
   overflow: hidden;
+  user-select: none;
+}
+
+/* Handheld Mobile Video & Bodycam Grain Filter */
+.bodycam-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: 
+    radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.85) 100%),
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 100%, 100% 4px;
+  box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+  z-index: 10;
+}
+
+/* Visor Glass & Noise Animation */
+@keyframes bodycamShake {
+  0% { transform: translate(0px, 0px) rotate(0deg); }
+  25% { transform: translate(1px, -1px) rotate(0.1deg); }
+  50% { transform: translate(-1px, 1px) rotate(-0.1deg); }
+  75% { transform: translate(1px, 1px) rotate(0.05deg); }
+  100% { transform: translate(0px, 0px) rotate(0deg); }
+}
+
+.handheld-motion {
+  animation: bodycamShake 2s infinite ease-in-out;
 }
 
 .glass-hud {
-  background: rgba(11, 15, 23, 0.85);
+  background: rgba(7, 10, 15, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border: 1px solid rgba(245, 130, 32, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
-.btn-hud {
-  background: rgba(255, 255, 255, 0.08);
+.btn-tactical {
+  background: rgba(245, 130, 32, 0.15);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  border: 1px solid rgba(245, 130, 32, 0.4);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   transition: all 0.2s ease;
 }
 
-.btn-hud:hover {
-  background: rgba(245, 130, 32, 0.25);
-  border-color: rgba(245, 130, 32, 0.5);
+.btn-tactical:hover {
+  background: rgba(245, 130, 32, 0.35);
+  border-color: var(--accent-ndrf-orange);
+  box-shadow: 0 0 15px rgba(245, 130, 32, 0.4);
   transform: translateY(-1px);
+}
+
+/* Pulsing warning LED */
+@keyframes pulseRed {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.warning-led {
+  animation: pulseRed 1s infinite ease-in-out;
 }
