@@ -54,7 +54,11 @@ desktop.ini
 *.swp
 *.bak
 
-# 6. Environment Files (Security & Credentials)
+# 6. Documentation Files (Ignore internal notes, keep only README.md)
+*.md
+!README.md
+
+# 7. Environment Files (Security & Credentials)
 .env
 .env.local
 .env.development.local
