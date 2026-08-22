@@ -1,19 +1,46 @@
-Write-Host "===========================================================" -ForegroundColor Cyan
-Write-Host " CBRS-X -- Launching Multi-Port Architecture (8080, 3000, 5000)" -ForegroundColor Cyan
-Write-Host "===========================================================" -ForegroundColor Cyan
+# CBRS-X - Start All Services (Development Mode)
+# Launches backend (8080), instructor dashboard (3000), and trainee view (5000).
 
-Write-Host "[1/3] Starting Spring Boot Core Backend Engine on Port 8080..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\backend'; mvn spring-boot:run"
+$ErrorActionPreference = 'Stop'
 
-Write-Host "[2/3] Starting Admin Dashboard on Port 3000..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\dashboard'; npm run dev"
+if (-not $PSScriptRoot) {
+    Write-Host "[ERROR] Run this script from its own file location (right-click may not populate PSScriptRoot)." -ForegroundColor Red
+    exit 1
+}
 
-Write-Host "[3/3] Starting Trainee VR Simulation Interface on Port 5000..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\trainee_view'; npm run dev"
+Set-Location -LiteralPath $PSScriptRoot
 
-Write-Host "===========================================================" -ForegroundColor Green
-Write-Host " ALL SERVICES LAUNCHED SUCCESSFULLY!" -ForegroundColor Green
-Write-Host " 1. Backend Engine API : http://localhost:8080" -ForegroundColor Green
-Write-Host " 2. Admin Dashboard UI : http://localhost:3000" -ForegroundColor Green
-Write-Host " 3. Trainee VR Vision  : http://localhost:5000" -ForegroundColor Green
-Write-Host "===========================================================" -ForegroundColor Green
+function Test-Command([string]$Name) {
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+$missing = @()
+foreach ($tool in @('mvn', 'npm', 'node', 'java')) {
+    if (-not (Test-Command $tool)) { $missing += $tool }
+}
+if ($missing.Count -gt 0) {
+    Write-Host "[ERROR] Missing required tools on PATH: $($missing -join ', ')" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "==> Starting CBRS-X Backend on :8080 ..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", `
+    "Set-Location '$PSScriptRoot\backend'; mvn spring-boot:run"
+
+Start-Sleep -Seconds 3
+
+Write-Host "==> Starting Instructor Dashboard on :3000 ..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", `
+    "Set-Location '$PSScriptRoot\dashboard'; npm run dev"
+
+Start-Sleep -Seconds 2
+
+Write-Host "==> Starting Trainee VR View on :5000 ..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", `
+    "Set-Location '$PSScriptRoot\trainee_view'; npm run dev"
+
+Write-Host ""
+Write-Host "All services launching:" -ForegroundColor Green
+Write-Host "  Backend   : http://localhost:8080"
+Write-Host "  Dashboard : http://localhost:3000"
+Write-Host "  Trainee   : http://localhost:5000"

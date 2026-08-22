@@ -274,7 +274,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                string json = "{\"drumId\":\"" + drum.drumId +
+                string json = "{\"drumId\":\"" + CbrsEventLogger.JsonEscape(drum.drumId) +
                               "\",\"reading_value\":" + currentCalculatedPpm.ToString("F1") +
                               ",\"is_correct\":" + (drum.isLeaking ? "true" : "false") + "}";
                 CbrsEventLogger.Instance.LogEvent("drum_scanned", json);
@@ -292,7 +292,7 @@ namespace CBRSX.Unity
             {
                 if (CbrsEventLogger.Instance != null)
                 {
-                    string json = "{\"correct\":false,\"drum_id\":\"" + drum.drumId + "\"}";
+                    string json = "{\"correct\":false,\"drum_id\":\"" + CbrsEventLogger.JsonEscape(drum.drumId) + "\"}";
                     CbrsEventLogger.Instance.LogEvent("leak_source_identified", json);
                 }
 

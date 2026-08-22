@@ -3,33 +3,53 @@ module.exports = {
     {
       name: 'cbrsx-backend-8080',
       cwd: './backend',
-      script: 'mvn',
-      args: 'spring-boot:run',
+      script: 'java',
+      args: '-jar target/cbrsx-backend-1.0.0-SNAPSHOT.jar',
       env: {
-        PORT: 8080,
-        SPRING_PROFILES_ACTIVE: 'dev'
+        SPRING_PROFILES_ACTIVE: 'prod',
+        SERVER_PORT: 8080,
       },
-      watch: false
+      max_memory_restart: '1G',
+      kill_timeout: 10000,
+      max_restarts: 5,
+      min_uptime: '20s',
+      restart_delay: 3000,
+      out_file: './logs/backend-out.log',
+      error_file: './logs/backend-error.log',
+      merge_logs: true,
+      time: true,
     },
     {
       name: 'cbrsx-admin-3000',
       cwd: './dashboard',
-      script: 'npm',
-      args: 'run dev',
+      script: 'npx',
+      args: 'vite preview --host --port 3000 --strictPort',
       env: {
-        PORT: 3000
+        NODE_ENV: 'production',
       },
-      watch: false
+      max_memory_restart: '400M',
+      kill_timeout: 5000,
+      max_restarts: 5,
+      min_uptime: '15s',
+      out_file: '../logs/admin-out.log',
+      error_file: '../logs/admin-error.log',
+      time: true,
     },
     {
       name: 'cbrsx-trainee-5000',
       cwd: './trainee_view',
-      script: 'npm',
-      args: 'run dev',
+      script: 'npx',
+      args: 'vite preview --host --port 5000 --strictPort',
       env: {
-        PORT: 5000
+        NODE_ENV: 'production',
       },
-      watch: false
-    }
-  ]
+      max_memory_restart: '400M',
+      kill_timeout: 5000,
+      max_restarts: 5,
+      min_uptime: '15s',
+      out_file: '../logs/trainee-out.log',
+      error_file: '../logs/trainee-error.log',
+      time: true,
+    },
+  ],
 };
