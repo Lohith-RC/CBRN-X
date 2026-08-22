@@ -19,6 +19,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -30,28 +32,90 @@ public class ScoringService {
     private final ScenarioRepository scenarioRepository;
 
     public static final int PASS_THRESHOLD = 70;
+    public static final int MAX_RAW_SCORE = 80;
+    public static final int PPE_MAX_SCORE = 10;
+    public static final int DETECTION_MAX_SCORE = 10;
+    public static final int EVACUATION_MAX_SCORE = 15;
+    public static final int EVACUATION_SCORE_PER_CIVILIAN = 5;
+    public static final int CONTAINMENT_MAX_SCORE = 15;
+    public static final int DECONTAMINATION_MAX_SCORE = 10;
+    public static final int TIME_BONUS_MAX_SCORE = 20;
+    public static final int PENALTY_ENTER_WITHOUT_PPE = 15;
+    public static final int PENALTY_WRONG_DRUM_SCAN = 5;
+    public static final int PENALTY_CIVILIAN_LEFT_BEHIND = 10;
+    public static final int PENALTY_CONTAINMENT_SKIPPED = 15;
+    public static final int PENALTY_DECON_SKIPPED = 10;
+    public static final long TIER_EXCELLENT_SECONDS = 180;
+    public static final long TIER_GOOD_SECONDS = 300;
+    public static final long TIER_ACCEPTABLE_SECONDS = 450;
 
+    private static final Pattern COUNT_FIELD_PATTERN = Pattern.compile("\"count\"\\s*:\\s*(\\d+)");
+    private static final String WRONG_SCAN_MARKER = "\"correct\"\\s*:\\s*false";
+
+    /**
+     * Read-only score computation. Safe to call from GET endpoints; never mutates state.
+     * For sessions without a stored completion time, the latest scenario_completed event
+     * timestamp is used as the completion instant.
+     */
+    @Transactional(readOnly = true)
+    public ScoreReportDTO previewScore(String sessionId) {
+        TrainingSession session = requireSession(sessionId);
+        return buildReport(session);
+    }
+
+    /**
+     * Finalizes a session: stamps completion, persists final score and pass status.
+     * Idempotent - re-invocation reuses the original completedAt and recomputes identically.
+     */
     @Transactional
-    public ScoreReportDTO calculateAndFinalizeScore(String sessionId) {
-        TrainingSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+    public ScoreReportDTO finalizeSession(String sessionId) {
+        TrainingSession session = requireSession(sessionId);
+        if (session.getCompletedAt() == null) {
+            session.setCompletedAt(resolveCompletionInstant(session));
+        }
+        ScoreReportDTO report = buildReport(session);
+        session.setFinalScore(report.getFinalScore());
+        session.setPassStatus(report.getPassStatus());
+        sessionRepository.save(session);
+        return report;
+    }
 
+    private TrainingSession requireSession(String sessionId) {
+        return sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+    }
+
+    private Instant resolveCompletionInstant(TrainingSession session) {
+        if (session.getCompletedAt() != null) {
+            return session.getCompletedAt();
+        }
+        List<SessionEvent> events = eventRepository.findBySessionIdOrderByTimestampAsc(session.getSessionId());
+        return events.stream()
+                .filter(e -> "scenario_completed".equals(e.getEventType()))
+                .map(SessionEvent::getTimestamp)
+                .reduce((first, second) -> second)
+                .orElseGet(() -> session.getStartedAt());
+    }
+
+    private ScoreReportDTO buildReport(TrainingSession session) {
         Trainee trainee = traineeRepository.findById(session.getTraineeId())
                 .orElse(Trainee.builder().name("Unknown Trainee").batchUnit("NDRF Unit 1").build());
 
         Scenario scenario = scenarioRepository.findById(session.getScenarioId())
                 .orElse(Scenario.builder().code("CBRN-CHEM-01").title("Chemical Spill Emergency").build());
 
-        List<SessionEvent> events = eventRepository.findBySessionIdOrderByTimestampAsc(sessionId);
+        List<SessionEvent> events = eventRepository.findBySessionIdOrderByTimestampAsc(session.getSessionId());
 
-        Instant completedAt = session.getCompletedAt() != null ? session.getCompletedAt() : Instant.now();
-        if (session.getCompletedAt() == null) {
-            session.setCompletedAt(completedAt);
-        }
+        Instant completedAt = session.getCompletedAt() != null
+                ? session.getCompletedAt()
+                : events.stream()
+                        .filter(e -> "scenario_completed".equals(e.getEventType()))
+                        .map(SessionEvent::getTimestamp)
+                        .reduce((first, second) -> second)
+                        .orElse(Instant.now());
 
         long durationSeconds = Math.max(1, Duration.between(session.getStartedAt(), completedAt).getSeconds());
 
-        // Scoring components
         int ppeScore = 0;
         int detectionScore = 0;
         int evacuationScore = 0;
@@ -72,9 +136,9 @@ public class ScoringService {
         boolean containmentDone = false;
         boolean deconDone = false;
 
-        // Process event stream
         for (SessionEvent event : events) {
             String type = event.getEventType();
+            String data = event.getEventData();
 
             switch (type) {
                 case "ppe_donning_completed":
@@ -84,24 +148,24 @@ public class ScoringService {
 
                 case "entered_hazard_zone_without_ppe":
                     enterWithoutPpeOccurred = true;
-                    totalPenalties += 15;
+                    totalPenalties += PENALTY_ENTER_WITHOUT_PPE;
                     mistakes.add(MistakeDetailDTO.builder()
                             .stage("PPE Donning / Entry")
                             .description("Entered chemical hazard zone without donning complete CBRN PPE.")
-                            .deductionPoints(15)
+                            .deductionPoints(PENALTY_ENTER_WITHOUT_PPE)
                             .severity("HIGH")
                             .timestamp(event.getTimestamp())
                             .build());
                     break;
 
                 case "leak_source_identified":
-                    if (event.getEventData() != null && event.getEventData().contains("\"correct\":false")) {
+                    if (data != null && data.matches("(?s).*" + WRONG_SCAN_MARKER + ".*")) {
                         wrongDrumScans++;
-                        totalPenalties += 5;
+                        totalPenalties += PENALTY_WRONG_DRUM_SCAN;
                         mistakes.add(MistakeDetailDTO.builder()
                                 .stage("Detection & Identification")
                                 .description("Flagged wrong chemical storage drum as leak source.")
-                                .deductionPoints(5)
+                                .deductionPoints(PENALTY_WRONG_DRUM_SCAN)
                                 .severity("MEDIUM")
                                 .timestamp(event.getTimestamp())
                                 .build());
@@ -115,16 +179,7 @@ public class ScoringService {
                     break;
 
                 case "evacuation_incomplete":
-                    // Parse left behind count if available
-                    civiliansLeftBehindCount = 1;
-                    if (event.getEventData() != null && event.getEventData().contains("count")) {
-                        try {
-                            String numStr = event.getEventData().replaceAll("[^0-9]", "");
-                            if (!numStr.isEmpty()) {
-                                civiliansLeftBehindCount = Integer.parseInt(numStr);
-                            }
-                        } catch (Exception ignored) {}
-                    }
+                    civiliansLeftBehindCount = extractCount(data);
                     break;
 
                 case "containment_completed":
@@ -134,32 +189,37 @@ public class ScoringService {
                 case "decontamination_completed":
                     deconDone = true;
                     break;
+
+                default:
+                    break;
             }
         }
 
         // 1. PPE Score
         if (ppeDonned && !enterWithoutPpeOccurred) {
-            ppeScore = 10;
+            ppeScore = PPE_MAX_SCORE;
         } else if (ppeDonned) {
-            ppeScore = 5;
+            ppeScore = PPE_MAX_SCORE / 2;
         }
 
         // 2. Detection Score
         if (correctLeakIdentified && wrongDrumScans == 0) {
-            detectionScore = 10;
+            detectionScore = DETECTION_MAX_SCORE;
         } else if (correctLeakIdentified) {
-            detectionScore = 5;
+            detectionScore = DETECTION_MAX_SCORE / 2;
         }
 
-        // 3. Evacuation Score
+        // 3. Evacuation Score - full clearance earns max; partial evacuations are
+        // scored per civilian but hard-capped so the component can never exceed its budget
         if (civiliansEvacuatedCount >= 2 && civiliansLeftBehindCount == 0) {
-            evacuationScore = 15;
+            evacuationScore = EVACUATION_MAX_SCORE;
         } else if (civiliansEvacuatedCount > 0) {
-            evacuationScore = 5 * civiliansEvacuatedCount;
+            evacuationScore = Math.min(EVACUATION_MAX_SCORE,
+                    EVACUATION_SCORE_PER_CIVILIAN * civiliansEvacuatedCount);
         }
 
         if (civiliansLeftBehindCount > 0) {
-            int penalty = 10 * civiliansLeftBehindCount;
+            int penalty = PENALTY_CIVILIAN_LEFT_BEHIND * civiliansLeftBehindCount;
             totalPenalties += penalty;
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Civilian Evacuation")
@@ -172,12 +232,13 @@ public class ScoringService {
 
         // 4. Containment Score
         if (containmentDone) {
-            containmentScore = 15;
+            containmentScore = CONTAINMENT_MAX_SCORE;
         } else {
+            totalPenalties += PENALTY_CONTAINMENT_SKIPPED;
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Hazard Containment")
                     .description("Failed to complete containment sealant protocol on leaking drum.")
-                    .deductionPoints(15)
+                    .deductionPoints(PENALTY_CONTAINMENT_SKIPPED)
                     .severity("HIGH")
                     .timestamp(completedAt)
                     .build());
@@ -185,42 +246,40 @@ public class ScoringService {
 
         // 5. Decontamination Score
         if (deconDone) {
-            decontaminationScore = 10;
+            decontaminationScore = DECONTAMINATION_MAX_SCORE;
         } else {
-            totalPenalties += 10;
+            totalPenalties += PENALTY_DECON_SKIPPED;
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Decontamination")
                     .description("Skipped post-operation decontamination station protocol.")
-                    .deductionPoints(10)
+                    .deductionPoints(PENALTY_DECON_SKIPPED)
                     .severity("MEDIUM")
                     .timestamp(completedAt)
                     .build());
         }
 
         // 6. Time Bonus
-        if (durationSeconds <= 180) {
-            timeBonusScore = 20;
-        } else if (durationSeconds <= 300) {
+        if (durationSeconds <= TIER_EXCELLENT_SECONDS) {
+            timeBonusScore = TIME_BONUS_MAX_SCORE;
+        } else if (durationSeconds <= TIER_GOOD_SECONDS) {
             timeBonusScore = 15;
-        } else if (durationSeconds <= 450) {
+        } else if (durationSeconds <= TIER_ACCEPTABLE_SECONDS) {
             timeBonusScore = 10;
         } else {
             timeBonusScore = 5;
         }
 
-        // Raw Total & Final Normalized Score (80 max achievable raw points = 100 final score)
-        int rawPositive = ppeScore + detectionScore + evacuationScore + containmentScore + decontaminationScore + timeBonusScore;
+        int rawPositive = ppeScore + detectionScore + evacuationScore + containmentScore
+                + decontaminationScore + timeBonusScore;
         int netScore = Math.max(0, rawPositive - totalPenalties);
-        int finalScore = Math.min(100, (int) Math.round((double) netScore / 80.0 * 100.0));
+        int finalScore = Math.min(100, (int) Math.round((double) netScore / MAX_RAW_SCORE * 100.0));
 
-        String passStatus = finalScore >= PASS_THRESHOLD ? "PASSED" : "FAILED";
+        boolean passed = finalScore >= PASS_THRESHOLD;
+        String passStatus = session.getPassStatus() != null && !"IN_PROGRESS".equals(session.getPassStatus())
+                && session.getCompletedAt() != null
+                ? session.getPassStatus()
+                : (passed ? "PASSED" : "FAILED");
 
-        // Save session final score & status
-        session.setFinalScore(finalScore);
-        session.setPassStatus(passStatus);
-        sessionRepository.save(session);
-
-        // Generate tailored recommendations
         if (enterWithoutPpeOccurred) {
             recommendations.add("ALWAYS equip complete CBRN PPE (Mask, Suit, Gloves) before stepping past the hazard perimeter.");
         }
@@ -232,6 +291,9 @@ public class ScoringService {
         }
         if (!deconDone) {
             recommendations.add("Complete mandatory shower decontamination before ending mission to prevent cross-contamination.");
+        }
+        if (!containmentDone) {
+            recommendations.add("Locate and seal the leaking drum with the containment kit before leaving the hazard zone.");
         }
         if (recommendations.isEmpty()) {
             recommendations.add("Excellent response! Full compliance with NDRF Chemical Disaster Standard Operating Procedure.");
@@ -245,11 +307,11 @@ public class ScoringService {
                 .decontaminationScore(decontaminationScore)
                 .timeBonusScore(timeBonusScore)
                 .totalPenalties(totalPenalties)
-                .rawTotalScore(netScore)
+                .netScore(netScore)
                 .build();
 
         return ScoreReportDTO.builder()
-                .sessionId(sessionId)
+                .sessionId(session.getSessionId())
                 .traineeId(session.getTraineeId())
                 .traineeName(trainee.getName())
                 .batchUnit(trainee.getBatchUnit())
@@ -260,10 +322,25 @@ public class ScoringService {
                 .totalDurationSeconds(durationSeconds)
                 .finalScore(finalScore)
                 .passStatus(passStatus)
-                .passed(finalScore >= PASS_THRESHOLD)
+                .passed(passed)
                 .breakdown(breakdown)
                 .mistakes(mistakes)
                 .recommendations(recommendations)
                 .build();
+    }
+
+    private int extractCount(String eventData) {
+        if (eventData == null || !eventData.contains("count")) {
+            return 1;
+        }
+        Matcher matcher = COUNT_FIELD_PATTERN.matcher(eventData);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (NumberFormatException ignored) {
+                return 1;
+            }
+        }
+        return 1;
     }
 }
