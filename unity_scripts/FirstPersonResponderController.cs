@@ -287,9 +287,9 @@ namespace CBRSX.Unity
             if (other.CompareTag("PpeStation"))
             {
                 if (GameManager.Instance != null &&
-                    GameManager.Instance.currentStage == GameManager.Stage.InitialAssessment)
+                    GameManager.Instance.currentStage == GameManager.ScenarioStage.PerimeterAssessment)
                 {
-                    GameManager.Instance.SetStage(GameManager.Stage.PpeDonning);
+                    GameManager.Instance.SetStage(GameManager.ScenarioStage.LevelBDonning);
                 }
             }
         }

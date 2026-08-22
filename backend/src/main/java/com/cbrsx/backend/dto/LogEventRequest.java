@@ -1,10 +1,18 @@
 package com.cbrsx.backend.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 
 public class LogEventRequest {
+    @NotBlank(message = "sessionId is required")
+    @Size(max = 64, message = "sessionId must not exceed 64 characters")
     private String sessionId;
+    @NotBlank(message = "eventType is required")
+    @Pattern(regexp = "^[a-z0-9_]{3,64}$", message = "eventType must be 3-64 chars: lowercase letters, digits, underscores")
     private String eventType;
+    @Size(max = 4096, message = "eventData must not exceed 4096 characters")
     private String eventData;
     private Instant timestamp;
 
@@ -32,9 +40,14 @@ public class LogEventRequest {
     public static LogEventRequestBuilder builder() { return new LogEventRequestBuilder(); }
 
     public static class LogEventRequestBuilder {
-        private String sessionId;
-        private String eventType;
-        private String eventData;
+        @NotBlank(message = "sessionId is required")
+    @Size(max = 64, message = "sessionId must not exceed 64 characters")
+    private String sessionId;
+        @NotBlank(message = "eventType is required")
+    @Pattern(regexp = "^[a-z0-9_]{3,64}$", message = "eventType must be 3-64 chars: lowercase letters, digits, underscores")
+    private String eventType;
+        @Size(max = 4096, message = "eventData must not exceed 4096 characters")
+    private String eventData;
         private Instant timestamp;
 
         public LogEventRequestBuilder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
@@ -47,3 +60,4 @@ public class LogEventRequest {
         }
     }
 }
+

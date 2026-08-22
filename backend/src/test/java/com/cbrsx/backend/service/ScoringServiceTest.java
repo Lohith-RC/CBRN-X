@@ -67,7 +67,7 @@ class ScoringServiceTest {
     }
 
     @Test
-    void calculateAndFinalizeScore_PerfectRun_ShouldPassWith100() {
+    void finalizeSession_PerfectRun_ShouldPassWith100() {
         List<SessionEvent> events = Arrays.asList(
                 SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
                 SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
@@ -82,7 +82,7 @@ class ScoringServiceTest {
 
         when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
 
-        ScoreReportDTO report = scoringService.calculateAndFinalizeScore(sessionId);
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
 
         assertNotNull(report);
         assertTrue(report.isPassed());
@@ -92,7 +92,7 @@ class ScoringServiceTest {
     }
 
     @Test
-    void calculateAndFinalizeScore_FlawedRun_ShouldApplyPenalties() {
+    void finalizeSession_FlawedRun_ShouldApplyPenalties() {
         List<SessionEvent> events = Arrays.asList(
                 SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
                 SessionEvent.builder().eventType("entered_hazard_zone_without_ppe").timestamp(Instant.now().minusSeconds(140)).build(),
@@ -104,12 +104,66 @@ class ScoringServiceTest {
 
         when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
 
-        ScoreReportDTO report = scoringService.calculateAndFinalizeScore(sessionId);
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
 
         assertNotNull(report);
         assertFalse(report.isPassed());
         assertEquals("FAILED", report.getPassStatus());
         assertTrue(report.getFinalScore() < 70);
         assertFalse(report.getMistakes().isEmpty());
+    }
+
+    @Test
+    void finalizeSession_EvacuationOverage_ShouldCapComponentScore() {
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(100)).build(),
+                SessionEvent.builder().eventType("leak_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(80)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(60)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("evacuation_incomplete").eventData("{\"count\":1}").timestamp(Instant.now().minusSeconds(40)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(10)).build()
+        );
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertEquals(15, report.getBreakdown().getEvacuationScore());
+        assertEquals(10, report.getBreakdown().getTotalPenalties());
+    }
+
+    @Test
+    void finalizeSession_ContainmentSkipped_PenaltyMustBeTotaled() {
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(100)).build(),
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertEquals(15, report.getBreakdown().getTotalPenalties());
+        assertEquals(15, report.getMistakes().stream()
+                .filter(m -> m.getDescription().contains("containment sealant"))
+                .findFirst().orElseThrow().getDeductionPoints());
+    }
+
+    @Test
+    void finalizeSession_EvacuationCountParsing_ShouldReadCountFieldOnly() {
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(100)).build(),
+                SessionEvent.builder().eventType("evacuation_incomplete")
+                        .eventData("{\"count\":2,\"unit_id\":7}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertEquals(45, report.getBreakdown().getTotalPenalties());
+        assertEquals(3, report.getMistakes().size());
     }
 }

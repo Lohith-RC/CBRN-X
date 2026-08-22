@@ -1,4 +1,4 @@
--- CBRS-X Database Schema DDL for Supabase / PostgreSQL
+-- CBRS-X Database Schema DDL for PostgreSQL / Supabase / H2(PostgreSQL mode)
 
 -- 1. Trainees Table
 CREATE TABLE IF NOT EXISTS trainees (
@@ -38,6 +38,18 @@ CREATE TABLE IF NOT EXISTS events (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
--- Initial Seed Data for Scenario CBRN-CHEM-01 (Cross-database MERGE)
-MERGE INTO scenarios (scenario_id, code, title, description, max_score) KEY (scenario_id)
-VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100);
+-- Performance indexes for hot query paths
+CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
+CREATE INDEX IF NOT EXISTS idx_sessions_trainee_id ON sessions(trainee_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_pass_status ON sessions(pass_status);
+CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
+
+-- Initial Seed Data (PostgreSQL / H2-PostgreSQL compatible upsert)
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100)
+ON CONFLICT (scenario_id) DO UPDATE SET
+    code = EXCLUDED.code,
+    title = EXCLUDED.title,
+    description = EXCLUDED.description,
+    max_score = EXCLUDED.max_score;

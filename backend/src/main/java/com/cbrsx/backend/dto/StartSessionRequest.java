@@ -1,9 +1,17 @@
 package com.cbrsx.backend.dto;
 
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
 public class StartSessionRequest {
+    @Size(max = 64, message = "traineeId must not exceed 64 characters")
+    @Pattern(regexp = "^[A-Za-z0-9_-]*$", message = "traineeId may only contain letters, digits, dashes and underscores")
     private String traineeId;
+    @Size(max = 120, message = "traineeName must not exceed 120 characters")
     private String traineeName;
+    @Size(max = 100, message = "batchUnit must not exceed 100 characters")
     private String batchUnit;
+    @Size(max = 50, message = "scenarioCode must not exceed 50 characters")
     private String scenarioCode;
 
     public StartSessionRequest() {}
@@ -30,10 +38,15 @@ public class StartSessionRequest {
     public static StartSessionRequestBuilder builder() { return new StartSessionRequestBuilder(); }
 
     public static class StartSessionRequestBuilder {
-        private String traineeId;
-        private String traineeName;
-        private String batchUnit;
-        private String scenarioCode;
+        @Size(max = 64, message = "traineeId must not exceed 64 characters")
+    @Pattern(regexp = "^[A-Za-z0-9_-]*$", message = "traineeId may only contain letters, digits, dashes and underscores")
+    private String traineeId;
+        @Size(max = 120, message = "traineeName must not exceed 120 characters")
+    private String traineeName;
+        @Size(max = 100, message = "batchUnit must not exceed 100 characters")
+    private String batchUnit;
+        @Size(max = 50, message = "scenarioCode must not exceed 50 characters")
+    private String scenarioCode;
 
         public StartSessionRequestBuilder traineeId(String traineeId) { this.traineeId = traineeId; return this; }
         public StartSessionRequestBuilder traineeName(String traineeName) { this.traineeName = traineeName; return this; }
@@ -45,3 +58,4 @@ public class StartSessionRequest {
         }
     }
 }
+
