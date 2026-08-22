@@ -70,6 +70,11 @@ Bay03_Cinematic_Screenshots/
 
 # 8. Environment Files (Security & Credentials)
 .env
-.env.local
-.env.development.local
-.env.production.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# 9. PM2 Process Logs
+logs/
