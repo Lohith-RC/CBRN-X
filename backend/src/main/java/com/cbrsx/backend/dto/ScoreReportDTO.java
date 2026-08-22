@@ -22,10 +22,11 @@ public class ScoreReportDTO {
     private ScoreBreakdownDTO breakdown;
     private List<MistakeDetailDTO> mistakes;
     private List<String> recommendations;
+    private int unrecognizedEventCount;
 
     public ScoreReportDTO() {}
 
-    public ScoreReportDTO(String sessionId, String traineeId, String traineeName, String batchUnit, String scenarioCode, String scenarioTitle, Instant startedAt, Instant completedAt, long totalDurationSeconds, int finalScore, String passStatus, boolean passed, ScoreBreakdownDTO breakdown, List<MistakeDetailDTO> mistakes, List<String> recommendations) {
+    public ScoreReportDTO(String sessionId, String traineeId, String traineeName, String batchUnit, String scenarioCode, String scenarioTitle, Instant startedAt, Instant completedAt, long totalDurationSeconds, int finalScore, String passStatus, boolean passed, ScoreBreakdownDTO breakdown, List<MistakeDetailDTO> mistakes, List<String> recommendations, int unrecognizedEventCount) {
         this.sessionId = sessionId;
         this.traineeId = traineeId;
         this.traineeName = traineeName;
@@ -41,6 +42,7 @@ public class ScoreReportDTO {
         this.breakdown = breakdown;
         this.mistakes = mistakes;
         this.recommendations = recommendations;
+        this.unrecognizedEventCount = unrecognizedEventCount;
     }
 
     public String getSessionId() { return sessionId; }
@@ -88,6 +90,9 @@ public class ScoreReportDTO {
     public List<String> getRecommendations() { return recommendations; }
     public void setRecommendations(List<String> recommendations) { this.recommendations = recommendations; }
 
+    public int getUnrecognizedEventCount() { return unrecognizedEventCount; }
+    public void setUnrecognizedEventCount(int unrecognizedEventCount) { this.unrecognizedEventCount = unrecognizedEventCount; }
+
     public static ScoreReportDTOBuilder builder() { return new ScoreReportDTOBuilder(); }
 
     public static class ScoreReportDTOBuilder {
@@ -106,6 +111,7 @@ public class ScoreReportDTO {
         private ScoreBreakdownDTO breakdown;
         private List<MistakeDetailDTO> mistakes;
         private List<String> recommendations;
+        private int unrecognizedEventCount;
 
         public ScoreReportDTOBuilder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
         public ScoreReportDTOBuilder traineeId(String traineeId) { this.traineeId = traineeId; return this; }
@@ -122,9 +128,10 @@ public class ScoreReportDTO {
         public ScoreReportDTOBuilder breakdown(ScoreBreakdownDTO breakdown) { this.breakdown = breakdown; return this; }
         public ScoreReportDTOBuilder mistakes(List<MistakeDetailDTO> mistakes) { this.mistakes = mistakes; return this; }
         public ScoreReportDTOBuilder recommendations(List<String> recommendations) { this.recommendations = recommendations; return this; }
+        public ScoreReportDTOBuilder unrecognizedEventCount(int unrecognizedEventCount) { this.unrecognizedEventCount = unrecognizedEventCount; return this; }
 
         public ScoreReportDTO build() {
-            return new ScoreReportDTO(sessionId, traineeId, traineeName, batchUnit, scenarioCode, scenarioTitle, startedAt, completedAt, totalDurationSeconds, finalScore, passStatus, passed, breakdown, mistakes, recommendations);
+            return new ScoreReportDTO(sessionId, traineeId, traineeName, batchUnit, scenarioCode, scenarioTitle, startedAt, completedAt, totalDurationSeconds, finalScore, passStatus, passed, breakdown, mistakes, recommendations, unrecognizedEventCount);
         }
     }
 }

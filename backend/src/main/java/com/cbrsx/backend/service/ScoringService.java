@@ -11,7 +11,11 @@ import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ScoringService {
+
+    private static final Logger log = LoggerFactory.getLogger(ScoringService.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final EventRepository eventRepository;
     private final SessionRepository sessionRepository;
@@ -71,6 +78,7 @@ public class ScoringService {
         int civiliansLeftBehindCount = 0;
         boolean containmentDone = false;
         boolean deconDone = false;
+        int unrecognizedEventCount = 0;
 
         // Process event stream
         for (SessionEvent event : events) {
@@ -115,15 +123,18 @@ public class ScoringService {
                     break;
 
                 case "evacuation_incomplete":
-                    // Parse left behind count if available
+                    // Parse left behind count from JSON payload using Jackson
                     civiliansLeftBehindCount = 1;
-                    if (event.getEventData() != null && event.getEventData().contains("count")) {
+                    if (event.getEventData() != null) {
                         try {
-                            String numStr = event.getEventData().replaceAll("[^0-9]", "");
-                            if (!numStr.isEmpty()) {
-                                civiliansLeftBehindCount = Integer.parseInt(numStr);
+                            JsonNode node = objectMapper.readTree(event.getEventData());
+                            JsonNode countNode = node.get("count");
+                            if (countNode != null && countNode.isNumber()) {
+                                civiliansLeftBehindCount = countNode.asInt();
                             }
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) {
+                            log.warn("Failed to parse evacuation_incomplete event data, defaulting count to 1: {}", e.getMessage());
+                        }
                     }
                     break;
 
@@ -133,6 +144,11 @@ public class ScoringService {
 
                 case "decontamination_completed":
                     deconDone = true;
+                    break;
+
+                default:
+                    unrecognizedEventCount++;
+                    log.warn("Unrecognized event type encountered: '{}' in session '{}'", type, sessionId);
                     break;
             }
         }
@@ -264,6 +280,7 @@ public class ScoringService {
                 .breakdown(breakdown)
                 .mistakes(mistakes)
                 .recommendations(recommendations)
+                .unrecognizedEventCount(unrecognizedEventCount)
                 .build();
     }
 }
