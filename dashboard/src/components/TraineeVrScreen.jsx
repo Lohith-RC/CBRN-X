@@ -184,8 +184,9 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     scene.background = new THREE.Color(0x0b0f17);
     scene.fog = new THREE.FogExp2(0x0b0f17, 0.025);
 
-    const camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
-    camera.position.set(0, 1.7, 8);
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 150);
+    camera.position.set(0, 1.7, -4);
+    camera.lookAt(1.5, 1.2, 7.4);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
@@ -193,7 +194,7 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.35;
     mount.appendChild(renderer.domElement);
 
     const disposables = [];
@@ -202,180 +203,280 @@ export default function TraineeVrScreen({ onSessionComplete }) {
       return obj;
     };
 
-    // ── Lighting ──
-    const ambient = trackDispose(new THREE.AmbientLight(0xffffff, 0.4));
-    scene.add(ambient);
+    // ── Exact Scene Hierarchy Groups ──
+    const envGroup = new THREE.Group();
+    envGroup.name = '--- ENVIRONMENT & ARCHITECTURE ---';
+    const stationsGroup = new THREE.Group();
+    stationsGroup.name = '--- INTERACTIVE STATIONS ---';
+    const actorsGroup = new THREE.Group();
+    actorsGroup.name = '--- ACTORS & HAZARDS ---';
+    scene.add(envGroup, stationsGroup, actorsGroup);
 
-    const dirLight = trackDispose(new THREE.DirectionalLight(0xf58220, 1.5));
-    dirLight.position.set(10, 20, 10);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(1024, 1024);
-    scene.add(dirLight);
+    // ── High-Fidelity Industrial Lighting (5000K Daylight & Emergency Flasher) ──
+    const ambientLight = trackDispose(new THREE.AmbientLight(0xffffff, 0.45));
+    scene.add(ambientLight);
 
-    const cyanFill = trackDispose(new THREE.DirectionalLight(0x00f2fe, 0.4));
-    cyanFill.position.set(-8, 6, -5);
-    scene.add(cyanFill);
+    const highBayLight1 = trackDispose(new THREE.DirectionalLight(0xffffff, 1.2));
+    highBayLight1.position.set(0, 15, 0);
+    highBayLight1.castShadow = true;
+    highBayLight1.shadow.mapSize.set(2048, 2048);
+    highBayLight1.shadow.bias = -0.0005;
+    scene.add(highBayLight1);
 
-    const warningLight = trackDispose(new THREE.PointLight(0xff0000, 2.5, 20));
-    warningLight.position.set(0, 5, 0);
-    scene.add(warningLight);
+    const taskSpotLight = trackDispose(new THREE.SpotLight(0xffffff, 4.0, 16, Math.PI / 4, 0.3));
+    taskSpotLight.position.set(-1.8, 2.2, 5.8);
+    taskSpotLight.target.position.set(1.5, 0.5, 7.4);
+    taskSpotLight.castShadow = true;
+    scene.add(taskSpotLight);
+    scene.add(taskSpotLight.target);
 
-    const hazardGlow = trackDispose(new THREE.PointLight(0xf58220, 1.5, 12));
-    hazardGlow.position.set(0, 3, -4);
-    scene.add(hazardGlow);
+    const emergencyBeacon = trackDispose(new THREE.PointLight(0xef4444, 3.5, 25));
+    emergencyBeacon.position.set(0, 5.8, 7.4);
+    scene.add(emergencyBeacon);
 
-    // ── Ground ──
-    const grid = trackDispose(new THREE.GridHelper(50, 50, 0xf58220, 0x1e293b));
-    scene.add(grid);
+    // ── PBR Material Definitions matching Unity Assets ──
+    const matEpoxyFloor = trackDispose(new THREE.MeshStandardMaterial({ color: 0x141619, roughness: 0.45, metalness: 0.05 }));
+    const matSteel = trackDispose(new THREE.MeshStandardMaterial({ color: 0x22262d, roughness: 0.35, metalness: 0.85 }));
+    const matYellowSafety = trackDispose(new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.55, metalness: 0.05 }));
+    const matBlueDrum = trackDispose(new THREE.MeshStandardMaterial({ color: 0x1d63b8, roughness: 0.60, metalness: 0.15 }));
+    const matToxicAmber = trackDispose(new THREE.MeshStandardMaterial({
+      color: 0xf58220,
+      roughness: 0.05,
+      metalness: 0.1,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.45,
+      transparent: true,
+      opacity: 0.95
+    }));
+    const matRackBlue = trackDispose(new THREE.MeshStandardMaterial({ color: 0x1e40af, roughness: 0.50, metalness: 0.20 }));
+    const matRackOrange = trackDispose(new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.50, metalness: 0.20 }));
+    const matPipeRed = trackDispose(new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.40, metalness: 0.50 }));
+    const matPipeYellow = trackDispose(new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.40, metalness: 0.50 }));
+    const matPipeBlue = trackDispose(new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.40, metalness: 0.50 }));
+    const matPipeGreen = trackDispose(new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.40, metalness: 0.50 }));
+    const matDuct = trackDispose(new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.30, metalness: 0.85 }));
+    const matWhite = trackDispose(new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.70 }));
+    const matSpillKitRed = trackDispose(new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.50 }));
 
-    const floorGeo = trackDispose(new THREE.PlaneGeometry(50, 50));
-    const floorMat = trackDispose(
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85, metalness: 0.05 })
-    );
-    const floor = new THREE.Mesh(floorGeo, floorMat);
+    // ── Sealed Epoxy Flooring & Multi-Tier Marking Lines ──
+    const floorGeo = trackDispose(new THREE.PlaneGeometry(36, 48));
+    const floor = new THREE.Mesh(floorGeo, matEpoxyFloor);
     floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, 0, 8);
     floor.receiveShadow = true;
-    scene.add(floor);
+    envGroup.add(floor);
 
-    // ── High-Fidelity Chemical Drums ──
+    // Floor Transit Lines (Solid Safety Yellow)
+    const lineMat = trackDispose(new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+    const transitLineL = new THREE.Mesh(trackDispose(new THREE.PlaneGeometry(0.15, 36)), lineMat);
+    transitLineL.rotation.x = -Math.PI / 2;
+    transitLineL.position.set(-4.5, 0.01, 8);
+    const transitLineR = new THREE.Mesh(trackDispose(new THREE.PlaneGeometry(0.15, 36)), lineMat);
+    transitLineR.rotation.x = -Math.PI / 2;
+    transitLineR.position.set(4.5, 0.01, 8);
+    envGroup.add(transitLineL, transitLineR);
+
+    // ── Dual Beveled Concrete Containment Sumps with Yellow Berms ──
+    const sumpGeo = trackDispose(new THREE.BoxGeometry(2.6, 0.22, 2.6));
+    const sump1 = new THREE.Mesh(sumpGeo, matYellowSafety);
+    sump1.position.set(1.5, 0.11, 7.4);
+    sump1.castShadow = true;
+    sump1.receiveShadow = true;
+
+    const sump2 = new THREE.Mesh(sumpGeo, matYellowSafety);
+    sump2.position.set(-1.8, 0.11, 7.4);
+    sump2.castShadow = true;
+    sump2.receiveShadow = true;
+    actorsGroup.add(sump1, sump2);
+
+    // Sump Floor Recesses
+    const sumpRecessGeo = trackDispose(new THREE.BoxGeometry(2.3, 0.04, 2.3));
+    const sumpRecess1 = new THREE.Mesh(sumpRecessGeo, matEpoxyFloor);
+    sumpRecess1.position.set(1.5, 0.21, 7.4);
+    const sumpRecess2 = new THREE.Mesh(sumpRecessGeo, matEpoxyFloor);
+    sumpRecess2.position.set(-1.8, 0.21, 7.4);
+    actorsGroup.add(sumpRecess1, sumpRecess2);
+
+    // ── 4 Cobalt Blue Poly Chemical Drums on Sump 1 ──
     const drums = [];
-    const drumPositions = [
-      { x: -3, z: -2 },
-      { x: 3, z: -2 },
-      { x: 0, z: -4 },
-      { x: 4, z: -5 },
+    const drumOffsets = [
+      { x: 1.1, z: 7.0 },  // DRUM-01
+      { x: 1.9, z: 7.0 },  // DRUM-02
+      { x: 1.1, z: 7.8 },  // DRUM-04
+      { x: 1.9, z: 7.8 },  // DRUM-03 (LEAKING)
     ];
 
-    drumPositions.forEach((pos, idx) => {
-      const isLeak = idx === LEAKING_DRUM_INDEX;
+    drumOffsets.forEach((pos, idx) => {
+      const isLeak = (idx === 3); // DRUM-03
       const group = new THREE.Group();
 
-      // Drum body
-      const bodyGeo = trackDispose(new THREE.CylinderGeometry(0.5, 0.5, 1.3, 24));
-      const bodyMat = trackDispose(
-        new THREE.MeshStandardMaterial({
-          color: isLeak ? 0xd97706 : 0x475569,
-          metalness: 0.75,
-          roughness: 0.22,
-        })
-      );
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.castShadow = true;
-      body.position.y = 0.65;
-      body.userData.drumIndex = idx;
-      group.add(body);
+      const drumBody = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.32, 0.32, 1.15, 20)), matBlueDrum);
+      drumBody.position.y = 0.80;
+      drumBody.castShadow = true;
+      drumBody.userData.drumIndex = isLeak ? LEAKING_DRUM_INDEX : idx;
+      group.add(drumBody);
+      drums.push(drumBody);
 
-      // Top cap
-      const capGeo = trackDispose(new THREE.CylinderGeometry(0.52, 0.52, 0.06, 24));
-      const capMat = trackDispose(new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.15 }));
-      const cap = new THREE.Mesh(capGeo, capMat);
-      cap.position.y = 1.32;
-      group.add(cap);
+      // Rib rings
+      for (let r = -0.3; r <= 0.3; r += 0.6) {
+        const rib = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.33, 0.33, 0.04, 20)), matBlueDrum);
+        rib.position.y = 0.80 + r;
+        group.add(rib);
+      }
 
-      // Hazard band
-      const bandGeo = trackDispose(new THREE.CylinderGeometry(0.51, 0.51, 0.12, 24, 1, true));
-      const bandMat = trackDispose(
-        new THREE.MeshStandardMaterial({
-          color: isLeak ? 0xef4444 : 0xf59e0b,
-          emissive: isLeak ? 0xef4444 : 0x000000,
-          emissiveIntensity: isLeak ? 2 : 0,
-          side: THREE.DoubleSide,
-        })
-      );
-      const band = new THREE.Mesh(bandGeo, bandMat);
-      band.position.y = 0.9;
-      group.add(band);
+      // Top Lid
+      const lid = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.33, 0.33, 0.03, 20)), matSteel);
+      lid.position.y = 1.38;
+      group.add(lid);
 
-      // Leak glow sphere
       if (isLeak) {
-        const glowGeo = trackDispose(new THREE.SphereGeometry(0.7, 16, 16));
-        const glowMat = trackDispose(
-          new THREE.MeshStandardMaterial({
-            color: 0xef4444,
-            emissive: 0xef4444,
-            emissiveIntensity: 3,
-            transparent: true,
-            opacity: 0.12,
-          })
-        );
-        const glow = new THREE.Mesh(glowGeo, glowMat);
-        glow.position.y = 0.6;
-        glow.userData.isLeakGlow = true;
-        group.add(glow);
+        // Hazardous Waste Placard
+        const label = new THREE.Mesh(trackDispose(new THREE.PlaneGeometry(0.28, 0.18)), matWhite);
+        label.position.set(0, 0.95, 0.33);
+        group.add(label);
+
+        // Puncture Hole & Drip
+        const puncture = new THREE.Mesh(trackDispose(new THREE.SphereGeometry(0.06, 8, 8)), matSteel);
+        puncture.position.set(0.06, 0.70, 0.32);
+        group.add(puncture);
+
+        const drip = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.02, 0.03, 0.45, 8)), matToxicAmber);
+        drip.position.set(0.06, 0.45, 0.32);
+        group.add(drip);
+
+        // Active Viscous Amber Chemical Pool inside Sump
+        const pool = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.95, 0.95, 0.02, 24)), matToxicAmber);
+        pool.position.set(1.5, 0.23, 7.5);
+        actorsGroup.add(pool);
       }
 
       group.position.set(pos.x, 0, pos.z);
-      scene.add(group);
-      drums.push(body); // For raycasting
+      actorsGroup.add(group);
     });
 
-    // ── Volumetric Gas / Smoke Particles ──
-    const particleCount = 180;
-    const particlesGeo = trackDispose(new THREE.BufferGeometry());
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const velocities = [];
+    // ── 4-Line Color-Coded Piping Manifold on Rear Wall ──
+    const pipeY = [3.8, 4.05, 4.3, 4.55];
+    const pipeMats = [matPipeRed, matPipeYellow, matPipeBlue, matPipeGreen];
+    pipeY.forEach((y, i) => {
+      const pipe = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.04, 0.04, 18, 12)), pipeMats[i]);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(0, y, 10.2);
+      envGroup.add(pipe);
+    });
 
-    for (let i = 0; i < particleCount; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = Math.random() * 2;
-      positions[i * 3] = Math.cos(angle) * r;
-      positions[i * 3 + 1] = Math.random() * 3;
-      positions[i * 3 + 2] = -4 + Math.sin(angle) * r;
+    // ── Overhead Heavy Industrial Air Scrubber Unit & HEPA Filter Bank ──
+    const scrubberBody = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(3.2, 1.4, 2.2)), matDuct);
+    scrubberBody.position.set(0.65, 4.6, 7.4);
+    scrubberBody.castShadow = true;
+    envGroup.add(scrubberBody);
 
-      colors[i * 3] = 0.9 + Math.random() * 0.1;
-      colors[i * 3 + 1] = 0.2 + Math.random() * 0.4;
-      colors[i * 3 + 2] = 0;
+    const scrubberLouvers = new THREE.Mesh(trackDispose(new THREE.PlaneGeometry(1.2, 0.8)), matSteel);
+    scrubberLouvers.position.set(-0.2, 4.6, 6.29);
+    envGroup.add(scrubberLouvers);
 
-      velocities.push({
-        x: (Math.random() - 0.5) * 0.008,
-        y: Math.random() * 0.015 + 0.005,
-        z: (Math.random() - 0.5) * 0.008,
-      });
+    const hepaPanel = new THREE.Mesh(trackDispose(new THREE.PlaneGeometry(1.0, 0.8)), matWhite);
+    hepaPanel.position.set(1.0, 4.6, 6.29);
+    envGroup.add(hepaPanel);
+
+    // Drop Suction Duct
+    const dropDuct = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.18, 0.18, 1.5, 12)), matSteel);
+    dropDuct.position.set(1.5, 3.4, 7.4);
+    envGroup.add(dropDuct);
+
+    // ── Gantry Crane System & Motorized Hoists ──
+    const craneBeam = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(16, 0.35, 0.35)), matSteel);
+    craneBeam.position.set(0, 5.6, 7.4);
+    envGroup.add(craneBeam);
+
+    const hoist1 = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.6, 0.35, 0.45)), matDuct);
+    hoist1.position.set(-1.8, 5.3, 7.4);
+    const hoist2 = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.6, 0.35, 0.45)), matDuct);
+    hoist2.position.set(1.8, 5.3, 7.4);
+    envGroup.add(hoist1, hoist2);
+
+    // ── Hazardous Offloading Rail Spur (Right Flank) ──
+    const rail1 = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.08, 0.10, 30)), matSteel);
+    rail1.position.set(6.8, 0.08, 8);
+    const rail2 = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.08, 0.10, 30)), matSteel);
+    rail2.position.set(8.2, 0.08, 8);
+    envGroup.add(rail1, rail2);
+
+    // Hydraulic Articulated Offload Arms
+    for (let a = 0; a < 2; a++) {
+      const armBase = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.2, 0.2, 1.8, 12)), matDuct);
+      armBase.position.set(6.2, 0.9, 5 + a * 6);
+      const armBoom = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 8)), matYellowSafety);
+      armBoom.position.set(6.6, 2.2, 5 + a * 6);
+      armBoom.rotation.z = -Math.PI / 4;
+      envGroup.add(armBase, armBoom);
     }
 
-    particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const particlesMat = trackDispose(
-      new THREE.PointsMaterial({
-        size: 0.18,
-        transparent: true,
-        opacity: 0.65,
-        vertexColors: true,
-        sizeAttenuation: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      })
-    );
-    const gasCloud = new THREE.Points(particlesGeo, particlesMat);
-    scene.add(gasCloud);
+    // ── 3-Tier Industrial Pallet Racking with IBC Chemical Totes ──
+    for (let bay = 0; bay < 3; bay++) {
+      const zPos = 5.5 + bay * 2.8;
+      // Blue uprights
+      const upL = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.08, 4.5, 0.08)), matRackBlue);
+      upL.position.set(-6.5, 2.25, zPos - 1.2);
+      const upR = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.08, 4.5, 0.08)), matRackBlue);
+      upR.position.set(-6.5, 2.25, zPos + 1.2);
+      envGroup.add(upL, upR);
 
-    // ── Decon Archway ──
-    const archGroup = new THREE.Group();
-    const colGeo = trackDispose(new THREE.CylinderGeometry(0.15, 0.15, 3.5, 12));
-    const colMat = trackDispose(
-      new THREE.MeshPhysicalMaterial({
-        color: 0x00f2fe,
-        emissive: 0x00f2fe,
-        emissiveIntensity: 0.8,
-        metalness: 0.1,
-        roughness: 0.05,
-        transmission: 0.6,
-        thickness: 0.5,
-        transparent: true,
-        opacity: 0.8,
-      })
-    );
-    const col1 = new THREE.Mesh(colGeo, colMat);
-    col1.position.set(-6, 1.75, 3);
-    const col2 = new THREE.Mesh(colGeo, colMat);
-    col2.position.set(-4, 1.75, 3);
-    const beamGeo = trackDispose(new THREE.CylinderGeometry(0.08, 0.08, 2.2, 8));
-    const beam = new THREE.Mesh(beamGeo, colMat);
-    beam.rotation.z = Math.PI / 2;
-    beam.position.set(-5, 3.6, 3);
-    archGroup.add(col1, col2, beam);
-    scene.add(archGroup);
+      // Orange Beams
+      for (let t = 1; t <= 3; t++) {
+        const beam = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.06, 0.08, 2.4)), matRackOrange);
+        beam.position.set(-6.45, t * 1.3, zPos);
+        envGroup.add(beam);
+
+        // 1000L IBC Chemical Tote Tank
+        const tote = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.85, 0.85, 0.85)), matWhite);
+        tote.position.set(-6.2, t * 1.3 + 0.45, zPos);
+        const cage = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.90, 0.90, 0.90)), matSteel);
+        cage.position.set(-6.2, t * 1.3 + 0.45, zPos);
+        envGroup.add(tote, cage);
+      }
+    }
+
+    // ── Interactive Stations: Red Spill Kit, Gas Dock, Eyewash, Inflatable Decon ──
+    // Wall-Mounted Red Spill Kit
+    const spillKit = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.24, 0.24, 0.65, 16)), matSpillKitRed);
+    spillKit.position.set(-3.0, 1.45, 5.2);
+    stationsGroup.add(spillKit);
+
+    // 3M Multi-Gas Detector Wall Dock
+    const dockShelf = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.35, 0.04, 0.55)), matSteel);
+    dockShelf.position.set(-3.0, 2.45, 5.2);
+    stationsGroup.add(dockShelf);
+
+    // Tripod LED Work Light
+    const tripodPost = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.03, 0.03, 1.8, 8)), matSteel);
+    tripodPost.position.set(-1.8, 0.9, 5.8);
+    const tripodHead = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(0.35, 0.25, 0.08)), matSteel);
+    tripodHead.position.set(-1.8, 1.95, 5.8);
+    tripodHead.rotation.set(0.3, 0.6, 0);
+    stationsGroup.add(tripodPost, tripodHead);
+
+    // Inflatable Decon Shower Tent (Yellow Canopy + Black Arch)
+    const deconFrame = new THREE.Mesh(trackDispose(new THREE.TorusGeometry(1.4, 0.18, 12, 24, Math.PI)), matSteel);
+    deconFrame.position.set(4.8, 1.6, 7.2);
+    deconFrame.rotation.y = -Math.PI / 12;
+    const deconCanopy = new THREE.Mesh(trackDispose(new THREE.BoxGeometry(2.4, 2.6, 1.2)), matYellowSafety);
+    deconCanopy.position.set(4.8, 1.4, 7.6);
+    stationsGroup.add(deconFrame, deconCanopy);
+
+    // Emergency Eyewash & Drench Shower
+    const eyewashPipe = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8)), matPipeGreen);
+    eyewashPipe.position.set(3.2, 1.1, 9.6);
+    const eyewashBowl = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.25, 0.15, 0.08, 12)), matSteel);
+    eyewashBowl.position.set(3.2, 1.05, 9.4);
+    stationsGroup.add(eyewashPipe, eyewashBowl);
+
+    // Safety Bollards along transit lane
+    const bollardPositions = [-4.5, -2.0, 0.5, 3.0];
+    bollardPositions.forEach((z) => {
+      const bollard = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.12, 0.12, 0.9, 12)), matYellowSafety);
+      bollard.position.set(-3.8, 0.45, z);
+      envGroup.add(bollard);
+    });
 
     // ── PointerLockControls & Movement ──
     const controls = new PointerLockControls(camera, renderer.domElement);
@@ -486,8 +587,8 @@ export default function TraineeVrScreen({ onSessionComplete }) {
       posAttr.needsUpdate = true;
       gasCloud.rotation.y += 0.003;
 
-      // Pulse decon archway
-      colMat.emissiveIntensity = 0.5 + Math.sin(t * 2) * 0.3;
+      // Animate emergency beacon
+      emergencyBeacon.intensity = 2.5 + Math.sin(t * 8) * 1.5;
 
       if (controls.isLocked) {
         const damping = Math.max(0, 1 - 8 * delta);
@@ -503,13 +604,13 @@ export default function TraineeVrScreen({ onSessionComplete }) {
         controls.moveRight(velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
 
-        camera.position.x = THREE.MathUtils.clamp(camera.position.x, -18, 18);
-        camera.position.z = THREE.MathUtils.clamp(camera.position.z, -16, 10);
+        camera.position.x = THREE.MathUtils.clamp(camera.position.x, -7.5, 7.5);
+        camera.position.z = THREE.MathUtils.clamp(camera.position.z, -6.0, 10.0);
         camera.position.y = 1.7;
 
-        const leakPos = new THREE.Vector3(0, 0, -4);
+        const leakPos = new THREE.Vector3(1.9, 0, 7.8);
         const dist = camera.position.distanceTo(leakPos);
-        const ppm = THREE.MathUtils.clamp(Math.round(500 - dist * 80), 0, 500);
+        const ppm = THREE.MathUtils.clamp(Math.round(450 - dist * 60), 0, 450);
 
         if (lastPpm === null || Math.abs(ppm - lastPpm) >= PPM_UPDATE_DELTA || (ppm === 0) !== (lastPpm === 0)) {
           lastPpm = ppm;
