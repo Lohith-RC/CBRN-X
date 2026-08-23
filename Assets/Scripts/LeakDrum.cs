@@ -108,11 +108,16 @@ namespace CBRSX.Unity
             }
         }
 
+        private bool hasBeenInspected = false;
+
         public void InspectDrum()
         {
+            if (hasBeenInspected && isLeaking) return;
+            hasBeenInspected = true;
+
             if (CbrsEventLogger.Instance != null)
             {
-                string json = "{\"drumId\":\"" + drumId +
+                string json = "{\"drumId\":\"" + CbrsEventLogger.JsonEscape(drumId) +
                               "\",\"correct\":" + (isLeaking ? "true" : "false") + "}";
                 CbrsEventLogger.Instance.LogEvent("leak_source_identified", json);
             }
@@ -179,7 +184,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                CbrsEventLogger.Instance.LogEvent("containment_completed", "{\"drumId\":\"" + drumId + "\"}");
+                CbrsEventLogger.Instance.LogEvent("containment_completed", "{\"drumId\":\"" + CbrsEventLogger.JsonEscape(drumId) + "\"}");
             }
 
             if (GameManager.Instance != null)
