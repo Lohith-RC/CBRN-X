@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
-import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Move, Zap, Play, RotateCcw } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Play } from 'lucide-react';
 
 export default function TraineeVrScreen({ onSessionComplete }) {
   const mountRef = useRef(null);
@@ -10,21 +10,18 @@ export default function TraineeVrScreen({ onSessionComplete }) {
   const [ppeState, setPpeState] = useState({ mask: false, suit: false, gloves: false });
   const [sessionId, setSessionId] = useState(null);
   const [telemetryLogs, setTelemetryLogs] = useState([]);
-  const [stage, setStage] = useState(1);
   const [leakingDrumFound, setLeakingDrumFound] = useState(false);
   const [civiliansEvacuated, setCiviliansEvacuated] = useState(0);
   const [contained, setContained] = useState(false);
   const [deconComplete, setDeconComplete] = useState(false);
 
-  // References for Three.js state
   const stateRef = useRef({
     hasPpe: false,
     inHazardZone: false,
     leakingDrumId: 3,
-    sessionId: null
+    sessionId: null,
   });
 
-  // Start new backend session
   const startSession = async () => {
     try {
       const res = await fetch('/api/sessions/start', {
@@ -33,16 +30,15 @@ export default function TraineeVrScreen({ onSessionComplete }) {
         body: JSON.stringify({
           traineeName: 'Inspector Lohith R C',
           batchUnit: '10th NDRF Battalion',
-          scenarioCode: 'CBRN-CHEM-01'
-        })
+          scenarioCode: 'CBRN-CHEM-01',
+        }),
       });
       const data = await res.json();
       setSessionId(data.sessionId);
       stateRef.current.sessionId = data.sessionId;
       setTelemetryLogs([`Session started: ${data.sessionId}`]);
       setIsPlaying(true);
-    } catch (err) {
-      console.warn('Backend offline, running local VR simulation.');
+    } catch {
       setSessionId('sess-demo-vr');
       stateRef.current.sessionId = 'sess-demo-vr';
       setIsPlaying(true);
@@ -51,22 +47,21 @@ export default function TraineeVrScreen({ onSessionComplete }) {
 
   const logEvent = async (eventType, eventData = '{}') => {
     const currentSess = stateRef.current.sessionId || sessionId;
-    setTelemetryLogs(prev => [`[${new Date().toLocaleTimeString()}] ${eventType}`, ...prev.slice(0, 4)]);
+    setTelemetryLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${eventType}`, ...prev.slice(0, 4)]);
     if (!currentSess) return;
     try {
       await fetch('/api/events/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: currentSess, eventType, eventData })
+        body: JSON.stringify({ sessionId: currentSess, eventType, eventData }),
       });
-    } catch (ignored) {}
+    } catch {}
   };
 
   const equipPpeItem = (item) => {
-    setPpeState(prev => {
+    setPpeState((prev) => {
       const updated = { ...prev, [item]: true };
-      const allDone = updated.mask && updated.suit && updated.gloves;
-      if (allDone) {
+      if (updated.mask && updated.suit && updated.gloves) {
         stateRef.current.hasPpe = true;
         setHudMessage('PPE DONNED. PROCEED TO HAZARD ZONE WITH DETECTOR');
         logEvent('ppe_donning_completed', '{"status":"complete"}');
@@ -118,15 +113,13 @@ export default function TraineeVrScreen({ onSessionComplete }) {
   const finishMission = async () => {
     const currentSess = stateRef.current.sessionId || sessionId;
     if (currentSess) {
-      try {
-        await fetch(`/api/sessions/${currentSess}/complete`, { method: 'POST' });
-      } catch (ignored) {}
+      try { await fetch(`/api/sessions/${currentSess}/complete`, { method: 'POST' }); } catch {}
     }
     setIsPlaying(false);
     if (onSessionComplete) onSessionComplete();
   };
 
-  // 3D Scene Initialization
+  // ── Three.js Scene ──
   useEffect(() => {
     if (!mountRef.current || !isPlaying) return;
 
@@ -135,116 +128,364 @@ export default function TraineeVrScreen({ onSessionComplete }) {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b0f17);
-    scene.fog = new THREE.FogExp2(0x0b0f17, 0.035);
+    scene.fog = new THREE.FogExp2(0x0b0f17, 0.025);
 
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(70, width / height, 0.1, 1000);
     camera.position.set(0, 1.7, 8);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     mountRef.current.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+    // ── Lighting ──
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambient);
 
-    const dirLight = new THREE.DirectionalLight(0xf58220, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xf58220, 1.5);
     dirLight.position.set(10, 20, 10);
     dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(1024, 1024);
     scene.add(dirLight);
 
-    const warningLight = new THREE.PointLight(0xff0000, 2, 15);
-    warningLight.position.set(0, 4, 0);
+    const cyanFill = new THREE.DirectionalLight(0x00f2fe, 0.4);
+    cyanFill.position.set(-8, 6, -5);
+    scene.add(cyanFill);
+
+    const warningLight = new THREE.PointLight(0xff0000, 2.5, 20);
+    warningLight.position.set(0, 5, 0);
     scene.add(warningLight);
 
-    // Floor / Ground Grid
-    const grid = new THREE.GridHelper(40, 40, 0xf58220, 0x1e293b);
+    const hazardGlow = new THREE.PointLight(0xf58220, 1.5, 12);
+    hazardGlow.position.set(0, 3, -4);
+    scene.add(hazardGlow);
+
+    // ── Ground ──
+    const grid = new THREE.GridHelper(50, 50, 0xf58220, 0x1e293b);
     scene.add(grid);
 
-    const floorGeo = new THREE.PlaneGeometry(40, 40);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+    const floorGeo = new THREE.PlaneGeometry(50, 50);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85, metalness: 0.05 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Chemical Drums (1 Leaking with gas particles)
-    const drumGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 16);
+    // ── High-Fidelity Chemical Drums ──
     const drums = [];
     const drumPositions = [
       { x: -3, z: -2 },
       { x: 3, z: -2 },
-      { x: 0, z: -4 }, // Leaking Drum #3
-      { x: 4, z: -5 }
+      { x: 0, z: -4 },
+      { x: 4, z: -5 },
     ];
 
     drumPositions.forEach((pos, idx) => {
       const isLeak = idx === 2;
-      const mat = new THREE.MeshStandardMaterial({
-        color: isLeak ? 0xeab308 : 0x475569,
-        metalness: 0.6,
-        roughness: 0.3
+      const group = new THREE.Group();
+
+      // Drum body
+      const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.3, 24);
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: isLeak ? 0xd97706 : 0x475569,
+        metalness: 0.75,
+        roughness: 0.22,
       });
-      const drum = new THREE.Mesh(drumGeo, mat);
-      drum.position.set(pos.x, 0.6, pos.z);
-      drum.castShadow = true;
-      scene.add(drum);
-      drums.push(drum);
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.castShadow = true;
+      body.position.y = 0.65;
+      group.add(body);
+
+      // Top cap
+      const capGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.06, 24);
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.15 });
+      const cap = new THREE.Mesh(capGeo, capMat);
+      cap.position.y = 1.32;
+      group.add(cap);
+
+      // Hazard band
+      const bandGeo = new THREE.CylinderGeometry(0.51, 0.51, 0.12, 24, 1, true);
+      const bandMat = new THREE.MeshStandardMaterial({
+        color: isLeak ? 0xef4444 : 0xf59e0b,
+        emissive: isLeak ? 0xef4444 : 0x000000,
+        emissiveIntensity: isLeak ? 2 : 0,
+        side: THREE.DoubleSide,
+      });
+      const band = new THREE.Mesh(bandGeo, bandMat);
+      band.position.y = 0.9;
+      group.add(band);
+
+      // Base ring
+      const ringGeo = new THREE.TorusGeometry(0.52, 0.03, 8, 24);
+      const ringMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.9, roughness: 0.1 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.02;
+      group.add(ring);
+
+      // Leak glow sphere
+      if (isLeak) {
+        const glowGeo = new THREE.SphereGeometry(0.7, 16, 16);
+        const glowMat = new THREE.MeshStandardMaterial({
+          color: 0xef4444,
+          emissive: 0xef4444,
+          emissiveIntensity: 3,
+          transparent: true,
+          opacity: 0.1,
+        });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        glow.position.y = 0.6;
+        glow.userData.isLeakGlow = true;
+        group.add(glow);
+      }
+
+      group.position.set(pos.x, 0, pos.z);
+      scene.add(group);
+      drums.push(group);
     });
 
-    // Yellow Toxic Gas Particles near Drum #3
-    const particleCount = 150;
+    // ── Volumetric Gas / Smoke Particles ──
+    const particleCount = 200;
     const particlesGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 3;
-      positions[i + 1] = Math.random() * 2;
-      positions[i + 2] = -4 + (Math.random() - 0.5) * 3;
+    const colors = new Float32Array(particleCount * 3);
+    const velocities = [];
+    for (let i = 0; i < particleCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * 2;
+      positions[i * 3] = Math.cos(angle) * r;
+      positions[i * 3 + 1] = Math.random() * 3;
+      positions[i * 3 + 2] = -4 + Math.sin(angle) * r;
+      // Color: orange-red gradient
+      colors[i * 3] = 0.9 + Math.random() * 0.1;
+      colors[i * 3 + 1] = 0.2 + Math.random() * 0.4;
+      colors[i * 3 + 2] = 0;
+      velocities.push({
+        x: (Math.random() - 0.5) * 0.008,
+        y: Math.random() * 0.015 + 0.005,
+        z: (Math.random() - 0.5) * 0.008,
+      });
     }
     particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     const particlesMat = new THREE.PointsMaterial({
-      color: 0xef4444,
-      size: 0.25,
+      size: 0.18,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.65,
+      vertexColors: true,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     const gasCloud = new THREE.Points(particlesGeo, particlesMat);
+    gasCloud.position.set(0, 0, -4);
     scene.add(gasCloud);
 
-    // Decon Archway
-    const archGeo = new THREE.BoxGeometry(0.3, 3, 0.3);
-    const archMat = new THREE.MeshStandardMaterial({ color: 0x00f2fe, emissive: 0x00f2fe, emissiveIntensity: 0.5 });
-    const pillar1 = new THREE.Mesh(archGeo, archMat);
-    pillar1.position.set(-6, 1.5, 3);
-    const pillar2 = new THREE.Mesh(archGeo, archMat);
-    pillar2.position.set(-4, 1.5, 3);
-    scene.add(pillar1);
-    scene.add(pillar2);
+    // ── Secondary cyan gas near lab area ──
+    const cyanCount = 60;
+    const cyanGeo = new THREE.BufferGeometry();
+    const cyanPos = new Float32Array(cyanCount * 3);
+    for (let i = 0; i < cyanCount; i++) {
+      cyanPos[i * 3] = -6 + (Math.random() - 0.5) * 2;
+      cyanPos[i * 3 + 1] = Math.random() * 2;
+      cyanPos[i * 3 + 2] = 2 + (Math.random() - 0.5) * 2;
+    }
+    cyanGeo.setAttribute('position', new THREE.BufferAttribute(cyanPos, 3));
+    const cyanMat = new THREE.PointsMaterial({
+      color: 0x00f2fe,
+      size: 0.1,
+      transparent: true,
+      opacity: 0.4,
+      sizeAttenuation: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const cyanGas = new THREE.Points(cyanGeo, cyanMat);
+    scene.add(cyanGas);
 
-    // Animation Loop
+    // ── Decon Archway (glass columns) ──
+    const archGroup = new THREE.Group();
+    const colGeo = new THREE.CylinderGeometry(0.15, 0.15, 3.5, 12);
+    const colMat = new THREE.MeshPhysicalMaterial({
+      color: 0x00f2fe,
+      emissive: 0x00f2fe,
+      emissiveIntensity: 0.8,
+      metalness: 0.1,
+      roughness: 0.05,
+      transmission: 0.6,
+      thickness: 0.5,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const col1 = new THREE.Mesh(colGeo, colMat);
+    col1.position.set(-6, 1.75, 3);
+    col1.castShadow = true;
+    const col2 = new THREE.Mesh(colGeo, colMat);
+    col2.position.set(-4, 1.75, 3);
+    col2.castShadow = true;
+    // Top beam
+    const beamGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.2, 8);
+    const beam = new THREE.Mesh(beamGeo, colMat);
+    beam.rotation.z = Math.PI / 2;
+    beam.position.set(-5, 3.6, 3);
+    archGroup.add(col1, col2, beam);
+    scene.add(archGroup);
+
+    // ── Lab Flask Set (glass vessels with glowing liquid) ──
+    const labGroup = new THREE.Group();
+    const flaskPositions = [
+      { x: -6, z: -1, color: 0x00f2fe },
+      { x: -5, z: -1.5, color: 0x10b981 },
+      { x: -7, z: -0.5, color: 0x8b5cf6 },
+    ];
+    flaskPositions.forEach((fp) => {
+      const fGroup = new THREE.Group();
+      // Flask body
+      const flaskBodyGeo = new THREE.CylinderGeometry(0.25, 0.18, 0.7, 12, 1, true);
+      const flaskBodyMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        metalness: 0,
+        roughness: 0.02,
+        transmission: 0.9,
+        thickness: 0.4,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+      });
+      const flaskBody = new THREE.Mesh(flaskBodyGeo, flaskBodyMat);
+      flaskBody.position.y = 0.35;
+      fGroup.add(flaskBody);
+      // Liquid
+      const liquidGeo = new THREE.CylinderGeometry(0.2, 0.14, 0.3, 12);
+      const liquidMat = new THREE.MeshStandardMaterial({
+        color: fp.color,
+        emissive: fp.color,
+        emissiveIntensity: 2.5,
+        transparent: true,
+        opacity: 0.85,
+      });
+      const liquid = new THREE.Mesh(liquidGeo, liquidMat);
+      liquid.position.y = 0.2;
+      fGroup.add(liquid);
+      fGroup.position.set(fp.x, 0.3, fp.z);
+      labGroup.add(fGroup);
+    });
+    scene.add(labGroup);
+
+    // ── Glass response vehicle (simplified) ──
+    const vehicleGroup = new THREE.Group();
+    // Body
+    const vBodyGeo = new THREE.BoxGeometry(3, 0.7, 1.5);
+    const vBodyMat = new THREE.MeshPhysicalMaterial({
+      color: 0x1a3a5c,
+      metalness: 0.7,
+      roughness: 0.15,
+      transmission: 0.35,
+      thickness: 1,
+      ior: 1.5,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const vBody = new THREE.Mesh(vBodyGeo, vBodyMat);
+    vBody.position.y = 0.45;
+    vBody.castShadow = true;
+    vehicleGroup.add(vBody);
+    // Cabin
+    const vCabGeo = new THREE.BoxGeometry(1.6, 0.6, 1.4);
+    const vCabMat = new THREE.MeshPhysicalMaterial({
+      color: 0x0ea5e9,
+      metalness: 0.1,
+      roughness: 0.05,
+      transmission: 0.7,
+      thickness: 0.6,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const vCab = new THREE.Mesh(vCabGeo, vCabMat);
+    vCab.position.set(0.2, 1.05, 0);
+    vehicleGroup.add(vCab);
+    // Headlights
+    [[0.5, 0.7], [-0.5, 0.7]].forEach(([z]) => {
+      const hlGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const hlMat = new THREE.MeshStandardMaterial({ color: 0xf58220, emissive: 0xf58220, emissiveIntensity: 4 });
+      const hl = new THREE.Mesh(hlGeo, hlMat);
+      hl.position.set(1.52, 0.45, z);
+      vehicleGroup.add(hl);
+    });
+    // Wheels
+    [[-0.9, 0.8], [-0.9, -0.8], [0.9, 0.8], [0.9, -0.8]].forEach(([x, z]) => {
+      const wGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.18, 14);
+      const wMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+      const w = new THREE.Mesh(wGeo, wMat);
+      w.rotation.x = Math.PI / 2;
+      w.position.set(x, 0.25, z);
+      vehicleGroup.add(w);
+    });
+    // Light bar
+    const lbGeo = new THREE.BoxGeometry(1, 0.05, 0.25);
+    const lbMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 3 });
+    const lb = new THREE.Mesh(lbGeo, lbMat);
+    lb.position.set(0.2, 1.38, 0);
+    vehicleGroup.add(lb);
+
+    vehicleGroup.position.set(4, 0, 4);
+    scene.add(vehicleGroup);
+
+    // ── Animation Loop ──
     let animationFrameId;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      
-      // Animate gas cloud rotation
-      gasCloud.rotation.y += 0.005;
+      const t = performance.now() * 0.001;
 
-      // Update gas detector reading based on camera proximity to Drum #3 (0, 0.6, -4)
+      // Animate gas cloud
+      const posAttr = gasCloud.geometry.getAttribute('position');
+      for (let i = 0; i < particleCount; i++) {
+        posAttr.array[i * 3] += velocities[i].x * 0.5;
+        posAttr.array[i * 3 + 1] += velocities[i].y * 0.5;
+        posAttr.array[i * 3 + 2] += velocities[i].z * 0.5;
+        if (posAttr.array[i * 3 + 1] > 3.5) {
+          posAttr.array[i * 3 + 1] = 0;
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * 2;
+          posAttr.array[i * 3] = Math.cos(a) * r;
+          posAttr.array[i * 3 + 2] = Math.sin(a) * r;
+        }
+      }
+      posAttr.needsUpdate = true;
+
+      // Rotate gas cloud slowly
+      gasCloud.rotation.y += 0.002;
+
+      // Pulse leak glow
+      drums[2]?.children.forEach((child) => {
+        if (child.userData.isLeakGlow) {
+          child.material.emissiveIntensity = 2 + Math.sin(t * 4) * 1;
+          child.scale.setScalar(1 + Math.sin(t * 3) * 0.1);
+        }
+      });
+
+      // Animate decon archway columns
+      [col1, col2].forEach((col) => {
+        col.material.emissiveIntensity = 0.5 + Math.sin(t * 2) * 0.3;
+      });
+
+      // PPM reading
       const dist = camera.position.distanceTo(drums[2].position);
       const ppm = Math.max(0, Math.round(500 - dist * 80));
       setPpmReading(ppm);
 
-      // Check Hazard Zone Entry without PPE
       if (dist < 4 && !stateRef.current.hasPpe && !stateRef.current.inHazardZone) {
         stateRef.current.inHazardZone = true;
-        setHudMessage('⚠️ WARNING: ENTERED HAZARD ZONE WITHOUT PPE (-15 PENALTY)!');
+        setHudMessage('WARNING: ENTERED HAZARD ZONE WITHOUT PPE (-15 PENALTY)!');
         logEvent('entered_hazard_zone_without_ppe', '{"warning":"Entered hazard zone without PPE"}');
       }
 
       renderer.render(scene, camera);
     };
-
     animate();
 
     const handleResize = () => {
@@ -255,212 +496,212 @@ export default function TraineeVrScreen({ onSessionComplete }) {
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
     };
-
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
-      if (mountRef.current) mountRef.current.removeChild(renderer.domElement);
+      renderer.dispose();
+      if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
     };
   }, [isPlaying]);
 
+  // ── HUD Styles ──
+  const hudBox = {
+    background: 'rgba(11, 15, 23, 0.85)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '10px',
+    padding: '8px 16px',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+  };
+
   return (
-    <div className="glass-panel" style={{ padding: '24px', marginBottom: '28px' }}>
+    <div className="glass-card-deep animate-fade-in" style={{ padding: '24px', marginBottom: '28px', animationDelay: '0.15s' }}>
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#fff' }}>
-              Trainee VR First-Person Screen (Localhost Port 3000 View)
+              Trainee VR First-Person Screen
             </h2>
-            <span className="badge badge-pending">
-              <Radio size={12} className="animate-pulse" /> 3D WebGL VR Simulator
+            <span className="badge badge-pending animate-pulse-glow">
+              <Radio size={12} /> 3D WebGL VR Simulator
             </span>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
             Interactive First-Person Responder view rendering in browser, streaming live events to Spring Boot Backend
           </p>
         </div>
-
         {!isPlaying ? (
           <button className="btn-primary" onClick={startSession}>
             <Play size={16} /> Launch Trainee VR Screen
           </button>
         ) : (
-          <button className="btn-secondary" style={{ color: 'var(--accent-green)', borderColor: 'var(--accent-green)' }} onClick={finishMission}>
-            <CheckCircle size={16} /> Finish Mission & Generate Report
+          <button
+            className="btn-secondary"
+            style={{ color: 'var(--accent-green)', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+            onClick={finishMission}
+          >
+            <CheckCircle size={16} /> Finish Mission
           </button>
         )}
       </div>
 
       {!isPlaying ? (
-        <div style={{
-          height: '420px',
-          background: 'rgba(0, 0, 0, 0.4)',
-          border: '1px dashed var(--border-subtle)',
-          borderRadius: '12px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '14px',
-          color: 'var(--text-secondary)'
-        }}>
-          <Shield size={48} color="var(--accent-ndrf-orange)" />
+        <div
+          style={{
+            height: '420px',
+            background: 'linear-gradient(145deg, rgba(0,0,0,0.5) 0%, rgba(11,15,23,0.8) 100%)',
+            border: '1px dashed rgba(245, 130, 32, 0.2)',
+            borderRadius: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '14px',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <Shield size={52} color="var(--accent-ndrf-orange)" style={{ filter: 'drop-shadow(0 0 12px rgba(245,130,32,0.3))' }} />
           <div style={{ textAlign: 'center' }}>
             <h3 style={{ color: '#fff', fontSize: '1.1rem', marginBottom: '4px' }}>Trainee First-Person VR View Offline</h3>
-            <p style={{ fontSize: '0.85rem' }}>Click "Launch Trainee VR Screen" to open the 3D first-person simulation on localhost:3000</p>
+            <p style={{ fontSize: '0.85rem' }}>Click "Launch Trainee VR Screen" to open the 3D first-person simulation</p>
           </div>
         </div>
       ) : (
-        <div style={{ position: 'relative', width: '100%', height: '480px', borderRadius: '12px', overflow: 'hidden' }}>
-          {/* 3D WebGL Canvas View */}
+        <div style={{ position: 'relative', width: '100%', height: '480px', borderRadius: '14px', overflow: 'hidden' }}>
           <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
 
           {/* VR HUD Overlay */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            border: '2px solid rgba(0, 242, 254, 0.3)',
-            borderRadius: '12px',
-            boxShadow: 'inset 0 0 50px rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: '16px'
-          }}>
-            {/* Top HUD Banner */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{
-                background: 'rgba(11, 15, 23, 0.85)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(245, 130, 32, 0.4)',
-                borderRadius: '8px',
-                padding: '8px 16px',
-                color: 'var(--accent-ndrf-orange)',
-                fontSize: '0.82rem',
-                fontWeight: '700',
-                letterSpacing: '0.05em'
-              }}>
-                🎯 OBJECTIVE: {hudMessage}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              border: '2px solid rgba(0, 242, 254, 0.2)',
+              borderRadius: '14px',
+              boxShadow: 'inset 0 0 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 242, 254, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '16px',
+            }}
+          >
+            {/* Top HUD */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ ...hudBox, color: 'var(--accent-ndrf-orange)', fontSize: '0.82rem', fontWeight: '700', letterSpacing: '0.04em' }}>
+                OBJECTIVE: {hudMessage}
               </div>
-
-              {/* PID Gas Detector Reading */}
-              <div style={{
-                background: 'rgba(11, 15, 23, 0.85)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(0, 242, 254, 0.4)',
-                borderRadius: '8px',
-                padding: '8px 16px',
-                color: ppmReading > 250 ? 'var(--accent-red)' : 'var(--accent-cyan)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.85rem',
-                fontWeight: '700'
-              }}>
-                📟 PID GAS DETECTOR: {ppmReading} PPM
+              <div
+                style={{
+                  ...hudBox,
+                  color: ppmReading > 250 ? 'var(--accent-red)' : 'var(--accent-cyan)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  borderColor: ppmReading > 250 ? 'rgba(239,68,68,0.4)' : 'rgba(0,242,254,0.3)',
+                }}
+              >
+                PID GAS DETECTOR: {ppmReading} PPM
               </div>
             </div>
 
-            {/* Reticle Crosshair */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(255, 255, 255, 0.6)' }}>
-              <Crosshair size={28} />
+            {/* Crosshair */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                color: 'rgba(255, 255, 255, 0.5)',
+                filter: 'drop-shadow(0 0 4px rgba(0,242,254,0.3))',
+              }}
+            >
+              <Crosshair size={32} />
             </div>
 
-            {/* Bottom HUD Controls & Donning Station */}
-            <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              {/* PPE Donning Controls */}
-              <div style={{
-                background: 'rgba(11, 15, 23, 0.88)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '10px',
-                padding: '12px',
+            {/* Bottom Controls */}
+            <div
+              style={{
+                pointerEvents: 'auto',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)' }}>PPE LOCKER:</span>
-                <button
-                  onClick={() => equipPpeItem('mask')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: ppeState.mask ? 'var(--accent-green)' : 'rgba(255,255,255,0.1)',
-                    color: '#fff'
-                  }}
-                >
-                  {ppeState.mask ? '✅ Mask' : '😷 Equip Mask'}
-                </button>
-                <button
-                  onClick={() => equipPpeItem('suit')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: ppeState.suit ? 'var(--accent-green)' : 'rgba(255,255,255,0.1)',
-                    color: '#fff'
-                  }}
-                >
-                  {ppeState.suit ? '✅ Suit' : '🥼 Equip Suit'}
-                </button>
-                <button
-                  onClick={() => equipPpeItem('gloves')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: ppeState.gloves ? 'var(--accent-green)' : 'rgba(255,255,255,0.1)',
-                    color: '#fff'
-                  }}
-                >
-                  {ppeState.gloves ? '✅ Gloves' : '🧤 Equip Gloves'}
-                </button>
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
+              {/* PPE Locker */}
+              <div style={{ ...hudBox, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  PPE Locker:
+                </span>
+                {[
+                  { key: 'mask', label: 'Mask', icon: '😷' },
+                  { key: 'suit', label: 'Suit', icon: '🥼' },
+                  { key: 'gloves', label: 'Gloves', icon: '🧤' },
+                ].map(({ key, label, icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => equipPpeItem(key)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: ppeState[key] ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.08)',
+                      color: ppeState[key] ? 'var(--accent-green)' : '#fff',
+                      transition: 'all 0.2s ease',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {ppeState[key] ? `✅ ${label}` : `${icon} Equip ${label}`}
+                  </button>
+                ))}
               </div>
 
               {/* Mission Actions */}
-              <div style={{
-                background: 'rgba(11, 15, 23, 0.88)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '10px',
-                padding: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handleDrumClick(3)}>
-                  🔍 Scan Drum #3 (Leaking)
-                </button>
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => handleDrumClick(1)}>
-                  ❌ Scan Drum #1 (Wrong)
-                </button>
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={evacuateCivilian}>
-                  🏃 Evacuate Civilian ({civiliansEvacuated}/2)
-                </button>
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={applyContainment}>
-                  🛠️ Apply Sealant
-                </button>
-                <button className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={passDecon}>
-                  🚿 Pass Decon
-                </button>
+              <div style={{ ...hudBox, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { label: '🔍 Scan #3', onClick: () => handleDrumClick(3) },
+                  { label: '❌ Scan #1', onClick: () => handleDrumClick(1) },
+                  { label: `🏃 Evac (${civiliansEvacuated}/2)`, onClick: evacuateCivilian },
+                  { label: '🛠️ Seal', onClick: applyContainment },
+                  { label: '🚿 Decon', onClick: passDecon },
+                ].map((btn, i) => (
+                  <button
+                    key={i}
+                    className="btn-secondary"
+                    style={{ padding: '5px 12px', fontSize: '0.75rem' }}
+                    onClick={btn.onClick}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Real-time Telemetry Stream Footer */}
+      {/* Telemetry Footer */}
       {telemetryLogs.length > 0 && (
-        <div style={{ marginTop: '12px', fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-          📡 Live Telemetry Event Stream: {telemetryLogs[0]}
+        <div
+          style={{
+            marginTop: '12px',
+            fontSize: '0.75rem',
+            color: 'var(--accent-cyan)',
+            fontFamily: 'var(--font-mono)',
+            padding: '8px 12px',
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: '8px',
+            border: '1px solid rgba(0,242,254,0.1)',
+          }}
+        >
+          📡 Live Telemetry: {telemetryLogs[0]}
         </div>
       )}
     </div>

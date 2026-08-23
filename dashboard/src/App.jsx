@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DashboardBackground from './components/DashboardBackground.jsx';
+import Hero3DScene from './components/Hero3DScene.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
@@ -12,7 +14,7 @@ export default function App() {
     totalSessionsCompleted: 8,
     overallPassRate: 87.5,
     averageScore: 84.2,
-    recentSessions: []
+    recentSessions: [],
   });
   const [loading, setLoading] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -25,8 +27,8 @@ export default function App() {
         const data = await res.json();
         setStats(data);
       }
-    } catch (err) {
-      console.warn('Backend API offline or unreachable, using local telemetry fallback.');
+    } catch {
+      // Backend offline, using local fallback
     } finally {
       setLoading(false);
     }
@@ -37,27 +39,37 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
-      <Header onRefresh={fetchDashboardStats} loading={loading} />
-      
-      <main>
-        {/* Trainee VR Vision First-Person Screen */}
-        <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+    <>
+      {/* Full-page animated 3D background layer */}
+      <DashboardBackground />
 
-        <MetricCards stats={stats} />
-        
-        <SessionsTable 
-          sessions={stats?.recentSessions} 
-          onSelectSession={session => setSelectedSession(session)} 
-        />
+      {/* Main content */}
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
+        <Header onRefresh={fetchDashboardStats} loading={loading} />
 
-        <EventSimulator onSessionCreated={fetchDashboardStats} />
-      </main>
+        {/* 3D Hero Scene */}
+        <Hero3DScene />
 
-      <SessionDetailModal 
-        session={selectedSession} 
-        onClose={() => setSelectedSession(null)} 
-      />
-    </div>
+        <main>
+          {/* Metric Cards */}
+          <MetricCards stats={stats} />
+
+          {/* VR First-Person Screen */}
+          <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+
+          {/* Sessions Data Table */}
+          <SessionsTable
+            sessions={stats?.recentSessions}
+            onSelectSession={(session) => setSelectedSession(session)}
+          />
+
+          {/* Event Simulator */}
+          <EventSimulator onSessionCreated={fetchDashboardStats} />
+        </main>
+
+        {/* Session Detail Modal */}
+        <SessionDetailModal session={selectedSession} onClose={() => setSelectedSession(null)} />
+      </div>
+    </>
   );
 }

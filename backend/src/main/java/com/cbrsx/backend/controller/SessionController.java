@@ -6,14 +6,11 @@ import com.cbrsx.backend.dto.StartSessionResponse;
 import com.cbrsx.backend.service.ScoringService;
 import com.cbrsx.backend.service.SessionService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -30,13 +27,21 @@ public class SessionController {
     }
 
     @PostMapping("/{sessionId}/complete")
-    public ResponseEntity<ScoreReportDTO> completeSession(@PathVariable String sessionId) {
+    public ResponseEntity<ScoreReportDTO> completeSession(
+            @PathVariable @Size(min = 5, max = 64) @Pattern(
+                    regexp = "^[a-zA-Z0-9_-]+$",
+                    message = "sessionId may only contain letters, digits, dashes and underscores"
+            ) String sessionId) {
         ScoreReportDTO report = scoringService.finalizeSession(sessionId);
         return ResponseEntity.ok(report);
     }
 
     @GetMapping("/{sessionId}/report")
-    public ResponseEntity<ScoreReportDTO> getSessionReport(@PathVariable String sessionId) {
+    public ResponseEntity<ScoreReportDTO> getSessionReport(
+            @PathVariable @Size(min = 5, max = 64) @Pattern(
+                    regexp = "^[a-zA-Z0-9_-]+$",
+                    message = "sessionId may only contain letters, digits, dashes and underscores"
+            ) String sessionId) {
         ScoreReportDTO report = scoringService.previewScore(sessionId);
         return ResponseEntity.ok(report);
     }

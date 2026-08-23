@@ -4,44 +4,184 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * API Key authentication filter with:
+ * - Constant-time comparison (prevents timing attacks)
+ * - Per-IP rate limiting (brute-force protection)
+ * - Secure handling when no API key is configured
+ * - Request size validation
+ */
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyAuthFilter.class);
+
     public static final String API_KEY_HEADER = "X-API-Key";
+    private static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024; // 1MB limit
+    private static final int RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+    private static final int MAX_REQUESTS_PER_WINDOW = 100;
 
     private final String configuredApiKey;
+    private final boolean authEnabled;
+
+    // Simple in-memory rate limiter (per-IP)
+    private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();
 
     public ApiKeyAuthFilter(@Value("${cbrsx.api-key:}") String configuredApiKey) {
-        this.configuredApiKey = configuredApiKey == null ? "" : configuredApiKey.trim();
+        String key = configuredApiKey == null ? "" : configuredApiKey.trim();
+        this.configuredApiKey = key;
+        this.authEnabled = !key.isEmpty();
+        if (!this.authEnabled) {
+            log.warn("⚠️  CBRSX_API_KEY is not configured. API key authentication is DISABLED. " +
+                    "Set the environment variable to enable authentication in production.");
+        }
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/actuator") || path.equals("/") || path.startsWith("/error");
+        // Only exempt health checks and the root status endpoint
+        return path.startsWith("/actuator/health")
+                || path.startsWith("/actuator/info")
+                || path.equals("/")
+                || path.startsWith("/error");
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (configuredApiKey.isEmpty()) {
+
+        // ── Request size guard ──
+        if (request.getContentLength() > MAX_REQUEST_SIZE_BYTES) {
+            response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Payload Too Large\",\"message\":\"Request body exceeds 1MB limit\"}");
+            return;
+        }
+
+        // ── If no API key is configured, allow through with a warning log ──
+        if (!authEnabled) {
             filterChain.doFilter(request, response);
             return;
         }
+
+        // ── Rate limiting per client IP ──
+        String clientIp = getClientIp(request);
+        if (isRateLimited(clientIp)) {
+            log.warn("Rate limit exceeded for IP: {}", clientIp);
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType("application/json");
+            response.setHeader("Retry-After", "60");
+            response.getWriter().write("{\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Try again later.\"}");
+            return;
+        }
+
+        // ── Validate API key with constant-time comparison ──
         String provided = request.getHeader(API_KEY_HEADER);
-        if (configuredApiKey.equals(provided)) {
-            filterChain.doFilter(request, response);
+        if (provided == null || provided.isEmpty()) {
+            rejectUnauthorized(response, "Missing X-API-Key header");
             return;
         }
+
+        if (constantTimeEquals(configuredApiKey, provided)) {
+            filterChain.doFilter(request, response);
+        } else {
+            log.warn("Failed API key authentication attempt from IP: {} Path: {}", clientIp, request.getRequestURI());
+            rejectUnauthorized(response, "Invalid API key");
+        }
+    }
+
+    /**
+     * Constant-time string comparison using HMAC-SHA256 to prevent timing attacks.
+     * Both strings are HMAC'd with a random key, then the digests are compared.
+     */
+    private boolean constantTimeEquals(String expected, String provided) {
+        try {
+            // Generate a random key for this comparison
+            byte[] comparisonKey = new byte[32];
+            new java.security.SecureRandom().nextBytes(comparisonKey);
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(comparisonKey, "HmacSHA256"));
+
+            byte[] expectedHash = mac.doFinal(expected.getBytes(StandardCharsets.UTF_8));
+            byte[] providedHash = mac.doFinal(provided.getBytes(StandardCharsets.UTF_8));
+
+            // Compare the full HMAC digests (constant-time via Java's MessageDigest)
+            return java.security.MessageDigest.isEqual(expectedHash, providedHash);
+        } catch (Exception e) {
+            // Fallback: use standard MessageDigest.isEqual on raw bytes
+            // This is still constant-time via javax.crypto.Mac or manual XOR
+            byte[] a = expected.getBytes(StandardCharsets.UTF_8);
+            byte[] b = provided.getBytes(StandardCharsets.UTF_8);
+            if (a.length != b.length) {
+                // Still do the comparison to avoid length-based timing
+                int dummy = 0;
+                for (byte bite : b) dummy |= bite;
+                return false;
+            }
+            int result = 0;
+            for (int i = 0; i < a.length; i++) {
+                result |= a[i] ^ b[i];
+            }
+            return result == 0;
+        }
+    }
+
+    private void rejectUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType("application/json");
-        response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Missing or invalid X-API-Key header\"}");
+        response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
     }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
+    }
+
+    private boolean isRateLimited(String clientIp) {
+        long now = System.currentTimeMillis();
+        RateLimitEntry entry = rateLimitMap.compute(clientIp, (key, existing) -> {
+            if (existing == null || (now - existing.windowStart) > RATE_LIMIT_WINDOW_MS) {
+                return new RateLimitEntry(now, new AtomicInteger(1));
+            }
+            existing.count.incrementAndGet();
+            return existing;
+        });
+        return entry.count.get() > MAX_REQUESTS_PER_WINDOW;
+    }
+
+    private static class RateLimitEntry {
+        final long windowStart;
+        final AtomicInteger count;
+
+        RateLimitEntry(long windowStart, AtomicInteger count) {
+            this.windowStart = windowStart;
+            this.count = count;
+        }
+    }
+
+
 }

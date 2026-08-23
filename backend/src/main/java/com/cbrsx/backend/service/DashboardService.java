@@ -104,7 +104,9 @@ public class DashboardService {
                 .filter(e -> "entered_hazard_zone_without_ppe".equals(e.getEventType())).count();
         long wrongDrumScans = events.stream()
                 .filter(e -> "leak_source_identified".equals(e.getEventType()))
-                .filter(e -> e.getEventData() != null && e.getEventData().matches("(?s).*\"correct\"\\s*:\\s*false.*"))
+                .filter(e -> e.getEventData() != null
+                        && e.getEventData().contains("\"correct\"")
+                        && e.getEventData().contains("false"))
                 .count();
         long deconSkips = countSessionsMissing(events, "decontamination_completed");
         long containmentSkips = countSessionsMissing(events, "containment_completed");

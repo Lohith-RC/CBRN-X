@@ -19,8 +19,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -49,8 +47,10 @@ public class ScoringService {
     public static final long TIER_GOOD_SECONDS = 300;
     public static final long TIER_ACCEPTABLE_SECONDS = 450;
 
-    private static final Pattern COUNT_FIELD_PATTERN = Pattern.compile("\"count\"\\s*:\\s*(\\d+)");
-    private static final String WRONG_SCAN_MARKER = "\"correct\"\\s*:\\s*false";
+    // Use simple contains/indexOf instead of regex to avoid ReDoS
+    private static final String COUNT_FIELD_KEY = "\"count\"";
+    private static final String WRONG_SCAN_MARKER = "\"correct\"";
+    private static final String FALSE_VALUE = "false";
 
     /**
      * Read-only score computation. Safe to call from GET endpoints; never mutates state.
@@ -159,7 +159,7 @@ public class ScoringService {
                     break;
 
                 case "leak_source_identified":
-                    if (data != null && data.matches("(?s).*" + WRONG_SCAN_MARKER + ".*")) {
+                    if (data != null && data.contains(WRONG_SCAN_MARKER) && data.contains(FALSE_VALUE)) {
                         wrongDrumScans++;
                         totalPenalties += PENALTY_WRONG_DRUM_SCAN;
                         mistakes.add(MistakeDetailDTO.builder()
@@ -329,17 +329,34 @@ public class ScoringService {
                 .build();
     }
 
+    /**
+     * Safely extract a numeric "count" value from JSON-like event data.
+     * Uses simple string parsing instead of regex to avoid ReDoS vulnerabilities.
+     */
     private int extractCount(String eventData) {
-        if (eventData == null || !eventData.contains("count")) {
+        if (eventData == null || !eventData.contains(COUNT_FIELD_KEY)) {
             return 1;
         }
-        Matcher matcher = COUNT_FIELD_PATTERN.matcher(eventData);
-        if (matcher.find()) {
-            try {
-                return Integer.parseInt(matcher.group(1));
-            } catch (NumberFormatException ignored) {
-                return 1;
+        try {
+            int keyIdx = eventData.indexOf(COUNT_FIELD_KEY);
+            if (keyIdx < 0) return 1;
+            int colonIdx = eventData.indexOf(':', keyIdx + COUNT_FIELD_KEY.length());
+            if (colonIdx < 0) return 1;
+            int start = colonIdx + 1;
+            // Skip whitespace
+            while (start < eventData.length() && Character.isWhitespace(eventData.charAt(start))) {
+                start++;
             }
+            // Read digits
+            int end = start;
+            while (end < eventData.length() && Character.isDigit(eventData.charAt(end))) {
+                end++;
+            }
+            if (end > start) {
+                return Integer.parseInt(eventData.substring(start, end));
+            }
+        } catch (Exception ignored) {
+            // Return default on any parsing error
         }
         return 1;
     }

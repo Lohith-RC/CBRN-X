@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS events (
     event_id VARCHAR(64) PRIMARY KEY,
     session_id VARCHAR(64) REFERENCES sessions(session_id),
     event_type VARCHAR(100) NOT NULL,
-    event_data TEXT, -- JSON string representation
+    event_data TEXT,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
@@ -45,11 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_trainee_id ON sessions(trainee_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_pass_status ON sessions(pass_status);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
 
--- Initial Seed Data (PostgreSQL / H2-PostgreSQL compatible upsert)
-INSERT INTO scenarios (scenario_id, code, title, description, max_score)
-VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100)
-ON CONFLICT (scenario_id) DO UPDATE SET
-    code = EXCLUDED.code,
-    title = EXCLUDED.title,
-    description = EXCLUDED.description,
-    max_score = EXCLUDED.max_score;
+-- Initial Seed Data using MERGE (H2 + PostgreSQL compatible upsert)
+MERGE INTO scenarios (scenario_id, code, title, description, max_score)
+KEY (scenario_id)
+VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100);
