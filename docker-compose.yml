@@ -12,6 +12,8 @@ services:
       - "5432:5432"
     volumes:
       - cbrsx-pgdata:/var/lib/postgresql/data
+    networks:
+      - cbrsx-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -35,12 +37,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
-    restart: unless-stopped
-    mem_limit: 1g
     networks:
       - cbrsx-net
     restart: unless-stopped
-    # Resource limits to prevent DoS
     deploy:
       resources:
         limits:
@@ -56,6 +55,7 @@ services:
       - cbrsx-net
     depends_on:
       - cbrsx-backend
+    restart: unless-stopped
 
   cbrsx-trainee-view:
     build: ./trainee_view
@@ -66,6 +66,7 @@ services:
       - cbrsx-net
     depends_on:
       - cbrsx-backend
+    restart: unless-stopped
 
   # 5. Nginx Reverse Proxy (Port Routing & SSL Termination)
   nginx-proxy:
