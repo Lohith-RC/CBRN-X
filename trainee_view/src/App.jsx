@@ -134,6 +134,8 @@ export default function App() {
     incomingRef.current.load();
 
     incomingRef.current.oncanplay = () => {
+      if (!incomingRef.current || !outgoingRef.current) return;
+
       // Play the incoming video
       incomingRef.current.play().catch(() => {});
 
@@ -143,12 +145,12 @@ export default function App() {
 
       // Freeze incoming on last frame (no loop)
       incomingRef.current.onended = () => {
-        incomingRef.current.pause();
+        if (incomingRef.current) incomingRef.current.pause();
       };
 
       // Pause the outgoing video after crossfade completes
       setTimeout(() => {
-        outgoingRef.current.pause();
+        if (outgoingRef.current) outgoingRef.current.pause();
       }, 700);
 
       activeVideoRef.current = currentActive === 'A' ? 'B' : 'A';
@@ -204,13 +206,13 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ traineeName: 'NDRF Inspector Lohith R C', batchUnit: '10th NDRF Battalion', scenarioCode: 'CBRN-CHEM-01' })
       });
+      if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
       setSessionId(data.sessionId);
       stateRef.current.sessionId = data.sessionId;
     } catch (_) {
-      const demoId = 'sess-phase1-5000';
-      setSessionId(demoId);
-      stateRef.current.sessionId = demoId;
+      setSessionId(null);
+      stateRef.current.sessionId = null;
     }
     setIsActive(true);
     transitionToBeat(0);
@@ -326,7 +328,11 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isActive || beatIndex < 0) return;
-      switch (e.key.toLowerCase()) {
+      const key = e.key.toLowerCase();
+      if (['w', 'a', 's', 'd', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+        e.preventDefault();
+      }
+      switch (key) {
         case 'e':
           if (beatIndex === 3) {
             if (!ppeState.suit) handleAction('EQUIP_SUIT');

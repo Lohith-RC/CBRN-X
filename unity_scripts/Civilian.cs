@@ -185,7 +185,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                CbrsEventLogger.Instance.LogEvent("civilian_contacted", "{\"civilian_id\":\"" + civilianId + "\"}");
+                    CbrsEventLogger.Instance.LogEvent("civilian_contacted", "{\"civilian_id\":\"" + CbrsEventLogger.JsonEscape(civilianId) + "\"}");
             }
 
             Debug.Log($"[CBRS-X V2.0] Civilian {civilianId} transitioned to EscortedFollow state.");
@@ -259,7 +259,7 @@ namespace CBRSX.Unity
 
                 if (CbrsEventLogger.Instance != null)
                 {
-                    CbrsEventLogger.Instance.LogEvent("civilian_evacuated", "{\"civilian_id\":\"" + civilianId + "\"}");
+                    CbrsEventLogger.Instance.LogEvent("civilian_evacuated", "{\"civilian_id\":\"" + CbrsEventLogger.JsonEscape(civilianId) + "\"}");
                 }
 
                 if (GameManager.Instance != null)
