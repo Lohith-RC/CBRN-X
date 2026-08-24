@@ -7,11 +7,12 @@ import CohortBoard from './components/CohortBoard.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
 import Login from './components/Login.jsx';
+import LandingPage from './components/LandingPage.jsx';
 import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, Home } from 'lucide-react';
 
-function Dashboard() {
+function Dashboard({ onReturnHome }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -49,6 +50,32 @@ function Dashboard() {
 
       {/* Main content */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
+        
+        {/* Quick Back to Landing Page Bar */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <button
+            onClick={onReturnHome}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(15, 23, 42, 0.75)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              color: '#93c5fd',
+              fontSize: '0.78rem',
+              fontFamily: 'monospace',
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Home size={14} />
+            Public Landing Page
+          </button>
+        </div>
+
         <Header onRefresh={fetchDashboardStats} loading={loading} liveConnected={liveConnected} />
 
         {apiError && (
@@ -75,7 +102,7 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Compact static mission strip (replaces the WebGL hero scene) */}
+        {/* Compact static mission strip */}
         <MissionStrip liveConnected={liveConnected} />
 
         <main>
@@ -103,8 +130,12 @@ function Dashboard() {
   );
 }
 
-function AuthGate() {
+function MainView() {
   const { user, booting } = useAuth();
+  const [view, setView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('view') === 'dashboard' ? 'dashboard' : 'landing';
+  });
 
   if (booting) {
     return (
@@ -116,6 +147,7 @@ function AuthGate() {
           justifyContent: 'center',
           color: 'var(--text-secondary)',
           fontSize: '0.9rem',
+          background: '#060911'
         }}
       >
         Establishing secure connection…
@@ -123,13 +155,47 @@ function AuthGate() {
     );
   }
 
-  return user ? <Dashboard /> : <Login />;
+  if (view === 'landing') {
+    return (
+      <LandingPage
+        onEnterDashboard={() => setView('dashboard')}
+        onLaunchSim={() => window.open('/unity-sim/index.html', '_blank')}
+      />
+    );
+  }
+
+  return user ? (
+    <Dashboard onReturnHome={() => setView('landing')} />
+  ) : (
+    <div style={{ minHeight: '100vh', background: '#060911' }}>
+      <div style={{ maxWidth: '480px', margin: '0 auto', paddingTop: '40px' }}>
+        <button
+          onClick={() => setView('landing')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'transparent',
+            border: 'none',
+            color: '#93c5fd',
+            fontSize: '0.85rem',
+            fontFamily: 'monospace',
+            cursor: 'pointer',
+            marginBottom: '16px'
+          }}
+        >
+          &larr; Back to Landing Page
+        </button>
+        <Login />
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AuthGate />
+      <MainView />
     </AuthProvider>
   );
 }
