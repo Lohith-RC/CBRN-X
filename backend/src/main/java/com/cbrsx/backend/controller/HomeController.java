@@ -33,7 +33,7 @@ public class HomeController {
         String uptimeStr = String.format("%02dh %02dm %02ds", hours, minutes, seconds);
         String profileStr = activeProfile != null ? activeProfile.toUpperCase() : "DEV";
 
-        return """
+        String template = """
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -180,11 +180,11 @@ public class HomeController {
                     <div class="grid-stats">
                         <div class="stat-card">
                             <div class="stat-label">Active Profile</div>
-                            <div class="stat-value" style="color: var(--accent-cyan);">%s</div>
+                            <div class="stat-value" style="color: var(--accent-cyan);">{{PROFILE}}</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">System Uptime</div>
-                            <div class="stat-value">%s</div>
+                            <div class="stat-value">{{UPTIME}}</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">Security & RBAC</div>
@@ -298,7 +298,11 @@ public class HomeController {
                 </div>
             </body>
             </html>
-            """.formatted(profileStr, uptimeStr);
+            """;
+
+        return template
+                .replace("{{PROFILE}}", profileStr)
+                .replace("{{UPTIME}}", uptimeStr);
     }
 
     @GetMapping(value = "/", produces = MediaType.APPLICATION_JSON_VALUE)
