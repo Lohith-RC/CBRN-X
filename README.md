@@ -44,8 +44,16 @@ npm run dev
 ```
 Open `http://localhost:3000` in browser.
 
-### 3. Trainee VR Simulation (Unity)
-- Open Unity Editor (`c:\Users\lohit\OneDrive\Desktop\CBRS-X`) or use the built-in 3D WebGL simulator on `http://localhost:3000`.
+### 3. React Trainee View / Simulator (`/trainee_view`)
+```powershell
+cd trainee_view
+npm install
+npm run dev
+```
+Open `http://localhost:5000` in browser.
+
+### 4. Trainee VR Simulation (Unity)
+- Open the Unity project folder (repository root) in Unity Editor or use the built-in 3D WebGL simulator at `http://localhost:5000`.
 
 ---
 

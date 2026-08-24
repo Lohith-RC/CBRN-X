@@ -61,12 +61,15 @@ reports/
 reports/*
 Bay03_Cinematic_Screenshots/
 /Bay03_Cinematic_Screenshots/
-*.pdf
-*.html
+reports/*.pdf
+reports/*.html
+docs/*.pdf
+docs/*.html
 
-# 7. Documentation Files (Keep only root README.md tracked)
+# 7. Documentation Files (Keep root and docs/ README/markdown files tracked)
 *.md
 !README.md
+!docs/**/*.md
 
 # 8. Environment Files (Security & Credentials)
 .env
