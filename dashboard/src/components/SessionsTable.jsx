@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Search, CheckCircle2, XCircle, Clock, Loader } from 'lucide-react';
+import { Eye, Search, CheckCircle2, XCircle, Clock, Loader, Ban } from 'lucide-react';
 
 function formatDuration(session) {
   if (!session.startedAt) {
@@ -13,9 +13,46 @@ function formatDuration(session) {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
-export default function SessionsTable({ sessions, onSelectSession }) {
+export default function SessionsTable({ sessions, onSelectSession, onDataChanged }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [voidingId, setVoidingId] = useState(null);
+
+  const handleVoidSession = async (session) => {
+    const confirmed = window.confirm(
+      `Void session record for ${session.traineeName || 'Unknown Trainee'} (${session.sessionId})?\n\n` +
+        'Voided sessions are permanently excluded from all statistics and disappear from this list. An audit event is written to the database.'
+    );
+    if (!confirmed) return;
+
+    setVoidingId(session.sessionId);
+    try {
+      const res = await fetch(`/api/sessions/${session.sessionId}/void`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Voided by instructor from command center' }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || `Backend responded with status ${res.status}`);
+      }
+      if (onDataChanged) onDataChanged();
+    } catch (err) {
+      console.error('Failed to void session:', err);
+      window.alert(`Failed to void session: ${err.message}`);
+    } finally {
+      setVoidingId(null);
+    }
+  };
+
+  const statusBadge = (passStatus) => {
+    switch (passStatus) {
+      case 'PASSED': return { cls: 'badge-passed', Icon: CheckCircle2 };
+      case 'IN_PROGRESS': return { cls: 'badge-pending', Icon: Loader };
+      case 'VOIDED': return { cls: 'badge-voided', Icon: Ban };
+      default: return { cls: 'badge-failed', Icon: XCircle };
+    }
+  };
 
   const filteredSessions = (sessions || []).filter((session) => {
     const matchesSearch =
@@ -172,16 +209,15 @@ export default function SessionsTable({ sessions, onSelectSession }) {
                       )}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
-                      <span className={`badge badge-${(session.passStatus || 'pending').toLowerCase()}`}>
-                        {inProgress ? (
-                          <Loader size={12} className="animate-spin" />
-                        ) : session.passStatus === 'PASSED' ? (
-                          <CheckCircle2 size={12} />
-                        ) : (
-                          <XCircle size={12} />
-                        )}
-                        {session.passStatus}
-                      </span>
+                      {(() => {
+                        const { cls, Icon } = statusBadge(session.passStatus);
+                        return (
+                          <span className={`badge ${cls}`}>
+                            <Icon size={12} className={inProgress ? 'animate-spin' : ''} />
+                            {session.passStatus}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -190,13 +226,30 @@ export default function SessionsTable({ sessions, onSelectSession }) {
                       </div>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button
-                        className="btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                        onClick={() => onSelectSession(session)}
-                      >
-                        <Eye size={14} /> Report Card
-                      </button>
+                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                          onClick={() => onSelectSession(session)}
+                        >
+                          <Eye size={14} /> Report Card
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '0.78rem',
+                            color: 'var(--accent-red)',
+                            borderColor: 'rgba(239, 68, 68, 0.4)',
+                          }}
+                          onClick={() => handleVoidSession(session)}
+                          disabled={voidingId === session.sessionId}
+                          title="Exclude this session from all statistics (audit event retained)"
+                        >
+                          <Ban size={14} />
+                          {voidingId === session.sessionId ? 'Voiding…' : 'Void'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

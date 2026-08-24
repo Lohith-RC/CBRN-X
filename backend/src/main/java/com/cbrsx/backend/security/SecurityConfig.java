@@ -78,6 +78,7 @@ public class SecurityConfig {
                         // Instructor operations (dashboard stats, debriefs, session completions)
                         .requestMatchers("/api/dashboard/**").hasAnyRole("INSTRUCTOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/sessions/*/complete").hasAnyRole("INSTRUCTOR", "ADMIN", "SIMULATION")
+                        .requestMatchers(HttpMethod.POST, "/api/sessions/*/void").hasAnyRole("INSTRUCTOR", "ADMIN")
                         .requestMatchers("/api/sessions/*/debrief").hasAnyRole("INSTRUCTOR", "ADMIN")
 
                         // Trainee & General inquiry endpoints

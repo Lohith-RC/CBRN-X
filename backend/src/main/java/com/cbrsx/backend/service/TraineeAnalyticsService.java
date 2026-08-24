@@ -40,7 +40,9 @@ public class TraineeAnalyticsService {
         Trainee trainee = traineeRepository.findById(traineeId)
                 .orElseThrow(() -> new IllegalArgumentException("Trainee not found with ID: " + traineeId));
 
-        List<TrainingSession> sessions = sessionRepository.findByTraineeIdOrderByStartedAtAsc(traineeId);
+        List<TrainingSession> sessions = sessionRepository.findByTraineeIdOrderByStartedAtAsc(traineeId).stream()
+                .filter(s -> !"VOIDED".equalsIgnoreCase(s.getPassStatus()))
+                .collect(Collectors.toList());
 
         if (sessions.isEmpty()) {
             return TraineeProgressionDTO.builder()

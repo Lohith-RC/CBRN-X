@@ -3,6 +3,7 @@ package com.cbrsx.backend.controller;
 import com.cbrsx.backend.dto.ScoreReportDTO;
 import com.cbrsx.backend.dto.StartSessionRequest;
 import com.cbrsx.backend.dto.StartSessionResponse;
+import com.cbrsx.backend.entity.TrainingSession;
 import com.cbrsx.backend.service.CertificateService;
 import com.cbrsx.backend.service.ScoringService;
 import com.cbrsx.backend.service.SessionService;
@@ -14,6 +15,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -38,6 +42,21 @@ public class SessionController {
             ) String sessionId) {
         ScoreReportDTO report = scoringService.finalizeSession(sessionId);
         return ResponseEntity.ok(report);
+    }
+
+    @PostMapping("/{sessionId}/void")
+    public ResponseEntity<Map<String, Object>> voidSession(
+            @PathVariable @Size(min = 5, max = 64) @Pattern(
+                    regexp = "^[a-zA-Z0-9_-]+$",
+                    message = "sessionId may only contain letters, digits, dashes and underscores"
+            ) String sessionId,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        TrainingSession voided = sessionService.voidSession(sessionId, reason);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("sessionId", voided.getSessionId());
+        response.put("passStatus", voided.getPassStatus());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{sessionId}/report")

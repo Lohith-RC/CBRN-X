@@ -198,6 +198,13 @@ body {
   box-shadow: 0 0 12px rgba(245, 130, 32, 0.15);
 }
 
+.badge-voided {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  text-decoration: line-through;
+}
+
 /* ── Button Styles ── */
 .btn-primary {
   background: linear-gradient(135deg, #f58220 0%, #ff5200 100%);

@@ -244,4 +244,50 @@ public class SessionService {
             }
         }
     }
+
+    /**
+     * Voids an invalid session (e.g. simulator test data or aborted runs).
+     * Voided sessions are excluded from every analytics computation but the
+     * row and a "session_voided" audit event are preserved for traceability.
+     */
+    @Transactional
+    public TrainingSession voidSession(String sessionId, String reason) {
+        TrainingSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+
+        if ("VOIDED".equals(session.getPassStatus())) {
+            throw new IllegalArgumentException("Session is already voided: " + sessionId);
+        }
+
+        session.setPassStatus("VOIDED");
+        if (session.getCompletedAt() == null) {
+            session.setCompletedAt(Instant.now());
+        }
+        TrainingSession saved = sessionRepository.save(session);
+
+        Map<String, Object> voidPayload = new HashMap<>();
+        voidPayload.put("sessionId", sessionId);
+        voidPayload.put("status", "VOIDED");
+        if (reason != null && !reason.isBlank()) {
+            voidPayload.put("reason", reason.trim());
+        }
+
+        SessionEvent voidEvent = SessionEvent.builder()
+                .eventId("evt-" + UUID.randomUUID())
+                .sessionId(sessionId)
+                .eventType("session_voided")
+                .eventData(toJson(voidPayload))
+                .timestamp(Instant.now())
+                .build();
+        eventRepository.save(voidEvent);
+
+        try {
+            messagingTemplate.convertAndSend("/topic/events", voidEvent);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for session void {}: {}", sessionId, e.getMessage());
+        }
+
+        log.info("Session {} voided. Reason: {}", sessionId, (reason == null || reason.isBlank()) ? "not specified" : reason);
+        return saved;
+    }
 }

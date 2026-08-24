@@ -83,6 +83,7 @@ export default function App() {
           <SessionsTable
             sessions={stats?.recentSessions || []}
             onSelectSession={(session) => setSelectedSession(session)}
+            onDataChanged={fetchDashboardStats}
           />
         </main>
 

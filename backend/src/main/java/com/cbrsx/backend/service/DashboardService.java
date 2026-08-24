@@ -29,6 +29,7 @@ public class DashboardService {
 
     private static final String STATUS_PASSED = "PASSED";
     private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_VOIDED = "VOIDED";
 
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
@@ -42,15 +43,19 @@ public class DashboardService {
         Double avgScore = sessionRepository.averageFinalScoreOfCompleted();
         long passedCount = sessionRepository.countByPassStatusIgnoreCase(STATUS_PASSED);
         long failedCount = totalCompleted - passedCount;
+        long voidedCount = sessionRepository.countByPassStatusIgnoreCase(STATUS_VOIDED);
 
         double passRate = totalCompleted > 0 ? (double) passedCount / totalCompleted * 100.0 : 0.0;
 
         Map<String, Long> passStatusCounts = new LinkedHashMap<>();
         passStatusCounts.put(STATUS_PASSED, passedCount);
         passStatusCounts.put(STATUS_FAILED, failedCount);
-        passStatusCounts.put("IN_PROGRESS", Math.max(0, sessionRepository.count() - totalCompleted));
+        passStatusCounts.put("IN_PROGRESS", Math.max(0, sessionRepository.count() - totalCompleted - voidedCount));
+        if (voidedCount > 0) {
+            passStatusCounts.put(STATUS_VOIDED, voidedCount);
+        }
 
-        List<TrainingSession> recent = sessionRepository.findTop10ByOrderByStartedAtDesc();
+        List<TrainingSession> recent = sessionRepository.findTop10ByPassStatusNotIgnoreCaseOrderByStartedAtDesc(STATUS_VOIDED);
 
         Map<String, Trainee> traineesById = loadTrainees(recent);
         Map<String, Scenario> scenariosById = loadScenarios(recent);
