@@ -1,5 +1,6 @@
 package com.cbrsx.backend.controller;
 
+import com.cbrsx.backend.dto.EventTimelineEntry;
 import com.cbrsx.backend.dto.PagedSessionsDTO;
 import com.cbrsx.backend.dto.ScoreReportDTO;
 import com.cbrsx.backend.dto.StartSessionRequest;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -85,6 +87,15 @@ public class SessionController {
             ) String sessionId) {
         ScoreReportDTO report = scoringService.previewScore(sessionId);
         return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/{sessionId}/events")
+    public ResponseEntity<List<EventTimelineEntry>> getSessionEvents(
+            @PathVariable @Size(min = 5, max = 64) @Pattern(
+                    regexp = "^[a-zA-Z0-9_-]+$",
+                    message = "sessionId may only contain letters, digits, dashes and underscores"
+            ) String sessionId) {
+        return ResponseEntity.ok(sessionService.getEventTimeline(sessionId));
     }
 
     @GetMapping("/{sessionId}/certificate")

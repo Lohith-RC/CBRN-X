@@ -246,6 +246,22 @@ public class SessionService {
     }
 
     /**
+     * Chronological event timeline for a session, classified by severity.
+     * Read-only; feeds the instructor debrief modal. No data is synthesized.
+     */
+    @Transactional(readOnly = true)
+    public List<com.cbrsx.backend.dto.EventTimelineEntry> getEventTimeline(String sessionId) {
+        TrainingSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+        return eventRepository.findBySessionIdOrderByTimestampAsc(session.getSessionId()).stream()
+                .map(e -> new com.cbrsx.backend.dto.EventTimelineEntry(
+                        e.getTimestamp(),
+                        e.getEventType(),
+                        com.cbrsx.backend.dto.EventTimelineEntry.classifySeverity(e.getEventType(), e.getEventData())))
+                .toList();
+    }
+
+    /**
      * Voids an invalid session (e.g. simulator test data or aborted runs).
      * Voided sessions are excluded from every analytics computation but the
      * row and a "session_voided" audit event are preserved for traceability.
