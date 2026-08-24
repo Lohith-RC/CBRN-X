@@ -479,3 +479,137 @@ body {
   .glass-panel { border-radius: 12px; }
   .glass-card-deep { border-radius: 12px; }
 }
+
+/* ============ Ambient CSS-only background (replaces WebGL canvas) ============ */
+.ambient-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(245, 130, 32, 0.07) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 90%, rgba(0, 242, 254, 0.05) 0%, transparent 45%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 59px,
+      rgba(255, 255, 255, 0.02) 59px,
+      rgba(255, 255, 255, 0.02) 60px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 59px,
+      rgba(255, 255, 255, 0.02) 59px,
+      rgba(255, 255, 255, 0.02) 60px
+    );
+}
+
+/* ============ Compact mission strip (replaces 3D hero scene) ============ */
+.mission-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  margin-bottom: 28px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(135deg, rgba(245, 130, 32, 0.08) 0%, rgba(11, 15, 23, 0.6) 55%, rgba(0, 242, 254, 0.06) 100%);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.mission-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.mission-strip-shield {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  color: var(--accent-ndrf-orange);
+  border: 1px solid rgba(245, 130, 32, 0.45);
+  background: rgba(245, 130, 32, 0.1);
+}
+
+.mission-strip-title {
+  font-size: 1.08rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+.mission-strip-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.mission-strip-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mission-strip-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+
+/* ============ Reduced motion: honour user preference ============ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============ Print: clean certificate output ============ */
+@media print {
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  .ambient-background {
+    display: none !important;
+  }
+  /* Isolate the certificate from everything else on the page */
+  body.printing-certificate *:not(#printable-certificate):not(#printable-certificate *) {
+    visibility: hidden;
+  }
+  #printable-certificate {
+    visibility: visible;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    border-color: #b8860b !important;
+  }
+  #printable-certificate * {
+    visibility: visible;
+    color: #000 !important;
+  }
+}

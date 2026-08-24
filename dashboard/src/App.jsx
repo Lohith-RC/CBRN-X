@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardBackground from './components/DashboardBackground.jsx';
-import Hero3DScene from './components/Hero3DScene.jsx';
+import MissionStrip from './components/MissionStrip.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import CohortBoard from './components/CohortBoard.jsx';
@@ -75,8 +75,8 @@ function Dashboard() {
           </div>
         )}
 
-        {/* 3D Hero Scene */}
-        <Hero3DScene />
+        {/* Compact static mission strip (replaces the WebGL hero scene) */}
+        <MissionStrip liveConnected={liveConnected} />
 
         <main>
           {/* Metric Cards */}

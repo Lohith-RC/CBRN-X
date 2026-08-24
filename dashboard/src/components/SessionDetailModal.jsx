@@ -153,6 +153,16 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
     return () => window.removeEventListener('keydown', handleKey);
   }, [open, onClose]);
 
+  // Print isolation: only the certificate is printed while its tab is open
+  useEffect(() => {
+    if (open && activeTab === 'certificate') {
+      document.body.classList.add('printing-certificate');
+      return () => document.body.classList.remove('printing-certificate');
+    }
+    document.body.classList.remove('printing-certificate');
+    return undefined;
+  }, [open, activeTab]);
+
   const handleBackdropClick = useCallback(
     (e) => {
       if (e.target === e.currentTarget) onClose();
