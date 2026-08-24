@@ -113,10 +113,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Only exempt health checks, info, root status, and error endpoints
+        // Exempt health checks, info, metrics, root status, error, and Swagger documentation
         return path.startsWith("/actuator/health")
                 || path.startsWith("/actuator/info")
+                || path.startsWith("/actuator/metrics")
                 || path.equals("/")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.equals("/swagger-ui.html")
                 || path.startsWith("/ws-telemetry")
                 || path.startsWith("/error");
     }
