@@ -3,6 +3,7 @@ import DashboardBackground from './components/DashboardBackground.jsx';
 import Hero3DScene from './components/Hero3DScene.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
+import CohortBoard from './components/CohortBoard.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
 import Login from './components/Login.jsx';
@@ -80,6 +81,9 @@ function Dashboard() {
         <main>
           {/* Metric Cards */}
           <MetricCards stats={stats} />
+
+          {/* Cohort Analytics Board */}
+          <CohortBoard />
 
           {/* Sessions Data Table */}
           <SessionsTable

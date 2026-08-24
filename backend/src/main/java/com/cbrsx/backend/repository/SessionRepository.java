@@ -18,6 +18,7 @@ public interface SessionRepository extends JpaRepository<TrainingSession, String
     long countByPassStatusIgnoreCase(String passStatus);
     List<TrainingSession> findTop10ByOrderByStartedAtDesc();
     List<TrainingSession> findTop10ByPassStatusNotIgnoreCaseOrderByStartedAtDesc(String passStatus);
+    List<TrainingSession> findByCompletedAtIsNotNull();
 
     @Query("SELECT AVG(s.finalScore) FROM TrainingSession s WHERE s.passStatus IN ('PASSED', 'FAILED') AND s.finalScore IS NOT NULL")
     Double averageFinalScoreOfCompleted();
