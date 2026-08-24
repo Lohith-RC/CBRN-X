@@ -8,10 +8,14 @@ using System.IO;
 [InitializeOnLoad]
 public class Bay03ChemicalPlantElevator
 {
+    private const string kSessionKey = "Bay03ChemicalPlantElevator_HasRun";
+
     static Bay03ChemicalPlantElevator()
     {
         EditorApplication.delayCall += () =>
         {
+            if (SessionState.GetBool(kSessionKey, false)) return;
+            SessionState.SetBool(kSessionKey, true);
             ElevateChemicalPlantScene();
         };
     }

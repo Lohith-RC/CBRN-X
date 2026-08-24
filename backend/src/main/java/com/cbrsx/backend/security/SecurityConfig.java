@@ -87,7 +87,7 @@ public class SecurityConfig {
                     config.setAllowedOrigins(allowedOrigins);
                     config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
                     config.setAllowedHeaders(List.of("Content-Type", "X-API-Key", "Authorization", "X-XSRF-TOKEN"));
-                    config.setExposedHeaders(List.of("Retry-After"));
+                    config.setExposedHeaders(List.of("Retry-After", "X-CBRSX-Total-Matching", "X-CBRSX-Truncated"));
                     config.setAllowCredentials(true);
                     config.setMaxAge(3600L);
                     return config;
@@ -110,6 +110,9 @@ public class SecurityConfig {
                         // Instructor operations (dashboard stats, debriefs, session completions)
                         .requestMatchers("/api/dashboard/**").hasAnyRole("INSTRUCTOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/sessions").hasAnyRole("INSTRUCTOR", "ADMIN")
+                        // Must precede the catch-all: full-dataset export is instructor-only,
+                        // never available to plain TRAINEE-authenticated callers
+                        .requestMatchers(HttpMethod.GET, "/api/sessions/export").hasAnyRole("INSTRUCTOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/sessions/*/complete").hasAnyRole("INSTRUCTOR", "ADMIN", "SIMULATION")
                         .requestMatchers(HttpMethod.POST, "/api/sessions/*/void").hasAnyRole("INSTRUCTOR", "ADMIN")
                         .requestMatchers("/api/sessions/*/debrief").hasAnyRole("INSTRUCTOR", "ADMIN")

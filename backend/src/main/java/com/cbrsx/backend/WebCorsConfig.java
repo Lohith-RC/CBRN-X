@@ -32,7 +32,7 @@ public class WebCorsConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "OPTIONS")
                 // Only allow headers actually used by the application
                 .allowedHeaders("Content-Type", "X-API-Key", "Authorization", "Accept")
-                .exposedHeaders("Retry-After")
+                .exposedHeaders("Retry-After", "X-CBRSX-Total-Matching", "X-CBRSX-Truncated")
                 .allowCredentials(false)
                 .maxAge(3600);
     }

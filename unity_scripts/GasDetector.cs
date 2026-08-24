@@ -100,6 +100,18 @@ namespace CBRSX.Unity
             UpdateAcousticModulation();
         }
 
+        public void ToggleEquip()
+        {
+            if (isEquipped)
+            {
+                UnequipDetector();
+            }
+            else
+            {
+                EquipDetector();
+            }
+        }
+
         public void EquipDetector()
         {
             if (isEquipped) return;
@@ -112,7 +124,9 @@ namespace CBRSX.Unity
             if (col != null) col.enabled = false;
 
             if (firstPersonHeldModel != null)
+            {
                 firstPersonHeldModel.SetActive(true);
+            }
 
             if (detectorHudPanel != null)
                 detectorHudPanel.SetActive(true);
@@ -123,7 +137,22 @@ namespace CBRSX.Unity
             if (CbrsEventLogger.Instance != null)
                 CbrsEventLogger.Instance.LogEvent("detector_equipped", "{}");
 
-            Debug.Log("[CBRS-X V2.0] Gas Detector initialized with analytical diffusion telemetry.");
+            Debug.Log("<color=yellow>[CBRS-X] Handheld Gas Detector EQUIPPED — Analytical PID Spectrometer Active.</color>");
+        }
+
+        public void UnequipDetector()
+        {
+            if (!isEquipped) return;
+
+            isEquipped = false;
+
+            if (firstPersonHeldModel != null)
+                firstPersonHeldModel.SetActive(false);
+
+            if (detectorHudPanel != null)
+                detectorHudPanel.SetActive(false);
+
+            Debug.Log("<color=grey>[CBRS-X] Handheld Gas Detector STOWED / UNEQUIPPED.</color>");
         }
 
         private void HandleAimDownSights()
@@ -274,7 +303,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                string json = "{\"drumId\":\"" + CbrsEventLogger.JsonEscape(drum.drumId) +
+                string json = "{\"drumId\":\"" + drum.drumId +
                               "\",\"reading_value\":" + currentCalculatedPpm.ToString("F1") +
                               ",\"is_correct\":" + (drum.isLeaking ? "true" : "false") + "}";
                 CbrsEventLogger.Instance.LogEvent("drum_scanned", json);
@@ -292,7 +321,7 @@ namespace CBRSX.Unity
             {
                 if (CbrsEventLogger.Instance != null)
                 {
-                    string json = "{\"correct\":false,\"drum_id\":\"" + CbrsEventLogger.JsonEscape(drum.drumId) + "\"}";
+                    string json = "{\"correct\":false,\"drum_id\":\"" + drum.drumId + "\"}";
                     CbrsEventLogger.Instance.LogEvent("leak_source_identified", json);
                 }
 

@@ -41,7 +41,16 @@ import java.util.stream.Collectors;
 public class SessionQueryService {
 
     private static final int MAX_PAGE_SIZE = 100;
-    private static final int CSV_EXPORT_MAX = 5000;
+    /** Hard ceiling on rows streamed by a single CSV export; truncation beyond
+     *  this is reported to the caller via {@link SessionExportResult#truncated}. */
+    public static final int CSV_EXPORT_MAX = 50_000;
+
+    /**
+     * Result of a CSV export query: the materialized rows plus enough metadata
+     * for the caller to disclose truncation honestly instead of silently
+     * shipping a partial dataset.
+     */
+    public record SessionExportResult(List<SessionSummaryDTO> rows, long totalMatching, boolean truncated) {}
 
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
@@ -56,10 +65,11 @@ public class SessionQueryService {
     }
 
     @Transactional(readOnly = true)
-    public PagedSessionsDTO getSessionsForExport(int size, String status, String traineeId,
-                                                 String query, LocalDate from, LocalDate to) {
-        int safeSize = Math.min(Math.max(1, size), CSV_EXPORT_MAX);
-        return doGet(0, safeSize, status, traineeId, query, from, to);
+    public SessionExportResult exportRows(String status, String traineeId,
+                                          String query, LocalDate from, LocalDate to) {
+        PagedSessionsDTO page = doGet(0, CSV_EXPORT_MAX, status, traineeId, query, from, to);
+        boolean truncated = page.getTotalElements() > page.getContent().size();
+        return new SessionExportResult(page.getContent(), page.getTotalElements(), truncated);
     }
 
     private PagedSessionsDTO doGet(int page, int size, String status, String traineeId,

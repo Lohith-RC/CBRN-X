@@ -3,24 +3,38 @@ using UnityEngine;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// FirstPersonResponderController V2.0 — Advanced Kinematic Simulation Controller.
+    /// FirstPersonResponderController V3.0 — Advanced Kinematic Simulation Controller.
     /// Features:
     /// - 6-DOF Mass-Spring-Damper Camera Sway and Strafe Roll Tilt (+-2.5 deg)
     /// - Trauma-based Screen Shake (Trauma^2 power curve with 3D rotational/translational noise)
     /// - Dynamic Audio Low-Pass Filter & Respirator Breathing Acoustic Loops upon Mask Donning
     /// - Visor Condensation Cycle Driver tied to simulated responder exertion
     /// - Landing compression impulse and tactical movement inertia
+    /// - Coyote Time + Jump Buffering + Secondary Ground Raycast
+    /// - Crouch system with smooth height transition
+    /// - Dedicated G-key tool toggle (no camera key conflicts)
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class FirstPersonResponderController : MonoBehaviour
     {
         [Header("Tactical Locomotion Kinematics")]
-        public float walkSpeed = 3.2f;
-        public float sprintSpeed = 5.2f;
+        public float walkSpeed = 3.8f;
+        public float sprintSpeed = 6.2f;
+        public float crouchSpeed = 1.8f;
         public float acceleration = 14.0f;
         public float deceleration = 18.0f;
-        public float mouseSensitivity = 2.0f;
-        public float gravity = -9.81f;
+        public float mouseSensitivity = 2.2f;
+        public float gravity = -18.5f;
+        public float jumpHeight = 1.35f;
+        public float coyoteTime = 0.15f;
+        public float jumpBufferTime = 0.12f;
+
+        [Header("Crouch Configuration")]
+        public float standingHeight = 1.8f;
+        public float crouchHeight = 1.0f;
+        public float crouchTransitionSpeed = 8.0f;
+        private bool isCrouching = false;
+        private float currentHeight;
 
         [Header("Camera Kinematics & Spring Sway")]
         public float strafeRollAngle = 2.5f;
@@ -31,6 +45,11 @@ namespace CBRSX.Unity
         public float sprintBobMultiplier = 1.35f;
         public float landingCompressionDistance = 0.08f;
         public float springRecoverySpeed = 10.0f;
+
+        [Header("Sprint FOV")]
+        public float defaultFov = 75f;
+        public float sprintFov = 82f;
+        public float fovTransitionSpeed = 6.0f;
 
         [Header("Trauma-Based 6-DOF Screen Shake")]
         [Range(0f, 1f)] public float trauma = 0f;
@@ -49,6 +68,10 @@ namespace CBRSX.Unity
         [Range(0f, 1f)] public float visorFogLevel = 0f;
         public float breathingCycleDuration = 4.0f;
 
+        [Header("Ground Detection")]
+        public float groundCheckDistance = 0.25f;
+        public LayerMask groundCheckMask = ~0;
+
         [Header("Protocol State")]
         public bool hasFullPpe = false;
         public bool inHazardZone = false;
@@ -63,19 +86,26 @@ namespace CBRSX.Unity
         private float currentRollAngle = 0f;
         private float bobTimer = 0f;
         private float defaultCameraY;
+        private float crouchCameraY;
         private float landingOffset = 0f;
         private bool wasGroundedLastFrame = true;
         private bool cursorLocked = true;
         private float breathingTimer = 0f;
+        private float coyoteTimer = 0f;
+        private float jumpBufferTimer = 0f;
+        private bool isGroundedRaycast = false;
 
         private void Start()
         {
             characterController = GetComponent<CharacterController>();
             playerCamera = GetComponentInChildren<Camera>();
 
+            currentHeight = standingHeight;
+
             if (playerCamera != null)
             {
                 defaultCameraY = playerCamera.transform.localPosition.y;
+                crouchCameraY = defaultCameraY - (standingHeight - crouchHeight) * 0.5f;
             }
 
             if (masterAudioLowPass == null && playerCamera != null)
@@ -92,9 +122,12 @@ namespace CBRSX.Unity
             HandleCursorToggle();
             HandleMouseLook();
             HandleLocomotion();
+            HandleCrouch();
+            HandleToolToggle();
             HandleCameraKinematics();
             HandleTraumaShake();
             HandleVisorCondensation();
+            HandleSprintFov();
         }
 
         private void HandleCursorToggle()
@@ -129,13 +162,32 @@ namespace CBRSX.Unity
             transform.Rotate(Vector3.up * mouseX);
         }
 
+        /// <summary>
+        /// Enhanced ground detection using both CharacterController.isGrounded
+        /// AND a secondary SphereCast for reliability on slopes/edges.
+        /// </summary>
+        private bool CheckGrounded()
+        {
+            if (characterController.isGrounded)
+                return true;
+
+            // Secondary raycast check from the bottom of the controller
+            float rayOriginY = characterController.center.y - characterController.height * 0.5f + 0.05f;
+            Vector3 rayOrigin = transform.position + new Vector3(0, rayOriginY, 0);
+            isGroundedRaycast = Physics.SphereCast(rayOrigin, characterController.radius * 0.9f,
+                Vector3.down, out _, groundCheckDistance, groundCheckMask,
+                QueryTriggerInteraction.Ignore);
+
+            return isGroundedRaycast;
+        }
+
         private void HandleLocomotion()
         {
             float inputX = Input.GetAxisRaw("Horizontal");
             float inputZ = Input.GetAxisRaw("Vertical");
 
-            bool isSprinting = Input.GetKey(KeyCode.LeftShift) && inputZ > 0.1f;
-            float targetSpeed = isSprinting ? sprintSpeed : walkSpeed;
+            bool isSprinting = Input.GetKey(KeyCode.LeftShift) && inputZ > 0.1f && !isCrouching;
+            float targetSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
 
             Vector3 inputDirection = (transform.right * inputX + transform.forward * inputZ).normalized;
             targetMoveVector = inputDirection * targetSpeed;
@@ -143,25 +195,93 @@ namespace CBRSX.Unity
             float accelRate = (inputDirection.magnitude > 0.1f) ? acceleration : deceleration;
             currentMoveVector = Vector3.MoveTowards(currentMoveVector, targetMoveVector, accelRate * Time.deltaTime);
 
-            // Ground check and landing compression
-            if (characterController.isGrounded)
+            bool grounded = CheckGrounded();
+
+            // Ground check & Coyote Time
+            if (grounded)
             {
+                coyoteTimer = coyoteTime;
                 if (!wasGroundedLastFrame && currentVelocity.y < -3.0f)
                 {
                     landingOffset = -landingCompressionDistance;
+                    // Add landing trauma for immersion
+                    float impactStrength = Mathf.InverseLerp(-3f, -12f, currentVelocity.y);
+                    AddTrauma(impactStrength * 0.25f);
                 }
                 currentVelocity.y = -2.0f;
             }
             else
             {
+                coyoteTimer -= Time.deltaTime;
                 currentVelocity.y += gravity * Time.deltaTime;
             }
 
-            wasGroundedLastFrame = characterController.isGrounded;
+            // Head bump detection — if moving up and hit ceiling, stop upward velocity
+            if ((characterController.collisionFlags & CollisionFlags.Above) != 0 && currentVelocity.y > 0f)
+            {
+                currentVelocity.y = 0f;
+            }
+
+            // Jump Input & Jump Buffering
+            if (Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))
+            {
+                jumpBufferTimer = jumpBufferTime;
+            }
+            else
+            {
+                jumpBufferTimer -= Time.deltaTime;
+            }
+
+            if (jumpBufferTimer > 0f && coyoteTimer > 0f && !isCrouching)
+            {
+                currentVelocity.y = Mathf.Sqrt(2f * jumpHeight * Mathf.Abs(gravity));
+                jumpBufferTimer = 0f;
+                coyoteTimer = 0f;
+            }
+
+            wasGroundedLastFrame = grounded;
             landingOffset = Mathf.MoveTowards(landingOffset, 0f, springRecoverySpeed * Time.deltaTime);
 
             Vector3 finalMovement = (currentMoveVector + currentVelocity) * Time.deltaTime;
             characterController.Move(finalMovement);
+        }
+
+        private void HandleCrouch()
+        {
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                isCrouching = !isCrouching;
+            }
+
+            float targetHeight = isCrouching ? crouchHeight : standingHeight;
+            currentHeight = Mathf.Lerp(currentHeight, targetHeight, Time.deltaTime * crouchTransitionSpeed);
+
+            characterController.height = currentHeight;
+            characterController.center = new Vector3(0, currentHeight * 0.5f, 0);
+        }
+
+        /// <summary>
+        /// Dedicated tool toggle on G key only — no conflict with camera keys.
+        /// </summary>
+        private void HandleToolToggle()
+        {
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                GasDetector detector = GetComponentInChildren<GasDetector>();
+                if (detector == null)
+                {
+                    detector = FindFirstObjectByType<GasDetector>();
+                }
+
+                if (detector != null)
+                {
+                    detector.ToggleEquip();
+                }
+                else
+                {
+                    Debug.Log("[Player] Gas Detector not found in scene.");
+                }
+            }
         }
 
         private void HandleCameraKinematics()
@@ -179,7 +299,8 @@ namespace CBRSX.Unity
 
             Vector3 bobPositionOffset = Vector3.zero;
 
-            if (horizontalSpeed > 0.2f && characterController.isGrounded)
+            bool grounded = CheckGrounded();
+            if (horizontalSpeed > 0.2f && grounded)
             {
                 bobTimer += Time.deltaTime * bobFrequency * bobMultiplier * Mathf.PI * 2f;
                 float verticalBob = Mathf.Sin(bobTimer) * bobVerticalAmplitude * bobMultiplier;
@@ -193,9 +314,28 @@ namespace CBRSX.Unity
                 bobPositionOffset.y = landingOffset;
             }
 
-            Vector3 targetCamLocalPos = new Vector3(bobPositionOffset.x, defaultCameraY + bobPositionOffset.y, bobPositionOffset.z);
+            // Crouch camera height interpolation
+            float targetCamY = isCrouching ? crouchCameraY : defaultCameraY;
+            float currentCamY = Mathf.Lerp(playerCamera.transform.localPosition.y, targetCamY + bobPositionOffset.y, Time.deltaTime * crouchTransitionSpeed);
+
+            Vector3 targetCamLocalPos = new Vector3(bobPositionOffset.x, currentCamY, bobPositionOffset.z);
             playerCamera.transform.localPosition = Vector3.Lerp(playerCamera.transform.localPosition, targetCamLocalPos, Time.deltaTime * 12f);
             playerCamera.transform.localRotation = Quaternion.Euler(verticalRotation, 0f, currentRollAngle);
+        }
+
+        private void HandleSprintFov()
+        {
+            if (playerCamera == null) return;
+
+            bool isSprinting = Input.GetKey(KeyCode.LeftShift) && Input.GetAxisRaw("Vertical") > 0.1f && !isCrouching;
+            float targetFov = isSprinting ? sprintFov : defaultFov;
+
+            // Only adjust if GasDetector isn't overriding FOV via ADS
+            GasDetector detector = GetComponentInChildren<GasDetector>();
+            if (detector != null && detector.isEquipped && Input.GetMouseButton(1))
+                return; // ADS has FOV priority
+
+            playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, Time.deltaTime * fovTransitionSpeed);
         }
 
         private void HandleTraumaShake()

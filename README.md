@@ -125,7 +125,7 @@ flowchart TD
 
     subgraph Backend_Engine ["⚙️ Core Telemetry & Scoring Services"]
         SpringCore["Spring Boot 3.2 Backend Engine<br/>(Java 17 / Spring Security)"]
-        AuthFilter["API Key / Header Filter<br/>(X-API-Key Validator)"]
+        AuthFilter["Dual Auth Gateway<br/>(Session Cookie + CSRF / X-API-Key Validator)"]
         ScoringService["Deterministic Protocol Scoring Engine<br/>(ScoringService.java)"]
         SessionService["Session Orchestrator & State Machine"]
     end
@@ -623,7 +623,7 @@ Open `http://localhost:5000` to interact with the 3D chemical bay simulation and
 
 - **NDRF Tactical Alignment:** Scenario workflows conform to Indian National Disaster Response Force SOPs for Hazardous Materials (HAZMAT) and Chemical, Biological, Radiological, and Nuclear (CBRN) incident management.
 - **Safety Exemption:** This simulation software is designed strictly for training and protocol simulation. It does not replace physical hands-on live Hazmat drill certifications.
-- **Security & Key Management:** In production deployments, ensure `CBRSX_API_KEY` is provisioned as an environment variable and communicated in all client requests using the `X-API-Key` HTTP header.
+- **Security & Key Management:** CBRS-X uses dual authentication paths. Browser clients (instructor dashboard, trainee views) authenticate interactively with username/password; the session cookie plus CSRF token authorize all subsequent requests, including the `/ws-telemetry` WebSocket handshake (no API key is ever shipped in browser JavaScript). Machine clients (Unity VR engine, simulators) must present `X-API-Key` HTTP/STOMP headers provisioned from `CBRSX_API_KEY` (or role-scoped `CBRSX_INSTRUCTOR_KEY` / `CBRSX_SIMULATION_KEY` / `CBRSX_TRAINEE_KEY`) environment variables. Production deployments (`SPRING_PROFILES_ACTIVE=prod`) fail closed: the backend refuses to start unless at least one API key is configured, and STOMP CONNECT frames without a valid session or key are rejected. CSV exports stream server-side from `GET /api/sessions/export` (instructor/admin only) and report truncation via the `X-CBRSX-Truncated` header when the 50,000-row cap is hit.
 
 ```
 ========================================================================================

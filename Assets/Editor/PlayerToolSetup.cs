@@ -6,10 +6,14 @@ using TMPro;
 [InitializeOnLoad]
 public class PlayerToolSetup
 {
+    private const string kSessionKey = "PlayerToolSetup_HasRun";
+
     static PlayerToolSetup()
     {
         EditorApplication.delayCall += () =>
         {
+            if (SessionState.GetBool(kSessionKey, false)) return;
+            SessionState.SetBool(kSessionKey, true);
             SetupPlayerToolsAndJump();
         };
     }

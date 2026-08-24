@@ -4,9 +4,10 @@ using UnityEngine;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// GameManager V2.0 — Master Protocol Coordinator & Scoring State Engine.
+    /// GameManager V3.0 — Master Protocol Coordinator & Scoring State Engine.
     /// Features:
     /// - Comprehensive Protocol State Machine tracking all 7 NDRF response milestones
+    /// - Auto-start on play option with configurable startup delay
     /// - Sub-Stage Micro-Tracking & Penalty Deduplication
     /// - Multi-Subscriber C# Event Bus for HUD, Audio, and Post-Processing Subsystems
     /// - End-of-Mission Telemetry Serialization & Composite Score Compilation
@@ -26,6 +27,10 @@ namespace CBRSX.Unity
             DeconNeutralization,        // Stage 6
             MissionDebrief              // Stage 7
         }
+
+        [Header("Auto-Start Configuration")]
+        public bool autoStartOnPlay = true;
+        public float autoStartDelay = 1.0f;
 
         [Header("Session Telemetry")]
         public string sessionId = "";
@@ -52,6 +57,7 @@ namespace CBRSX.Unity
         public event Action<string> OnCivilianRescuedEvent;
         public event Action OnContainmentFinishedEvent;
         public event Action OnDecontaminationFinishedEvent;
+        public event Action<float> OnScenarioCompletedEvent;
         public event Action<string> OnProtocolMistakeReported;
 
         private void Awake()
@@ -67,6 +73,14 @@ namespace CBRSX.Unity
             }
         }
 
+        private void Start()
+        {
+            if (autoStartOnPlay)
+            {
+                Invoke(nameof(StartScenario), autoStartDelay);
+            }
+        }
+
         public void StartScenario()
         {
             if (scenarioStartTime > 0f) return;
@@ -79,11 +93,11 @@ namespace CBRSX.Unity
             if (CbrsEventLogger.Instance != null)
             {
                 CbrsEventLogger.Instance.LogEvent("scenario_started",
-                    "{\"trainee_id\":\"" + CbrsEventLogger.JsonEscape(CbrsEventLogger.Instance.traineeName) +
+                    "{\"trainee_id\":\"" + CbrsEventLogger.Instance.traineeName +
                     "\",\"scenario_id\":\"chemical_spill_v1\"}");
             }
 
-            Debug.Log($"[CBRS-X V2.0] Operational scenario initiated with Session ID: {sessionId}");
+            Debug.Log($"[CBRS-X V3.0] Operational scenario initiated with Session ID: {sessionId}");
         }
 
         public void RegisterPpeEquip(string itemKey)
@@ -99,7 +113,7 @@ namespace CBRSX.Unity
             OnFullPpeCompletedEvent?.Invoke();
             SetStage(ScenarioStage.ChemicalSpectrometry);
 
-            Debug.Log("[CBRS-X V2.0] Full Level B CBRN PPE confirmed. Transitioning to ChemicalSpectrometry.");
+            Debug.Log("[CBRS-X V3.0] Full Level B CBRN PPE confirmed. Transitioning to ChemicalSpectrometry.");
         }
 
         public void RegisterDetectorEquipped()
@@ -117,20 +131,18 @@ namespace CBRSX.Unity
             OnLeakSourceConfirmedEvent?.Invoke();
             SetStage(ScenarioStage.CivilianExtraction);
 
-            Debug.Log($"[CBRS-X V2.0] Primary leak source validated: {drumId}. Proceeding to CivilianExtraction.");
+            Debug.Log($"[CBRS-X V3.0] Primary leak source validated: {drumId}. Proceeding to CivilianExtraction.");
         }
 
         public void RegisterCivilianEvacuated(string civilianId)
         {
-            if (evacuatedCiviliansCount >= totalCiviliansCount) return;
-
             evacuatedCiviliansCount++;
             OnCivilianRescuedEvent?.Invoke(civilianId);
 
             if (evacuatedCiviliansCount >= totalCiviliansCount)
             {
                 SetStage(ScenarioStage.HazardContainment);
-                Debug.Log("[CBRS-X V2.1] All civilians extracted safely. Advancing to HazardContainment.");
+                Debug.Log("[CBRS-X V3.0] All civilians extracted safely. Advancing to HazardContainment.");
             }
         }
 
@@ -145,7 +157,7 @@ namespace CBRSX.Unity
             OnContainmentFinishedEvent?.Invoke();
             SetStage(ScenarioStage.DeconNeutralization);
 
-            Debug.Log("[CBRS-X V2.0] Drum fissure sealed. Advancing to DeconNeutralization.");
+            Debug.Log("[CBRS-X V3.0] Drum fissure sealed. Advancing to DeconNeutralization.");
         }
 
         public void RegisterDecontaminationComplete()
@@ -167,7 +179,7 @@ namespace CBRSX.Unity
             if (currentStage == newStage) return;
 
             currentStage = newStage;
-            Debug.Log($"[CBRS-X V2.0] Stage Transition -> {newStage}");
+            Debug.Log($"[CBRS-X V3.0] Stage Transition -> {newStage}");
             OnStageTransition?.Invoke(newStage);
         }
 
@@ -179,6 +191,7 @@ namespace CBRSX.Unity
             float totalElapsed = Time.time - scenarioStartTime;
 
             SetStage(ScenarioStage.MissionDebrief);
+            OnScenarioCompletedEvent?.Invoke(totalElapsed);
 
             if (evacuatedCiviliansCount < totalCiviliansCount)
             {
@@ -196,13 +209,9 @@ namespace CBRSX.Unity
             {
                 CbrsEventLogger.Instance.LogEvent("scenario_completed",
                     "{\"total_time_seconds\":" + totalElapsed.ToString("F1") + "}");
-
-                // Notify the backend scoring engine that the session is finished so
-                // completedAt reflects actual gameplay end, not report-fetch time.
-                CbrsEventLogger.Instance.CompleteSession();
             }
 
-            Debug.Log($"[CBRS-X V2.1] Mission COMPLETE in {totalElapsed:F1}s.");
+            Debug.Log($"[CBRS-X V3.0] Mission COMPLETE in {totalElapsed:F1}s.");
         }
 
         public string GetStageObjectiveText()
@@ -210,23 +219,23 @@ namespace CBRSX.Unity
             switch (currentStage)
             {
                 case ScenarioStage.BriefingOperational:
-                    return "OPERATIONAL BRIEFING: Gas release at Bay 3. Click INITIATE DEPLOYMENT.";
+                    return "OPERATIONAL BRIEFING: Gas release at Bay 3. Initializing deployment...";
                 case ScenarioStage.PerimeterAssessment:
                     return "ASSESSMENT: Survey environmental hazard signage. Do not penetrate boundary without PPE.";
                 case ScenarioStage.LevelBDonning:
-                    return "PROTOCOL: Don Level B Hazmat Suit, CBRN Gas Mask, and Chemical Gloves.";
+                    return "PROTOCOL: Don Level B Hazmat Suit, CBRN Gas Mask, and Chemical Gloves at PPE Station [E].";
                 case ScenarioStage.ChemicalSpectrometry:
                     if (!isDetectorEquipped)
-                        return "DETECTION: Acquire handheld PID detector from utility crate.";
+                        return "DETECTION: Toggle Gas Detector [G] or acquire from PPE area.";
                     if (!leakSourceIdentified)
-                        return "DETECTION: Perform spectrometry sweeps on drum cluster to locate leak source.";
+                        return "DETECTION: Perform spectrometry sweeps on drum cluster to locate leak source [E / RMB to Zoom].";
                     return "DETECTION: Leak source confirmed. Proceed to extract civilians.";
                 case ScenarioStage.CivilianExtraction:
-                    return $"EXTRACTION: Guide all trapped workers to the Safe Zone triage marker ({evacuatedCiviliansCount}/{totalCiviliansCount}).";
+                    return $"EXTRACTION: Guide all trapped workers to the Safe Zone triage marker ({evacuatedCiviliansCount}/{totalCiviliansCount}) [E].";
                 case ScenarioStage.HazardContainment:
                     if (!containmentKitEquipped)
-                        return "CONTAINMENT: Acquire magnetic patch and sealant injection kit.";
-                    return "CONTAINMENT: Hold click on the ruptured drum to inject pneumatic sealant.";
+                        return "CONTAINMENT: Acquire magnetic patch and sealant injection kit [E].";
+                    return "CONTAINMENT: Hold click [E / Hold LMB] on the ruptured drum to inject pneumatic sealant.";
                 case ScenarioStage.DeconNeutralization:
                     return "NEUTRALIZATION: Pass through high-pressure decontamination archway.";
                 case ScenarioStage.MissionDebrief:

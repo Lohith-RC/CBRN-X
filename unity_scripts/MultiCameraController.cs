@@ -3,9 +3,10 @@ using UnityEngine;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// MultiCameraController — Tactical Multi-Angle CCTV & First-Person Camera Switcher.
+    /// MultiCameraController V2.0 — Tactical Multi-Angle CCTV & First-Person Camera Switcher.
     /// Allows switching between First-Person Responder, Facility CCTV, Hazard Closeup, and Decon Monitor cameras.
-    /// Hotkeys: [1] Responder FPS, [2] CCTV Bay Overview, [3] Hazard Closeup, [4] Decon Station Cam, [5] High Bay Cam.
+    /// Hotkeys: [F1] Responder FPS, [F2] CCTV Bay Overview, [F3] Hazard Closeup, [F4] Decon Station Cam, [F5] High Bay Cam.
+    /// No longer conflicts with tool equip keys (1/2/G).
     /// </summary>
     public class MultiCameraController : MonoBehaviour
     {
@@ -21,7 +22,13 @@ namespace CBRSX.Unity
         [Header("Current Active Camera")]
         public int activeCameraIndex = 0; // 0 = Player, 1 = Overview, 2 = Hazard, 3 = Decon, 4 = HighBay
 
+        [Header("Transition")]
+        public float transitionFadeDuration = 0.3f;
+
         private Camera[] allCameras;
+        private float fadeTimer = 0f;
+        private bool isFading = false;
+        private int pendingCameraIndex = -1;
 
         private void Awake()
         {
@@ -44,11 +51,18 @@ namespace CBRSX.Unity
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Alpha1)) SelectCamera(0);
-            else if (Input.GetKeyDown(KeyCode.Alpha2)) SelectCamera(1);
-            else if (Input.GetKeyDown(KeyCode.Alpha3)) SelectCamera(2);
-            else if (Input.GetKeyDown(KeyCode.Alpha4)) SelectCamera(3);
-            else if (Input.GetKeyDown(KeyCode.Alpha5)) SelectCamera(4);
+            // Rebind to Function keys to avoid conflict with tool equip (1/2/G/Tab)
+            if (Input.GetKeyDown(KeyCode.F1)) SelectCamera(0);
+            else if (Input.GetKeyDown(KeyCode.F2)) SelectCamera(1);
+            else if (Input.GetKeyDown(KeyCode.F3)) SelectCamera(2);
+            else if (Input.GetKeyDown(KeyCode.F4)) SelectCamera(3);
+            else if (Input.GetKeyDown(KeyCode.F5)) SelectCamera(4);
+
+            // Apply PostProcessing CCTV mode when not on player camera
+            if (PostProcessingController.Instance != null)
+            {
+                PostProcessingController.Instance.SetCctvModeActive(activeCameraIndex > 0);
+            }
         }
 
         public void SelectCamera(int index)
@@ -72,6 +86,13 @@ namespace CBRSX.Unity
                 }
             }
 
+            // Lock/unlock cursor based on camera mode
+            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            if (responder != null)
+            {
+                responder.SetCursorLock(activeCameraIndex == 0);
+            }
+
             Debug.Log($"[CBRS-X MultiCam] Active View: {GetCameraName(activeCameraIndex)} (Index: {activeCameraIndex})");
         }
 
@@ -86,6 +107,15 @@ namespace CBRSX.Unity
                 case 4: return "CCTV-04: High-Bay Facility Crane Angle";
                 default: return "Unknown Camera";
             }
+        }
+
+        /// <summary>
+        /// Returns true if the player FPS camera is currently active.
+        /// Other systems can use this to disable FPS-only controls during CCTV view.
+        /// </summary>
+        public bool IsPlayerCameraActive()
+        {
+            return activeCameraIndex == 0;
         }
     }
 }

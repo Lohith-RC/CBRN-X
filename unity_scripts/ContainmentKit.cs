@@ -103,7 +103,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                CbrsEventLogger.Instance.LogEvent("containment_started", "{\"drum_id\":\"" + CbrsEventLogger.JsonEscape(drum.drumId) + "\"}");
+                CbrsEventLogger.Instance.LogEvent("containment_started", "{\"drum_id\":\"" + drum.drumId + "\"}");
             }
         }
 

@@ -8,10 +8,14 @@ using System.IO;
 [InitializeOnLoad]
 public class Bay03MetallicPolisherAndPlayerSetup
 {
+    private const string kSessionKey = "Bay03MetallicPolisher_HasRun";
+
     static Bay03MetallicPolisherAndPlayerSetup()
     {
         EditorApplication.delayCall += () =>
         {
+            if (SessionState.GetBool(kSessionKey, false)) return;
+            SessionState.SetBool(kSessionKey, true);
             ApplyMetallicPolishAndAddElements();
         };
     }

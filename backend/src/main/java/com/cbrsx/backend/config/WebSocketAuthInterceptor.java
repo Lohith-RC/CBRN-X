@@ -3,6 +3,7 @@ package com.cbrsx.backend.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -12,9 +13,8 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 
 /**
@@ -46,7 +46,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             @Value("${cbrsx.api-key:}") String masterApiKey,
             @Value("${cbrsx.api-keys.instructor:}") String instructorApiKey,
             @Value("${cbrsx.api-keys.simulation:}") String simulationApiKey,
-            @Value("${cbrsx.api-keys.trainee:}") String traineeApiKey) {
+            @Value("${cbrsx.api-keys.trainee:}") String traineeApiKey,
+            Environment environment) {
 
         this.masterApiKey = cleanKey(masterApiKey);
         this.instructorApiKey = cleanKey(instructorApiKey);
@@ -57,7 +58,21 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 || !this.instructorApiKey.isEmpty()
                 || !this.simulationApiKey.isEmpty()
                 || !this.traineeApiKey.isEmpty();
+
+        // Fail closed: a production deployment without any configured key must
+        // never fall back to the permissive dev-mode grant of all roles.
+        this.prodProfile = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+
+        if (!authEnabled && prodProfile) {
+            log.error("FATAL: prod profile is active but no CBRSX WebSocket API keys are configured. " +
+                    "All STOMP CONNECT frames will be rejected until keys are provided.");
+        } else if (!authEnabled) {
+            log.warn("No WebSocket API keys configured - dev mode grants all STOMP roles. " +
+                    "Never run production deployments in this state.");
+        }
     }
+
+    private final boolean prodProfile;
 
     private String cleanKey(String key) {
         return key == null ? "" : key.trim();
@@ -86,7 +101,14 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
 
         if (!authEnabled) {
-            // In dev mode with no keys configured, grant all roles
+            if (prodProfile) {
+                // Fail closed: no keys configured in production means nobody
+                // authenticates — reject instead of granting all roles.
+                log.warn("WebSocket CONNECT rejected: prod profile with no API keys configured (session {})",
+                        accessor.getSessionId());
+                throw new AccessDeniedException("Unauthorized: server-side authentication is not configured");
+            }
+            // Dev mode with no keys configured grants all roles
             if (sessionAttributes != null) {
                 sessionAttributes.put(ROLES_SESSION_KEY, List.of("ROLE_ADMIN", "ROLE_INSTRUCTOR", "ROLE_SIMULATION", "ROLE_TRAINEE"));
             }
@@ -183,27 +205,14 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         return roles;
     }
 
+    /**
+     * Constant-time byte comparison via MessageDigest.isEqual (length is not
+     * leaked as a distinguishable branch; iteration count depends only on the
+     * first argument, which is the server-side secret).
+     */
     private boolean constantTimeEquals(String expected, String provided) {
-        try {
-            byte[] comparisonKey = new byte[32];
-            new java.security.SecureRandom().nextBytes(comparisonKey);
-
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(comparisonKey, "HmacSHA256"));
-
-            byte[] expectedHash = mac.doFinal(expected.getBytes(StandardCharsets.UTF_8));
-            byte[] providedHash = mac.doFinal(provided.getBytes(StandardCharsets.UTF_8));
-
-            return java.security.MessageDigest.isEqual(expectedHash, providedHash);
-        } catch (Exception e) {
-            byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-            byte[] b = provided.getBytes(StandardCharsets.UTF_8);
-            if (a.length != b.length) return false;
-            int result = 0;
-            for (int i = 0; i < a.length; i++) {
-                result |= a[i] ^ b[i];
-            }
-            return result == 0;
-        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                provided.getBytes(StandardCharsets.UTF_8));
     }
 }

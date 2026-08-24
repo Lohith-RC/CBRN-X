@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -14,10 +15,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -55,26 +55,34 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private final String traineeApiKey;
     private final boolean authEnabled;
     private final boolean failClosed;
+    private final boolean prodProfile;
 
     /**
      * [SEC-03] Bounded LRU rate-limit cache.
      */
     private final Map<String, RateLimitEntry> rateLimitMap = Collections.synchronizedMap(
-            new LinkedHashMap<String, RateLimitEntry>(MAX_RATE_LIMIT_ENTRIES, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, RateLimitEntry> eldest) {
-                    return size() > MAX_RATE_LIMIT_ENTRIES
-                            || (System.currentTimeMillis() - eldest.getValue().windowStart) > RATE_LIMIT_WINDOW_MS * 2L;
-                }
-            }
+            new BoundedLruMap(MAX_RATE_LIMIT_ENTRIES)
     );
+
+    private static class BoundedLruMap extends LinkedHashMap<String, RateLimitEntry> {
+        BoundedLruMap(int maxEntries) {
+            super(maxEntries, 0.75f, true);
+        }
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, RateLimitEntry> eldest) {
+            return size() > MAX_RATE_LIMIT_ENTRIES
+                    || (System.currentTimeMillis() - eldest.getValue().windowStart) > RATE_LIMIT_WINDOW_MS * 2L;
+        }
+    }
 
     public ApiKeyAuthFilter(
             @Value("${cbrsx.api-key:}") String masterApiKey,
             @Value("${cbrsx.api-keys.instructor:}") String instructorApiKey,
             @Value("${cbrsx.api-keys.simulation:}") String simulationApiKey,
             @Value("${cbrsx.api-keys.trainee:}") String traineeApiKey,
-            @Value("${cbrsx.security.fail-closed:false}") boolean failClosed) {
+            @Value("${cbrsx.security.fail-closed:false}") boolean failClosed,
+            Environment environment) {
 
         this.masterApiKey = cleanKey(masterApiKey);
         this.instructorApiKey = cleanKey(instructorApiKey);
@@ -89,16 +97,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         this.authEnabled = anyKeyConfigured;
 
-        if (failClosed && !anyKeyConfigured) {
-            log.error("FATAL: fail-closed security is enabled, but no CBRSX API keys are configured!");
-            throw new IllegalStateException("FATAL: CBRS-X is configured with fail-closed security, but no API keys were provided in the environment. Platform cannot start in insecure state.");
+        // Fail closed implicitly when the prod profile is active, even if the
+        // operator forgot CBRSX_FAIL_CLOSED=true. A production deployment must
+        // never silently fall back to dev-mode grant-everyone behavior.
+        this.prodProfile = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+
+        if ((failClosed || prodProfile) && !anyKeyConfigured) {
+            log.error("FATAL: fail-closed security is required (prod profile or CBRSX_FAIL_CLOSED), but no CBRSX API keys are configured!");
+            throw new IllegalStateException("FATAL: CBRS-X cannot start in a fail-closed state with no API keys configured. Set CBRSX_API_KEY (and optionally role-scoped keys) in the environment.");
         }
 
         if (!this.authEnabled) {
-            log.warn("⚠️  CBRSX_API_KEY is not configured. API key authentication is DISABLED in dev mode. " +
+            log.warn("CBRSX_API_KEY is not configured. API key authentication is DISABLED in dev mode. " +
                     "Set environment variables and enable fail-closed mode for production.");
         } else {
-            log.info("🔐 CBRS-X Security Filter active. Roles configured: Master={}, Instructor={}, Simulation={}, Trainee={}",
+            log.info("CBRS-X Security Filter active. Roles configured: Master={}, Instructor={}, Simulation={}, Trainee={}",
                     !this.masterApiKey.isEmpty(),
                     !this.instructorApiKey.isEmpty(),
                     !this.simulationApiKey.isEmpty(),
@@ -161,6 +174,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         // ── If auth is disabled (dev mode only), grant full admin authority ──
         if (!authEnabled) {
+            if (prodProfile) {
+                // Defense in depth: constructor already refuses to start this
+                // state; reject rather than ever granting dev authority in prod.
+                rejectUnauthorized(response, "Server authentication is not configured");
+                return;
+            }
             List<SimpleGrantedAuthority> devAuthorities = List.of(
                     new SimpleGrantedAuthority("ROLE_ADMIN"),
                     new SimpleGrantedAuthority("ROLE_INSTRUCTOR"),
@@ -231,34 +250,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Constant-time string comparison using HMAC-SHA256 to prevent timing attacks.
+     * Constant-time byte comparison via MessageDigest.isEqual (the JDK's
+     * branchless comparison; iteration count depends only on the first
+     * argument, which is always the server-side secret).
      */
     private boolean constantTimeEquals(String expected, String provided) {
-        try {
-            byte[] comparisonKey = new byte[32];
-            new java.security.SecureRandom().nextBytes(comparisonKey);
-
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(comparisonKey, "HmacSHA256"));
-
-            byte[] expectedHash = mac.doFinal(expected.getBytes(StandardCharsets.UTF_8));
-            byte[] providedHash = mac.doFinal(provided.getBytes(StandardCharsets.UTF_8));
-
-            return java.security.MessageDigest.isEqual(expectedHash, providedHash);
-        } catch (Exception e) {
-            byte[] a = expected.getBytes(StandardCharsets.UTF_8);
-            byte[] b = provided.getBytes(StandardCharsets.UTF_8);
-            if (a.length != b.length) {
-                int dummy = 0;
-                for (byte bite : b) dummy |= bite;
-                return false;
-            }
-            int result = 0;
-            for (int i = 0; i < a.length; i++) {
-                result |= a[i] ^ b[i];
-            }
-            return result == 0;
-        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                provided.getBytes(StandardCharsets.UTF_8));
     }
 
     private void rejectUnauthorized(HttpServletResponse response, String message) throws IOException {

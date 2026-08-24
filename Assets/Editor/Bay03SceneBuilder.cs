@@ -8,10 +8,15 @@ using System.IO;
 [InitializeOnLoad]
 public class Bay03SceneBuilder
 {
+    private const string kSessionKey = "Bay03SceneBuilder_HasRun";
+
     static Bay03SceneBuilder()
     {
         EditorApplication.delayCall += () =>
         {
+            // Only auto-run once per editor session to prevent destructive rebuilds on every recompile
+            if (SessionState.GetBool(kSessionKey, false)) return;
+            SessionState.SetBool(kSessionKey, true);
             BuildBay03Visuals();
         };
     }

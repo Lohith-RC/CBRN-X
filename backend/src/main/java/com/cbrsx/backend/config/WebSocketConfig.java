@@ -14,7 +14,18 @@ import java.util.Arrays;
  * WebSocket and STOMP message broker configuration.
  * Enables real-time telemetry broadcast to the Instructor Dashboard.
  *
- * [SEC-01] All STOMP CONNECT frames are authenticated via WebSocketAuthInterceptor.
+ * [SEC-01] STOMP CONNECT frames are authenticated via WebSocketAuthInterceptor:
+ *   - Browser clients: roles captured from the HTTP session by
+ *     SessionRolesHandshakeInterceptor (JSESSIONID cookie, SameSite=Lax)
+ *   - Machine clients: X-API-Key native header on CONNECT
+ *
+ * Cross-origin WebSocket hijacking (CSWSH) mitigations, in depth:
+ *   1. Strict Origin allowlist enforced on the handshake (below) — a hostile
+ *      page cannot complete the upgrade from a disallowed origin.
+ *   2. SameSite=Lax session cookie (application.yml) — browsers will not
+ *      attach ambient credentials to cross-site upgrade requests anyway.
+ *   3. Even if a connection were established, CONNECT without a valid
+ *      session/API key is rejected before any SUBSCRIBE is honored.
  */
 @Configuration
 @EnableWebSocketMessageBroker
@@ -24,7 +35,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     public WebSocketConfig(
-            @Value("${cbrsx.cors.allowed-origins:http://localhost:80,http://localhost:3000,http://localhost:5000,http://localhost:8080}") String allowedOrigins,
+            @Value("${cbrsx.cors.allowed-origins:http://localhost:3000,http://localhost:5000,http://localhost:8080}") String allowedOrigins,
             WebSocketAuthInterceptor webSocketAuthInterceptor) {
         this.allowedOrigins = Arrays.stream(allowedOrigins.split("\\s*,\\s*"))
                 .map(String::trim)

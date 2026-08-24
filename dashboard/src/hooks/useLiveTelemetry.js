@@ -15,7 +15,9 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
 
     const client = new Client({
       brokerURL: `${protocol}://${window.location.host}/ws-telemetry`,
-      reconnectDelay: 5000,
+      // Capped exponential backoff: a rejected connection (e.g. logged-out
+      // tab) retries without hammering the server or flooding its logs.
+      reconnectDelay: (attempt) => Math.min(30000, 500 * 2 ** attempt),
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
       onConnect: () => {

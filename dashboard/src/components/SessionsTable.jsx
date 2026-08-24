@@ -84,7 +84,8 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
   const handleVoidSession = async (session) => {
     const confirmed = window.confirm(
       `Void session record for ${session.traineeName || 'Unknown Trainee'} (${session.sessionId})?\n\n` +
-        'Voided sessions are permanently excluded from all statistics and disappear from this list. An audit event is written to the database.'
+        'Voided sessions are permanently excluded from scores, pass rates, averages, and cohort analytics. ' +
+        'They remain visible under the VOIDED status filter for audit, and an audit event is written to the database.'
     );
     if (!confirmed) return;
 
@@ -112,44 +113,17 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
   const handleExportCsv = async () => {
     setExporting(true);
     try {
-      const params = buildQueryParams({
-        page: 0,
-        size: 5000,
-        statusFilter,
-        searchTerm,
-        fromDate,
-        toDate,
-      });
-      params.set('export', 'true');
-      const res = await fetch(`/api/sessions?${params.toString()}`);
+      const params = new URLSearchParams();
+      params.set('status', statusFilter);
+      if (searchTerm) params.set('q', searchTerm);
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+
+      const res = await apiFetch(`/api/sessions/export?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`Backend responded with status ${res.status}`);
       }
-      const data = await res.json();
-
-      const escapeCell = (value) => {
-        const s = value == null ? '' : String(value);
-        return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      const header = ['Session ID', 'Trainee', 'Batch/Unit', 'Scenario', 'Score', 'Status', 'Started At', 'Completed At'];
-      const lines = [header.join(',')].concat(
-        (data.content || []).map((r) =>
-          [
-            r.sessionId,
-            r.traineeName,
-            r.batchUnit,
-            r.scenarioTitle,
-            r.finalScore != null ? r.finalScore : '',
-            r.passStatus,
-            r.startedAt || '',
-            r.completedAt || '',
-          ]
-            .map(escapeCell)
-            .join(',')
-        )
-      );
-
-      const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -158,6 +132,15 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      // The server caps exports at CSV_EXPORT_MAX rows; surface truncation
+      // honestly instead of letting a partial file pass as complete.
+      if (res.headers.get('X-CBRSX-Truncated') === 'true') {
+        window.alert(
+          'Export truncated: the result set exceeds the server export cap. ' +
+          'The newest matching records were exported; narrow your filters to capture older data.'
+        );
+      }
     } catch (err) {
       console.error('CSV export failed:', err);
       window.alert(`CSV export failed: ${err.message}`);
@@ -377,7 +360,7 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
                           }}
                           onClick={() => handleVoidSession(session)}
                           disabled={voidingId === session.sessionId}
-                          title="Exclude this session from all statistics (audit event retained)"
+                          title="Exclude this session from scores and analytics (audit record retained)"
                         >
                           <Ban size={14} />
                           {voidingId === session.sessionId ? 'Voiding…' : 'Void'}

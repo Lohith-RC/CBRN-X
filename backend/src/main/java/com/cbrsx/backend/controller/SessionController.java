@@ -3,6 +3,7 @@ package com.cbrsx.backend.controller;
 import com.cbrsx.backend.dto.EventTimelineEntry;
 import com.cbrsx.backend.dto.PagedSessionsDTO;
 import com.cbrsx.backend.dto.ScoreReportDTO;
+import com.cbrsx.backend.dto.SessionSummaryDTO;
 import com.cbrsx.backend.dto.StartSessionRequest;
 import com.cbrsx.backend.dto.StartSessionResponse;
 import com.cbrsx.backend.entity.TrainingSession;
@@ -10,6 +11,7 @@ import com.cbrsx.backend.service.CertificateService;
 import com.cbrsx.backend.service.ScoringService;
 import com.cbrsx.backend.service.SessionQueryService;
 import com.cbrsx.backend.service.SessionService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -20,7 +22,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,12 +50,64 @@ public class SessionController {
             @RequestParam(required = false) String traineeId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "false") boolean export) {
-        PagedSessionsDTO sessions = export
-                ? sessionQueryService.getSessionsForExport(size, status, traineeId, q, from, to)
-                : sessionQueryService.getSessions(page, size, status, traineeId, q, from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        PagedSessionsDTO sessions = sessionQueryService.getSessions(page, size, status, traineeId, q, from, to);
         return ResponseEntity.ok(sessions);
+    }
+
+    /**
+     * Server-side CSV export of the current filter result set.
+     *
+     * Streams text/csv directly (no client-side JSON-to-CSV assembly) and
+     * discloses truncation honestly: when the result set exceeds
+     * SessionQueryService.CSV_EXPORT_MAX rows, only the newest CSV_EXPORT_MAX
+     * are streamed, and the X-CBRSX-Truncated response header is set to true.
+     */
+    @GetMapping("/export")
+    public void exportSessionsCsv(
+            @RequestParam(defaultValue = "ALL") String status,
+            @RequestParam(required = false) String traineeId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletResponse response) throws IOException {
+        SessionQueryService.SessionExportResult result =
+                sessionQueryService.exportRows(status, traineeId, q, from, to);
+
+        String filename = "cbrsx-session-records-"
+                + DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneOffset.UTC).format(Instant.now())
+                + ".csv";
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("text/csv;charset=UTF-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+        response.setHeader("X-CBRSX-Total-Matching", String.valueOf(result.totalMatching()));
+        response.setHeader("X-CBRSX-Truncated", String.valueOf(result.truncated()));
+
+        PrintWriter writer = response.getWriter();
+        writer.println("Session ID,Trainee ID,Trainee,Batch/Unit,Scenario,Score,Status,Started At,Completed At");
+        for (SessionSummaryDTO r : result.rows()) {
+            writer.println(String.join(",",
+                    csvCell(r.getSessionId()),
+                    csvCell(r.getTraineeId()),
+                    csvCell(r.getTraineeName()),
+                    csvCell(r.getBatchUnit()),
+                    csvCell(r.getScenarioTitle()),
+                    r.getFinalScore() != null ? r.getFinalScore().toString() : "",
+                    csvCell(r.getPassStatus()),
+                    r.getStartedAt() != null ? r.getStartedAt().toString() : "",
+                    r.getCompletedAt() != null ? r.getCompletedAt().toString() : ""));
+        }
+        writer.flush();
+    }
+
+    private static String csvCell(String value) {
+        if (value == null) {
+            return "";
+        }
+        return (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r"))
+                ? "\"" + value.replace("\"", "\"\"") + "\""
+                : value;
     }
 
     @PostMapping("/start")

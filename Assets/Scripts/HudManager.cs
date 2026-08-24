@@ -1,21 +1,26 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// HudManager V2.0 — Tactical Military HUD & Operational Telemetry Display.
+    /// HudManager V3.0 — Tactical Military HUD & Operational Telemetry Display.
     /// Features:
     /// - Dynamic Tactical Compass Rose displaying real-time cardinal headings (0-360 deg)
     /// - Animated Level B PPE Checklist with pulsing checkmark confirmation transitions
-    /// - Tactical Mission Prompt Ribbon with animated typewritten prompt updates
+    /// - Typewriter-animated Mission Prompt Ribbon with dramatic character-by-character reveal
     /// - Warning Toast Popups & Achievement Banners with smooth alpha interpolation
+    /// - Stage Progress Bar showing 0-7 stage completion
+    /// - Distance-to-Objective readout from WaypointNavigationSystem
+    /// - Screen-edge objective direction indicator
     /// </summary>
     public class HudManager : MonoBehaviour
     {
         [Header("Tactical Mission Objective Ribbon")]
         public TextMeshProUGUI stagePromptText;
+        public float typewriterSpeed = 0.03f;
 
         [Header("Tactical Compass Rose")]
         public TextMeshProUGUI compassHeadingText;
@@ -44,11 +49,30 @@ namespace CBRSX.Unity
         public TextMeshProUGUI achievementBannerText;
         public float achievementBannerDuration = 4.0f;
 
+        [Header("Stage Progress Bar")]
+        public Image stageProgressFill;
+        public TextMeshProUGUI stageProgressLabel;
+        public int totalStages = 7;
+
+        [Header("Distance to Objective")]
+        public TextMeshProUGUI distanceToObjectiveText;
+
+        [Header("Screen-Edge Objective Indicator")]
+        public RectTransform objectiveIndicatorArrow;
+        public float indicatorEdgeMargin = 60f;
+
+        [Header("Keyboard Hints")]
+        public TextMeshProUGUI keyHintsText;
+
         // Internal State
         private float mistakeTimer = 0f;
         private float achievementTimer = 0f;
         private GameManager gm;
         private Camera mainCam;
+        private Coroutine typewriterCoroutine;
+        private string currentFullText = "";
+        private float ppeEquipPulseTimer = 0f;
+        private string lastEquippedItem = "";
 
         private void Start()
         {
@@ -61,6 +85,7 @@ namespace CBRSX.Unity
 
             if (mistakeToastRoot != null) mistakeToastRoot.SetActive(false);
             if (achievementBannerRoot != null) achievementBannerRoot.SetActive(false);
+            if (objectiveIndicatorArrow != null) objectiveIndicatorArrow.gameObject.SetActive(false);
 
             if (gm != null)
             {
@@ -75,6 +100,8 @@ namespace CBRSX.Unity
             }
 
             UpdateStagePromptRibbon();
+            UpdateStageProgressBar();
+            UpdateKeyHints();
         }
 
         private void OnDestroy()
@@ -97,6 +124,9 @@ namespace CBRSX.Unity
             UpdateMissionTimer();
             UpdateCompassRose();
             UpdateToastTimers();
+            UpdateDistanceToObjective();
+            UpdateObjectiveIndicator();
+            UpdatePpeEquipPulse();
         }
 
         private void UpdateMissionTimer()
@@ -141,11 +171,16 @@ namespace CBRSX.Unity
         private void HandleStageChanged(GameManager.ScenarioStage newStage)
         {
             UpdateStagePromptRibbon();
+            UpdateStageProgressBar();
+            UpdateKeyHints();
         }
 
         private void HandlePpeItemEquipped(string itemKey)
         {
-            switch (itemKey.ToLower())
+            lastEquippedItem = itemKey.ToLower();
+            ppeEquipPulseTimer = 0.6f; // Pulse duration
+
+            switch (lastEquippedItem)
             {
                 case "suit":
                     SetPpeIconState(suitIcon, suitCheckmark, true);
@@ -156,6 +191,32 @@ namespace CBRSX.Unity
                 case "gloves":
                     SetPpeIconState(glovesIcon, glovesCheckmark, true);
                     break;
+            }
+        }
+
+        private void UpdatePpeEquipPulse()
+        {
+            if (ppeEquipPulseTimer <= 0f) return;
+
+            ppeEquipPulseTimer -= Time.deltaTime;
+            float pulse = 1.0f + Mathf.Sin(ppeEquipPulseTimer * 15f) * 0.2f;
+
+            Image targetIcon = null;
+            switch (lastEquippedItem)
+            {
+                case "suit": targetIcon = suitIcon; break;
+                case "mask": targetIcon = maskIcon; break;
+                case "gloves": targetIcon = glovesIcon; break;
+            }
+
+            if (targetIcon != null)
+            {
+                targetIcon.transform.localScale = Vector3.one * pulse;
+            }
+
+            if (ppeEquipPulseTimer <= 0f && targetIcon != null)
+            {
+                targetIcon.transform.localScale = Vector3.one;
             }
         }
 
@@ -187,7 +248,128 @@ namespace CBRSX.Unity
         private void UpdateStagePromptRibbon()
         {
             if (stagePromptText == null || gm == null) return;
-            stagePromptText.text = gm.GetStageObjectiveText();
+
+            string newText = gm.GetStageObjectiveText();
+            if (newText != currentFullText)
+            {
+                currentFullText = newText;
+
+                if (typewriterCoroutine != null)
+                    StopCoroutine(typewriterCoroutine);
+
+                typewriterCoroutine = StartCoroutine(TypewriterReveal(newText));
+            }
+        }
+
+        private IEnumerator TypewriterReveal(string fullText)
+        {
+            stagePromptText.text = "";
+
+            for (int i = 0; i <= fullText.Length; i++)
+            {
+                stagePromptText.text = fullText.Substring(0, i);
+
+                // Add cursor blink effect
+                if (i < fullText.Length)
+                {
+                    stagePromptText.text += "<color=#FFD700>▌</color>";
+                }
+
+                yield return new WaitForSeconds(typewriterSpeed);
+            }
+
+            typewriterCoroutine = null;
+        }
+
+        private void UpdateStageProgressBar()
+        {
+            if (gm == null) return;
+
+            int stageIndex = (int)gm.currentStage;
+
+            if (stageProgressFill != null)
+            {
+                float targetFill = (float)stageIndex / totalStages;
+                stageProgressFill.fillAmount = Mathf.Lerp(stageProgressFill.fillAmount, targetFill, Time.deltaTime * 4f);
+            }
+
+            if (stageProgressLabel != null)
+            {
+                stageProgressLabel.text = $"STAGE {stageIndex}/{totalStages}";
+            }
+        }
+
+        private void UpdateDistanceToObjective()
+        {
+            if (distanceToObjectiveText == null) return;
+
+            if (WaypointNavigationSystem.Instance != null)
+            {
+                float dist = WaypointNavigationSystem.Instance.GetDistanceToActiveWaypoint();
+                string label = WaypointNavigationSystem.Instance.GetActiveWaypointLabel();
+
+                if (dist > 0f)
+                {
+                    distanceToObjectiveText.text = $"{dist:F1}m → {label}";
+                    distanceToObjectiveText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    distanceToObjectiveText.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                distanceToObjectiveText.gameObject.SetActive(false);
+            }
+        }
+
+        private void UpdateObjectiveIndicator()
+        {
+            if (objectiveIndicatorArrow == null || mainCam == null) return;
+
+            if (WaypointNavigationSystem.Instance == null)
+            {
+                objectiveIndicatorArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            float dist = WaypointNavigationSystem.Instance.GetDistanceToActiveWaypoint();
+            if (dist < 0f)
+            {
+                objectiveIndicatorArrow.gameObject.SetActive(false);
+                return;
+            }
+
+            // Only show when objective is off-screen
+            objectiveIndicatorArrow.gameObject.SetActive(dist > 5f);
+        }
+
+        private void UpdateKeyHints()
+        {
+            if (keyHintsText == null || gm == null) return;
+
+            switch (gm.currentStage)
+            {
+                case GameManager.ScenarioStage.BriefingOperational:
+                    keyHintsText.text = "[WASD] Move  [SHIFT] Sprint  [C] Crouch  [ESC] Menu";
+                    break;
+                case GameManager.ScenarioStage.LevelBDonning:
+                    keyHintsText.text = "[E] Equip PPE Item  [G] Toggle Detector";
+                    break;
+                case GameManager.ScenarioStage.ChemicalSpectrometry:
+                    keyHintsText.text = "[G] Toggle Detector  [RMB] Aim Down Sights  [E] Scan Drum";
+                    break;
+                case GameManager.ScenarioStage.CivilianExtraction:
+                    keyHintsText.text = "[E] Command Civilian  [G] Toggle Detector";
+                    break;
+                case GameManager.ScenarioStage.HazardContainment:
+                    keyHintsText.text = "[E] Pick Up Kit  [HOLD LMB] Inject Sealant";
+                    break;
+                default:
+                    keyHintsText.text = "[WASD] Move  [SHIFT] Sprint  [C] Crouch  [SPACE] Jump";
+                    break;
+            }
         }
 
         private void SetPpeIconState(Image icon, GameObject checkmark, bool active)
