@@ -120,6 +120,7 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
         fromDate,
         toDate,
       });
+      params.set('export', 'true');
       const res = await fetch(`/api/sessions?${params.toString()}`);
       if (!res.ok) {
         throw new Error(`Backend responded with status ${res.status}`);

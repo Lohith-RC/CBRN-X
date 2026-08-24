@@ -43,8 +43,11 @@ public class SessionController {
             @RequestParam(required = false) String traineeId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        PagedSessionsDTO sessions = sessionQueryService.getSessions(page, size, status, traineeId, q, from, to);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "false") boolean export) {
+        PagedSessionsDTO sessions = export
+                ? sessionQueryService.getSessionsForExport(size, status, traineeId, q, from, to)
+                : sessionQueryService.getSessions(page, size, status, traineeId, q, from, to);
         return ResponseEntity.ok(sessions);
     }
 

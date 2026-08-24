@@ -91,6 +91,10 @@ public class SessionQueryService {
 
             if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
                 predicates.add(cb.equal(cb.upper(root.get("passStatus")), status.trim().toUpperCase()));
+            } else {
+                // Default listing hides voided sessions, matching the void dialog's
+                // promise; instructors can still retrieve them via status=VOIDED.
+                predicates.add(cb.notEqual(cb.upper(root.get("passStatus")), "VOIDED"));
             }
             if (traineeId != null && !traineeId.isBlank()) {
                 predicates.add(cb.equal(root.get("traineeId"), traineeId.trim()));
