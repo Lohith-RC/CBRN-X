@@ -20,6 +20,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -161,18 +162,54 @@ public class SessionService {
         }
     }
 
+    /**
+     * Maximum number of telemetry events accepted per session.
+     * [R2-02] Prevents unbounded event ingestion that could exhaust database storage.
+     */
+    private static final int MAX_EVENTS_PER_SESSION = 500;
+
+    /**
+     * Maximum acceptable drift (in seconds) between client-supplied and server timestamps.
+     * [R2-03] Prevents time bonus score manipulation via fabricated timestamps.
+     */
+    private static final long MAX_TIMESTAMP_DRIFT_SECONDS = 5;
+
     @Transactional
     public SessionEvent logEvent(LogEventRequest request) {
         String sessionId = request.getSessionId();
         TrainingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
+        // [R2-02] Reject events for already-completed sessions
+        if (session.getCompletedAt() != null) {
+            throw new IllegalArgumentException("Session already completed: " + sessionId);
+        }
+
+        // [R2-02] Enforce per-session event count limit
+        long existingCount = eventRepository.countBySessionId(sessionId);
+        if (existingCount >= MAX_EVENTS_PER_SESSION) {
+            throw new IllegalArgumentException("Event limit (" + MAX_EVENTS_PER_SESSION + ") reached for session: " + sessionId);
+        }
+
+        // [R2-03] Server-side timestamp validation — reject client timestamps with excessive drift
+        Instant serverNow = Instant.now();
+        Instant effectiveTimestamp = serverNow;
+        if (request.getTimestamp() != null) {
+            long driftSeconds = Math.abs(Duration.between(request.getTimestamp(), serverNow).getSeconds());
+            if (driftSeconds <= MAX_TIMESTAMP_DRIFT_SECONDS) {
+                effectiveTimestamp = request.getTimestamp();
+            } else {
+                log.warn("Client timestamp drift {}s exceeded {}s tolerance for session {} — using server time",
+                        driftSeconds, MAX_TIMESTAMP_DRIFT_SECONDS, sessionId);
+            }
+        }
+
         SessionEvent event = SessionEvent.builder()
                 .eventId("evt-" + UUID.randomUUID())
                 .sessionId(session.getSessionId())
                 .eventType(request.getEventType())
                 .eventData(request.getEventData())
-                .timestamp(request.getTimestamp() != null ? request.getTimestamp() : Instant.now())
+                .timestamp(effectiveTimestamp)
                 .build();
 
         SessionEvent saved = eventRepository.save(event);
