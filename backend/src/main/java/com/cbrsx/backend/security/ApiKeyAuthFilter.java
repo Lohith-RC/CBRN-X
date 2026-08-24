@@ -59,6 +59,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         return path.startsWith("/actuator/health")
                 || path.startsWith("/actuator/info")
                 || path.equals("/")
+                || path.startsWith("/ws-telemetry")
                 || path.startsWith("/error");
     }
 

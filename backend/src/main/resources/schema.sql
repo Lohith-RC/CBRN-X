@@ -49,3 +49,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
 MERGE INTO scenarios (scenario_id, code, title, description, max_score)
 KEY (scenario_id)
 VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100);
+
+MERGE INTO scenarios (scenario_id, code, title, description, max_score)
+KEY (scenario_id)
+VALUES ('scen-rad-02', 'CBRN-RAD-02', 'Radiological Dirty Bomb & Isotope Containment', 'High-Risk Cesium-137 Isotope Dispersion at Reactor Sub-Vault. Equip dosimeter, deploy lead shielding blanket, extract technicians, and secure hot cell perimeter.', 100);
+
+MERGE INTO scenarios (scenario_id, code, title, description, max_score)
+KEY (scenario_id)
+VALUES ('scen-bio-03', 'CBRN-BIO-03', 'Biological Pathogen Laboratory Breach', 'Level-4 Biosafety Facility Airborne Pathogen Spill. Don PAPR positive-pressure respirator, establish negative pressure airlock, neutralize bio-aerosol, and decontaminate.', 100);

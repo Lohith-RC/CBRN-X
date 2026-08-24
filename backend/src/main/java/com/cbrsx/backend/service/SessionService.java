@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public StartSessionResponse startSession(StartSessionRequest request) {
@@ -67,13 +69,22 @@ public class SessionService {
                 .build();
         eventRepository.save(startEvent);
 
-        return StartSessionResponse.builder()
+        StartSessionResponse response = StartSessionResponse.builder()
                 .sessionId(sessionId)
                 .traineeId(trainee.getTraineeId())
                 .scenarioId(scenario.getScenarioId())
                 .scenarioTitle(scenario.getTitle())
                 .startedAt(session.getStartedAt())
                 .build();
+
+        try {
+            messagingTemplate.convertAndSend("/topic/events", startEvent);
+            messagingTemplate.convertAndSend("/topic/sessions", response);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for session start: {}", e.getMessage());
+        }
+
+        return response;
     }
 
     /**
@@ -164,6 +175,15 @@ public class SessionService {
                 .timestamp(request.getTimestamp() != null ? request.getTimestamp() : Instant.now())
                 .build();
 
-        return eventRepository.save(event);
+        SessionEvent saved = eventRepository.save(event);
+
+        try {
+            messagingTemplate.convertAndSend("/topic/events", saved);
+            messagingTemplate.convertAndSend("/topic/sessions/" + saved.getSessionId(), saved);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for event {}: {}", saved.getEventId(), e.getMessage());
+        }
+
+        return saved;
     }
 }
