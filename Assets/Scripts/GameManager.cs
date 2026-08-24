@@ -79,7 +79,7 @@ namespace CBRSX.Unity
             if (CbrsEventLogger.Instance != null)
             {
                 CbrsEventLogger.Instance.LogEvent("scenario_started",
-                    "{\"trainee_id\":\"" + CbrsEventLogger.JsonEscape(CbrsEventLogger.Instance.traineeName) +
+                    "{\"trainee_id\":\"" + CbrsEventLogger.Instance.traineeName +
                     "\",\"scenario_id\":\"chemical_spill_v1\"}");
             }
 
@@ -122,15 +122,13 @@ namespace CBRSX.Unity
 
         public void RegisterCivilianEvacuated(string civilianId)
         {
-            if (evacuatedCiviliansCount >= totalCiviliansCount) return;
-
             evacuatedCiviliansCount++;
             OnCivilianRescuedEvent?.Invoke(civilianId);
 
             if (evacuatedCiviliansCount >= totalCiviliansCount)
             {
                 SetStage(ScenarioStage.HazardContainment);
-                Debug.Log("[CBRS-X V2.1] All civilians extracted safely. Advancing to HazardContainment.");
+                Debug.Log("[CBRS-X V2.0] All civilians extracted safely. Advancing to HazardContainment.");
             }
         }
 
@@ -196,13 +194,9 @@ namespace CBRSX.Unity
             {
                 CbrsEventLogger.Instance.LogEvent("scenario_completed",
                     "{\"total_time_seconds\":" + totalElapsed.ToString("F1") + "}");
-
-                // Notify the backend scoring engine that the session is finished so
-                // completedAt reflects actual gameplay end, not report-fetch time.
-                CbrsEventLogger.Instance.CompleteSession();
             }
 
-            Debug.Log($"[CBRS-X V2.1] Mission COMPLETE in {totalElapsed:F1}s.");
+            Debug.Log($"[CBRS-X V2.0] Mission COMPLETE in {totalElapsed:F1}s.");
         }
 
         public string GetStageObjectiveText()

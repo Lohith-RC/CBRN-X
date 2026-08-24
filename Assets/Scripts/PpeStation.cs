@@ -68,7 +68,7 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
             {
-                string json = "{\"item\":\"" + CbrsEventLogger.JsonEscape(itemKey) +
+                string json = "{\"item\":\"" + itemKey +
                               "\",\"order_index\":" + equipOrderIndex + "}";
                 CbrsEventLogger.Instance.LogEvent("ppe_item_equipped", json);
             }

@@ -20,7 +20,10 @@ namespace CBRSX.Unity
         public float acceleration = 14.0f;
         public float deceleration = 18.0f;
         public float mouseSensitivity = 2.0f;
-        public float gravity = -9.81f;
+        public float gravity = -18.5f;
+        public float jumpHeight = 1.35f;
+        public float coyoteTime = 0.15f;
+        public float jumpBufferTime = 0.12f;
 
         [Header("Camera Kinematics & Spring Sway")]
         public float strafeRollAngle = 2.5f;
@@ -67,6 +70,8 @@ namespace CBRSX.Unity
         private bool wasGroundedLastFrame = true;
         private bool cursorLocked = true;
         private float breathingTimer = 0f;
+        private float coyoteTimer = 0f;
+        private float jumpBufferTimer = 0f;
 
         private void Start()
         {
@@ -92,6 +97,7 @@ namespace CBRSX.Unity
             HandleCursorToggle();
             HandleMouseLook();
             HandleLocomotion();
+            HandleToolEquipment();
             HandleCameraKinematics();
             HandleTraumaShake();
             HandleVisorCondensation();
@@ -143,9 +149,10 @@ namespace CBRSX.Unity
             float accelRate = (inputDirection.magnitude > 0.1f) ? acceleration : deceleration;
             currentMoveVector = Vector3.MoveTowards(currentMoveVector, targetMoveVector, accelRate * Time.deltaTime);
 
-            // Ground check and landing compression
+            // Ground check & Coyote Time
             if (characterController.isGrounded)
             {
+                coyoteTimer = coyoteTime;
                 if (!wasGroundedLastFrame && currentVelocity.y < -3.0f)
                 {
                     landingOffset = -landingCompressionDistance;
@@ -154,7 +161,25 @@ namespace CBRSX.Unity
             }
             else
             {
+                coyoteTimer -= Time.deltaTime;
                 currentVelocity.y += gravity * Time.deltaTime;
+            }
+
+            // Jump Input & Jump Buffering
+            if (Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))
+            {
+                jumpBufferTimer = jumpBufferTime;
+            }
+            else
+            {
+                jumpBufferTimer -= Time.deltaTime;
+            }
+
+            if (jumpBufferTimer > 0f && coyoteTimer > 0f)
+            {
+                currentVelocity.y = Mathf.Sqrt(2f * jumpHeight * Mathf.Abs(gravity));
+                jumpBufferTimer = 0f;
+                coyoteTimer = 0f;
             }
 
             wasGroundedLastFrame = characterController.isGrounded;
@@ -162,6 +187,29 @@ namespace CBRSX.Unity
 
             Vector3 finalMovement = (currentMoveVector + currentVelocity) * Time.deltaTime;
             characterController.Move(finalMovement);
+        }
+
+        private void HandleToolEquipment()
+        {
+            // Equip / Unequip Handheld Gas Detector on '1', '2', 'Tab', or 'G'
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Alpha2) || 
+                Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.G))
+            {
+                GasDetector detector = GetComponentInChildren<GasDetector>();
+                if (detector == null)
+                {
+                    detector = FindFirstObjectByType<GasDetector>();
+                }
+
+                if (detector != null)
+                {
+                    detector.ToggleEquip();
+                }
+                else
+                {
+                    Debug.Log("[Player] Gas Detector not found in scene.");
+                }
+            }
         }
 
         private void HandleCameraKinematics()

@@ -68,7 +68,12 @@ namespace CBRSX.Unity
                 showerAudioSource.Play();
             }
 
-            Debug.Log("[CBRS-X V2.1] High-Pressure Decontamination Shower initiated.");
+            Debug.Log("[CBRS-X V2.0] High-Pressure Decontamination Shower initiated.");
+
+            if (CbrsEventLogger.Instance != null)
+            {
+                CbrsEventLogger.Instance.LogEvent("decontamination_completed", "{\"archway\":true,\"cycle_duration\":" + washCycleDuration.ToString("F1") + "}");
+            }
         }
 
         private void TerminateWashCycle()
@@ -90,14 +95,7 @@ namespace CBRSX.Unity
                 }
             }
 
-            Debug.Log("[CBRS-X V2.1] Decontamination cycle completed — all residual chemical agents neutralized.");
-
-            // Emit completion telemetry only after the full wash cycle finishes,
-            // not when the responder merely steps under the archway.
-            if (CbrsEventLogger.Instance != null)
-            {
-                CbrsEventLogger.Instance.LogEvent("decontamination_completed", "{\"archway\":true,\"cycle_duration\":" + washCycleDuration.ToString("F1") + "}");
-            }
+            Debug.Log("[CBRS-X V2.0] Decontamination cycle completed — all residual chemical agents neutralized.");
 
             if (GameManager.Instance != null)
             {
