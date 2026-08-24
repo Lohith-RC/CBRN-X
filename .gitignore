@@ -55,12 +55,26 @@ desktop.ini
 *.swp
 *.bak
 
-# 6. Documentation Files (Ignore internal notes, keep only README.md)
+# 6. Local Reports, Audits & Deliverables (DO NOT PUSH TO GITHUB)
+reports/
+/reports/
+reports/*
+Bay03_Cinematic_Screenshots/
+/Bay03_Cinematic_Screenshots/
+*.pdf
+*.html
+
+# 7. Documentation Files (Keep only root README.md tracked)
 *.md
 !README.md
 
-# 7. Environment Files (Security & Credentials)
+# 8. Environment Files (Security & Credentials)
 .env
-.env.local
-.env.development.local
-.env.production.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# 9. PM2 Process Logs
+logs/

@@ -1,0 +1,105 @@
+name: CBRS-X CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend-test-and-build:
+    name: Backend CI (Spring Boot & Maven)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run Maven Tests & Package
+        working-directory: backend
+        run: mvn -B clean verify
+
+  dashboard-build:
+    name: Instructor Dashboard CI (React & Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Build Production Bundle
+        working-directory: dashboard
+        run: npm run build
+
+  trainee-view-build:
+    name: Trainee View CI (React & Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: trainee_view/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: trainee_view
+        run: npm ci
+
+      - name: Build Production Bundle
+        working-directory: trainee_view
+        run: npm run build
+
+  docker-containers-validation:
+    name: Docker Container Validation
+    needs: [backend-test-and-build, dashboard-build, trainee-view-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: cbrsx-backend:test
+
+      - name: Build Dashboard Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dashboard
+          push: false
+          tags: cbrsx-dashboard:test
+
+      - name: Build Trainee View Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./trainee_view
+          push: false
+          tags: cbrsx-trainee-view:test
+
+      - name: Validate Docker Compose Config
+        run: docker compose config

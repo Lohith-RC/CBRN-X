@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Play, CheckCircle, AlertOctagon, UserCheck, ShieldAlert, Send } from 'lucide-react';
+import { Play, CheckCircle, AlertOctagon, Send } from 'lucide-react';
 
 export default function EventSimulator({ onSessionCreated }) {
-  const [traineeName, setTraineeName] = useState('Constable Rahul Kumar');
-  const [batchUnit, setBatchUnit] = useState('10th NDRF Battalion');
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -14,14 +12,14 @@ export default function EventSimulator({ onSessionCreated }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          traineeName,
-          batchUnit,
-          scenarioCode: 'CBRN-CHEM-01'
-        })
+          traineeName: 'Constable Rahul Kumar',
+          batchUnit: '10th NDRF Battalion',
+          scenarioCode: 'CBRN-CHEM-01',
+        }),
       });
       const data = await res.json();
       setActiveSessionId(data.sessionId);
-      setLogs([`Session started: ${data.sessionId} for ${data.traineeName}`]);
+      setLogs([`Session started: ${data.sessionId}`]);
     } catch (err) {
       console.error('Failed to start session:', err);
     }
@@ -30,17 +28,12 @@ export default function EventSimulator({ onSessionCreated }) {
   const emitEvent = async (eventType, eventData = '{}') => {
     if (!activeSessionId) return;
     try {
-      const res = await fetch('/api/events/log', {
+      await fetch('/api/events/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: activeSessionId,
-          eventType,
-          eventData
-        })
+        body: JSON.stringify({ sessionId: activeSessionId, eventType, eventData }),
       });
-      const data = await res.json();
-      setLogs(prev => [...prev, `[LOGGED] ${eventType} -> ${eventData}`]);
+      setLogs((prev) => [...prev, `[LOGGED] ${eventType} -> ${eventData}`]);
     } catch (err) {
       console.error('Failed to log event:', err);
     }
@@ -51,7 +44,7 @@ export default function EventSimulator({ onSessionCreated }) {
     try {
       const res = await fetch(`/api/sessions/${activeSessionId}/complete`, { method: 'POST' });
       const report = await res.json();
-      setLogs(prev => [...prev, `[COMPLETE] Final Score: ${report.finalScore} | Status: ${report.passStatus}`]);
+      setLogs((prev) => [...prev, `[COMPLETE] Final Score: ${report.finalScore} | Status: ${report.passStatus}`]);
       if (onSessionCreated) onSessionCreated();
       setActiveSessionId(null);
     } catch (err) {
@@ -63,32 +56,38 @@ export default function EventSimulator({ onSessionCreated }) {
     setIsSimulating(true);
     setLogs([]);
     try {
-      // 1. Start Session
       const startRes = await fetch('/api/sessions/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           traineeName: isPerfect ? 'Inspector Vikram Singh' : 'Constable Amit Patel',
           batchUnit: '10th NDRF Battalion',
-          scenarioCode: 'CBRN-CHEM-01'
-        })
+          scenarioCode: 'CBRN-CHEM-01',
+        }),
       });
       const session = await startRes.json();
       const sId = session.sessionId;
 
+      const logBody = (et, ed) =>
+        fetch('/api/events/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sId, eventType: et, eventData: ed }),
+        });
+
       if (isPerfect) {
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'ppe_donning_completed', eventData: '{"mask":true,"suit":true,"gloves":true}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'detector_equipped', eventData: '{"device":"PID Detector"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'leak_source_identified', eventData: '{"correct":true,"drumId":"DRUM-03"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'civilian_evacuated', eventData: '{"civilianId":"CIV-01"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'civilian_evacuated', eventData: '{"civilianId":"CIV-02"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'containment_completed', eventData: '{"sealant":"applied"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'decontamination_completed', eventData: '{"archway":true}' }) });
+        await logBody('ppe_donning_completed', '{"mask":true,"suit":true,"gloves":true}');
+        await logBody('detector_equipped', '{"device":"PID Detector"}');
+        await logBody('leak_source_identified', '{"correct":true,"drumId":"DRUM-03"}');
+        await logBody('civilian_evacuated', '{"civilianId":"CIV-01"}');
+        await logBody('civilian_evacuated', '{"civilianId":"CIV-02"}');
+        await logBody('containment_completed', '{"sealant":"applied"}');
+        await logBody('decontamination_completed', '{"archway":true}');
       } else {
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'entered_hazard_zone_without_ppe', eventData: '{"warning":true}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'leak_source_identified', eventData: '{"correct":false,"drumId":"DRUM-01"}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'evacuation_incomplete', eventData: '{"count":1}' }) });
-        await fetch('/api/events/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sId, eventType: 'containment_completed', eventData: '{"sealant":"applied"}' }) });
+        await logBody('entered_hazard_zone_without_ppe', '{"warning":true}');
+        await logBody('leak_source_identified', '{"correct":false,"drumId":"DRUM-01"}');
+        await logBody('evacuation_incomplete', '{"count":1}');
+        await logBody('containment_completed', '{"sealant":"applied"}');
       }
 
       const compRes = await fetch(`/api/sessions/${sId}/complete`, { method: 'POST' });
@@ -96,9 +95,8 @@ export default function EventSimulator({ onSessionCreated }) {
       setLogs([
         `Simulation finished for ${report.traineeName}`,
         `Final Score: ${report.finalScore} / 100 [${report.passStatus}]`,
-        `Mistakes logged: ${report.mistakes.length}`
+        `Mistakes logged: ${report.mistakes.length}`,
       ]);
-
       if (onSessionCreated) onSessionCreated();
     } catch (err) {
       console.error('Simulation error:', err);
@@ -107,10 +105,15 @@ export default function EventSimulator({ onSessionCreated }) {
     }
   };
 
+  const simBtnStyle = {
+    fontSize: '0.78rem',
+    padding: '5px 12px',
+  };
+
   return (
-    <div className="glass-panel" style={{ padding: '24px' }}>
+    <div className="glass-card-deep animate-fade-in" style={{ padding: '24px', animationDelay: '0.45s' }}>
       <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
-        VR Unity Telemetry Simulator & Quick Test Bench
+        VR Unity Telemetry Simulator
       </h2>
       <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
         Simulate live event streams from Unity desktop client to test Spring Boot backend scoring engine
@@ -120,19 +123,26 @@ export default function EventSimulator({ onSessionCreated }) {
         <button className="btn-primary" onClick={() => runFullPreset(true)} disabled={isSimulating}>
           <CheckCircle size={16} /> Simulate 100% Perfect Run
         </button>
-        <button className="btn-secondary" style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: 'var(--accent-red)' }} onClick={() => runFullPreset(false)} disabled={isSimulating}>
-          <AlertOctagon size={16} /> Simulate Flawed Run (Protocol Violations)
+        <button
+          className="btn-secondary"
+          style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: 'var(--accent-red)' }}
+          onClick={() => runFullPreset(false)}
+          disabled={isSimulating}
+        >
+          <AlertOctagon size={16} /> Simulate Flawed Run
         </button>
       </div>
 
       {/* Manual Step Controls */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: '10px',
-        padding: '16px',
-        marginBottom: '16px'
-      }}>
+      <div
+        style={{
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '16px',
+        }}
+      >
         <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '12px' }}>
           MANUAL STEP-BY-STEP SIMULATION
         </div>
@@ -143,45 +153,49 @@ export default function EventSimulator({ onSessionCreated }) {
           </button>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('entered_hazard_zone_without_ppe')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('entered_hazard_zone_without_ppe')}>
               ⚠️ Enter Without PPE (-15)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('ppe_donning_completed', '{"mask":true,"suit":true,"gloves":true}')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('ppe_donning_completed', '{"mask":true,"suit":true,"gloves":true}')}>
               🛡️ Don PPE (+10)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('leak_source_identified', '{"correct":true}')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('leak_source_identified', '{"correct":true}')}>
               🔍 Identify Leak (+10)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('leak_source_identified', '{"correct":false}')}>
-              ❌ Wrong Drum Flag (-5)
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('leak_source_identified', '{"correct":false}')}>
+              ❌ Wrong Drum (-5)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('civilian_evacuated', '{"civilianId":"CIV-01"}')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('civilian_evacuated', '{"civilianId":"CIV-01"}')}>
               🏃 Evacuate Civilian (+15)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('containment_completed')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('containment_completed')}>
               🛠️ Contain Drum (+15)
             </button>
-            <button className="btn-secondary" style={{ fontSize: '0.78rem' }} onClick={() => emitEvent('decontamination_completed')}>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('decontamination_completed')}>
               🚿 Decontamination (+10)
             </button>
-            <button className="btn-primary" style={{ fontSize: '0.78rem', padding: '6px 12px' }} onClick={completeSimulation}>
+            <button className="btn-primary" style={{ fontSize: '0.78rem', padding: '5px 12px' }} onClick={completeSimulation}>
               <Send size={14} /> Finalize Session
             </button>
           </div>
         )}
       </div>
 
-      {/* Log Console Output */}
+      {/* Log Console */}
       {logs.length > 0 && (
-        <div style={{
-          background: '#070a0f',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.78rem',
-          color: 'var(--accent-cyan)'
-        }}>
+        <div
+          style={{
+            background: 'rgba(7, 10, 15, 0.8)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '10px',
+            padding: '14px 18px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.78rem',
+            color: 'var(--accent-cyan)',
+            maxHeight: '150px',
+            overflowY: 'auto',
+          }}
+        >
           {logs.map((log, idx) => (
             <div key={idx}>&gt; {log}</div>
           ))}

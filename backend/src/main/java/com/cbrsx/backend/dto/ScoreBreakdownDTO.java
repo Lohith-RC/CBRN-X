@@ -8,11 +8,11 @@ public class ScoreBreakdownDTO {
     private int decontaminationScore;
     private int timeBonusScore;
     private int totalPenalties;
-    private int rawTotalScore;
+    private int netScore;
 
     public ScoreBreakdownDTO() {}
 
-    public ScoreBreakdownDTO(int ppeScore, int detectionScore, int evacuationScore, int containmentScore, int decontaminationScore, int timeBonusScore, int totalPenalties, int rawTotalScore) {
+    public ScoreBreakdownDTO(int ppeScore, int detectionScore, int evacuationScore, int containmentScore, int decontaminationScore, int timeBonusScore, int totalPenalties, int netScore) {
         this.ppeScore = ppeScore;
         this.detectionScore = detectionScore;
         this.evacuationScore = evacuationScore;
@@ -20,7 +20,7 @@ public class ScoreBreakdownDTO {
         this.decontaminationScore = decontaminationScore;
         this.timeBonusScore = timeBonusScore;
         this.totalPenalties = totalPenalties;
-        this.rawTotalScore = rawTotalScore;
+        this.netScore = netScore;
     }
 
     public int getPpeScore() { return ppeScore; }
@@ -44,8 +44,8 @@ public class ScoreBreakdownDTO {
     public int getTotalPenalties() { return totalPenalties; }
     public void setTotalPenalties(int totalPenalties) { this.totalPenalties = totalPenalties; }
 
-    public int getRawTotalScore() { return rawTotalScore; }
-    public void setRawTotalScore(int rawTotalScore) { this.rawTotalScore = rawTotalScore; }
+    public int getnetScore() { return netScore; }
+    public void setnetScore(int netScore) { this.netScore = netScore; }
 
     public static ScoreBreakdownDTOBuilder builder() { return new ScoreBreakdownDTOBuilder(); }
 
@@ -57,7 +57,7 @@ public class ScoreBreakdownDTO {
         private int decontaminationScore;
         private int timeBonusScore;
         private int totalPenalties;
-        private int rawTotalScore;
+        private int netScore;
 
         public ScoreBreakdownDTOBuilder ppeScore(int ppeScore) { this.ppeScore = ppeScore; return this; }
         public ScoreBreakdownDTOBuilder detectionScore(int detectionScore) { this.detectionScore = detectionScore; return this; }
@@ -66,10 +66,10 @@ public class ScoreBreakdownDTO {
         public ScoreBreakdownDTOBuilder decontaminationScore(int decontaminationScore) { this.decontaminationScore = decontaminationScore; return this; }
         public ScoreBreakdownDTOBuilder timeBonusScore(int timeBonusScore) { this.timeBonusScore = timeBonusScore; return this; }
         public ScoreBreakdownDTOBuilder totalPenalties(int totalPenalties) { this.totalPenalties = totalPenalties; return this; }
-        public ScoreBreakdownDTOBuilder rawTotalScore(int rawTotalScore) { this.rawTotalScore = rawTotalScore; return this; }
+        public ScoreBreakdownDTOBuilder netScore(int netScore) { this.netScore = netScore; return this; }
 
         public ScoreBreakdownDTO build() {
-            return new ScoreBreakdownDTO(ppeScore, detectionScore, evacuationScore, containmentScore, decontaminationScore, timeBonusScore, totalPenalties, rawTotalScore);
+            return new ScoreBreakdownDTO(ppeScore, detectionScore, evacuationScore, containmentScore, decontaminationScore, timeBonusScore, totalPenalties, netScore);
         }
     }
 }

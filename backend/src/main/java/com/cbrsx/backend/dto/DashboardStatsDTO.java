@@ -1,6 +1,7 @@
 package com.cbrsx.backend.dto;
 
 import java.util.List;
+import com.cbrsx.backend.dto.SessionSummaryDTO;
 import java.util.Map;
 
 public class DashboardStatsDTO {
@@ -12,11 +13,11 @@ public class DashboardStatsDTO {
     private Map<String, Long> passStatusCounts;
     private Map<String, Long> topMistakesFrequency;
 
-    private List<ScoreReportDTO> recentSessions;
+    private List<SessionSummaryDTO> recentSessions;
 
     public DashboardStatsDTO() {}
 
-    public DashboardStatsDTO(long totalTrainees, long totalSessionsCompleted, double overallPassRate, double averageScore, Map<String, Long> passStatusCounts, Map<String, Long> topMistakesFrequency, List<ScoreReportDTO> recentSessions) {
+    public DashboardStatsDTO(long totalTrainees, long totalSessionsCompleted, double overallPassRate, double averageScore, Map<String, Long> passStatusCounts, Map<String, Long> topMistakesFrequency, List<SessionSummaryDTO> recentSessions) {
         this.totalTrainees = totalTrainees;
         this.totalSessionsCompleted = totalSessionsCompleted;
         this.overallPassRate = overallPassRate;
@@ -44,8 +45,8 @@ public class DashboardStatsDTO {
     public Map<String, Long> getTopMistakesFrequency() { return topMistakesFrequency; }
     public void setTopMistakesFrequency(Map<String, Long> topMistakesFrequency) { this.topMistakesFrequency = topMistakesFrequency; }
 
-    public List<ScoreReportDTO> getRecentSessions() { return recentSessions; }
-    public void setRecentSessions(List<ScoreReportDTO> recentSessions) { this.recentSessions = recentSessions; }
+    public List<SessionSummaryDTO> getRecentSessions() { return recentSessions; }
+    public void setRecentSessions(List<SessionSummaryDTO> recentSessions) { this.recentSessions = recentSessions; }
 
     public static DashboardStatsDTOBuilder builder() { return new DashboardStatsDTOBuilder(); }
 
@@ -56,7 +57,7 @@ public class DashboardStatsDTO {
         private double averageScore;
         private Map<String, Long> passStatusCounts;
         private Map<String, Long> topMistakesFrequency;
-        private List<ScoreReportDTO> recentSessions;
+        private List<SessionSummaryDTO> recentSessions;
 
         public DashboardStatsDTOBuilder totalTrainees(long totalTrainees) { this.totalTrainees = totalTrainees; return this; }
         public DashboardStatsDTOBuilder totalSessionsCompleted(long totalSessionsCompleted) { this.totalSessionsCompleted = totalSessionsCompleted; return this; }
@@ -64,7 +65,7 @@ public class DashboardStatsDTO {
         public DashboardStatsDTOBuilder averageScore(double averageScore) { this.averageScore = averageScore; return this; }
         public DashboardStatsDTOBuilder passStatusCounts(Map<String, Long> passStatusCounts) { this.passStatusCounts = passStatusCounts; return this; }
         public DashboardStatsDTOBuilder topMistakesFrequency(Map<String, Long> topMistakesFrequency) { this.topMistakesFrequency = topMistakesFrequency; return this; }
-        public DashboardStatsDTOBuilder recentSessions(List<ScoreReportDTO> recentSessions) { this.recentSessions = recentSessions; return this; }
+        public DashboardStatsDTOBuilder recentSessions(List<SessionSummaryDTO> recentSessions) { this.recentSessions = recentSessions; return this; }
 
         public DashboardStatsDTO build() {
             return new DashboardStatsDTO(totalTrainees, totalSessionsCompleted, overallPassRate, averageScore, passStatusCounts, topMistakesFrequency, recentSessions);
