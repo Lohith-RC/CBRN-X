@@ -1,28 +1,36 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Users, Award, Percent, AlertTriangle } from 'lucide-react';
+import { Users, Award, Percent, Gauge } from 'lucide-react';
 
 /* Animated counter that counts up to the target value */
 function AnimatedCounter({ target, suffix = '', duration = 1200 }) {
   const [value, setValue] = useState(0);
   const frameRef = useRef(null);
+  const hasAnimatedRef = useRef(false);
 
   useEffect(() => {
     const numTarget = parseFloat(target) || 0;
-    const startTime = performance.now();
     const isFloat = String(target).includes('.');
+    const formatValue = (n) => (isFloat ? n.toFixed(1) : String(Math.round(n)));
+
+    if (hasAnimatedRef.current) {
+      setValue(formatValue(numTarget));
+      return undefined;
+    }
+
+    const startTime = performance.now();
 
     const animate = (now) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = eased * numTarget;
-      setValue(isFloat ? current.toFixed(1) : Math.round(current));
+      setValue(formatValue(eased * numTarget));
       if (progress < 1) {
         frameRef.current = requestAnimationFrame(animate);
       }
     };
 
     frameRef.current = requestAnimationFrame(animate);
+    hasAnimatedRef.current = true;
     return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
   }, [target, duration]);
 
@@ -30,10 +38,12 @@ function AnimatedCounter({ target, suffix = '', duration = 1200 }) {
 }
 
 export default function MetricCards({ stats }) {
+  const offline = !stats;
+
   const cards = [
     {
       title: 'Total Responders',
-      value: stats?.totalTrainees || 0,
+      value: stats?.totalTrainees ?? null,
       suffix: '',
       subtext: 'Registered NDRF Trainees',
       icon: Users,
@@ -43,7 +53,7 @@ export default function MetricCards({ stats }) {
     },
     {
       title: 'Sessions Completed',
-      value: stats?.totalSessionsCompleted || 0,
+      value: stats?.totalSessionsCompleted ?? null,
       suffix: '',
       subtext: 'Chemical Hazard Simulations',
       icon: Award,
@@ -53,7 +63,7 @@ export default function MetricCards({ stats }) {
     },
     {
       title: 'Protocol Pass Rate',
-      value: stats?.overallPassRate || 0,
+      value: stats?.overallPassRate ?? null,
       suffix: '%',
       subtext: 'Pass threshold ≥ 70%',
       icon: Percent,
@@ -63,10 +73,10 @@ export default function MetricCards({ stats }) {
     },
     {
       title: 'Average Score',
-      value: stats?.averageScore || 0,
+      value: stats?.averageScore ?? null,
       suffix: '',
       subtext: 'Combined Protocol Metric',
-      icon: AlertTriangle,
+      icon: Gauge,
       color: '#8b5cf6',
       bgGlow: 'rgba(139, 92, 246, 0.15)',
       ringColor: '#8b5cf6',
@@ -161,15 +171,23 @@ export default function MetricCards({ stats }) {
                 zIndex: 2,
               }}
             >
-              {card.suffix === '%' ? (
-                <><AnimatedCounter target={card.value} suffix="%" /> </>
-              ) : (
-                <AnimatedCounter target={card.value} />
-              )}
-              {card.title === 'Average Score' && (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                  {' '}/ 100
+              {offline ? (
+                <span style={{ fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                  NO DATA
                 </span>
+              ) : (
+                <>
+                  {card.suffix === '%' ? (
+                    <><AnimatedCounter target={card.value} suffix="%" /> </>
+                  ) : (
+                    <AnimatedCounter target={card.value} />
+                  )}
+                  {card.title === 'Average Score' && (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                      {' '}/ 100
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
@@ -193,7 +211,7 @@ export default function MetricCards({ stats }) {
                   background: `linear-gradient(90deg, ${card.color}, transparent)`,
                 }}
               />
-              {card.subtext}
+              {offline ? 'Waiting for scoring engine' : card.subtext}
             </div>
           </div>
         );

@@ -9,65 +9,8 @@ import EventSimulator from './components/EventSimulator.jsx';
 import TraineeVrScreen from './components/TraineeVrScreen.jsx';
 import { WifiOff } from 'lucide-react';
 
-const FALLBACK_STATS = {
-  totalTrainees: 12,
-  totalSessionsCompleted: 8,
-  overallPassRate: 87.5,
-  averageScore: 84.2,
-  recentSessions: [
-    {
-      sessionId: 'sess-demo-01',
-      traineeName: 'Inspector Lohith R C',
-      batchUnit: '10th NDRF Battalion',
-      scenarioTitle: 'Chlorine Gas Leak Response',
-      scenarioCode: 'CBRN-CHEM-01',
-      finalScore: 92,
-      passStatus: 'PASSED',
-      totalDurationSeconds: 145,
-      startedAt: new Date(Date.now() - 3600000).toISOString(),
-      completedAt: new Date(Date.now() - 3455000).toISOString(),
-      mistakes: [],
-      recommendations: [
-        'Excellent response speed in donning level A chemical suit.',
-        'Rapid perimeter isolation achieved within 90 seconds.',
-        'Maintained proper windward approach to leaking drum.',
-      ],
-    },
-    {
-      sessionId: 'sess-demo-02',
-      traineeName: 'Sub-Inspector Ananya Rao',
-      batchUnit: '4th NDRF Battalion',
-      scenarioTitle: 'Chlorine Gas Leak Response',
-      scenarioCode: 'CBRN-CHEM-01',
-      finalScore: 68,
-      passStatus: 'FAILED',
-      totalDurationSeconds: 230,
-      startedAt: new Date(Date.now() - 7200000).toISOString(),
-      completedAt: new Date(Date.now() - 6970000).toISOString(),
-      mistakes: [
-        {
-          stage: 'PPE Donning',
-          severity: 'HIGH',
-          description: 'Entered hazard perimeter before sealing suit respirator valve.',
-          deductionPoints: 15,
-        },
-        {
-          stage: 'Detection',
-          severity: 'MEDIUM',
-          description: 'Failed to hold PID sensor within 1m of drum seam.',
-          deductionPoints: 10,
-        },
-      ],
-      recommendations: [
-        'Always complete full cross-check of suit seals before entering hot zone.',
-        'Calibrate PID photoionization detector at fresh-air baseline.',
-      ],
-    },
-  ],
-};
-
 export default function App() {
-  const [stats, setStats] = useState(FALLBACK_STATS);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -84,7 +27,8 @@ export default function App() {
       setStats(data);
     } catch (err) {
       console.warn('Backend API unreachable:', err.message);
-      setApiError('Cannot reach the CBRS-X backend. Metrics below reflect cached demonstration telemetry.');
+      setStats(null);
+      setApiError('Cannot reach the CBRS-X scoring engine. Metrics are withheld rather than displaying fabricated values.');
     } finally {
       setLoading(false);
     }
@@ -122,7 +66,7 @@ export default function App() {
           >
             <WifiOff size={20} style={{ flexShrink: 0, color: '#ef4444' }} />
             <span>
-              <strong style={{ color: '#ef4444' }}>OFFLINE / DEMO MODE.</strong> {apiError}
+              <strong style={{ color: '#ef4444' }}>OFFLINE — NO DATA SHOWN.</strong> {apiError}
             </span>
           </div>
         )}
