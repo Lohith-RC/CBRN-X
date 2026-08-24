@@ -11,7 +11,6 @@ import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +20,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class ScoringService {
 
     private final EventRepository eventRepository;
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
+
+    public ScoringService(EventRepository eventRepository, SessionRepository sessionRepository, TraineeRepository traineeRepository, ScenarioRepository scenarioRepository) {
+        this.eventRepository = eventRepository;
+        this.sessionRepository = sessionRepository;
+        this.traineeRepository = traineeRepository;
+        this.scenarioRepository = scenarioRepository;
+    }
 
     public static final int PASS_THRESHOLD = 70;
     public static final int MAX_RAW_SCORE = 80;

@@ -13,8 +13,8 @@ import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +25,23 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class SessionService {
+
+    private static final Logger log = LoggerFactory.getLogger(SessionService.class);
 
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
     private final SessionRepository sessionRepository;
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
+
+    public SessionService(TraineeRepository traineeRepository, ScenarioRepository scenarioRepository, SessionRepository sessionRepository, EventRepository eventRepository, ObjectMapper objectMapper) {
+        this.traineeRepository = traineeRepository;
+        this.scenarioRepository = scenarioRepository;
+        this.sessionRepository = sessionRepository;
+        this.eventRepository = eventRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Transactional
     public StartSessionResponse startSession(StartSessionRequest request) {

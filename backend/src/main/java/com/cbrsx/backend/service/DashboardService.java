@@ -10,7 +10,6 @@ import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +23,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
     private static final String STATUS_PASSED = "PASSED";
@@ -34,6 +32,13 @@ public class DashboardService {
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
     private final EventRepository eventRepository;
+
+    public DashboardService(SessionRepository sessionRepository, TraineeRepository traineeRepository, ScenarioRepository scenarioRepository, EventRepository eventRepository) {
+        this.sessionRepository = sessionRepository;
+        this.traineeRepository = traineeRepository;
+        this.scenarioRepository = scenarioRepository;
+        this.eventRepository = eventRepository;
+    }
 
     @Transactional(readOnly = true)
     public DashboardStatsDTO getDashboardStats() {

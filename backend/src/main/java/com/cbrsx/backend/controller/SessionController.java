@@ -8,17 +8,20 @@ import com.cbrsx.backend.service.SessionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/sessions")
-@RequiredArgsConstructor
 public class SessionController {
 
     private final SessionService sessionService;
     private final ScoringService scoringService;
+
+    public SessionController(SessionService sessionService, ScoringService scoringService) {
+        this.sessionService = sessionService;
+        this.scoringService = scoringService;
+    }
 
     @PostMapping("/start")
     public ResponseEntity<StartSessionResponse> startSession(@Valid @RequestBody StartSessionRequest request) {

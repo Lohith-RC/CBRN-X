@@ -7,6 +7,7 @@ import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
 import EventSimulator from './components/EventSimulator.jsx';
 import TraineeVrScreen from './components/TraineeVrScreen.jsx';
+import LandingPage from './components/LandingPage.jsx';
 import { WifiOff } from 'lucide-react';
 
 const FALLBACK_STATS = {
@@ -71,6 +72,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [activeView, setActiveView] = useState('landing'); // 'landing' | 'dashboard' | 'vr_view' | 'simulator'
 
   const fetchDashboardStats = async () => {
     setLoading(true);
@@ -101,7 +103,12 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
-        <Header onRefresh={fetchDashboardStats} loading={loading} />
+        <Header 
+          activeView={activeView}
+          onNavigate={(view) => setActiveView(view)}
+          onRefresh={fetchDashboardStats} 
+          loading={loading} 
+        />
 
         {apiError && (
           <div
@@ -127,24 +134,33 @@ export default function App() {
           </div>
         )}
 
-        {/* 3D Hero Scene */}
-        <Hero3DScene />
-
         <main>
-          {/* Metric Cards */}
-          <MetricCards stats={stats} />
+          {/* LANDING PAGE VIEW */}
+          {activeView === 'landing' && (
+            <LandingPage onNavigate={(view) => setActiveView(view)} stats={stats} />
+          )}
 
-          {/* VR First-Person Screen */}
-          <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+          {/* DASHBOARD VIEW */}
+          {activeView === 'dashboard' && (
+            <>
+              <Hero3DScene />
+              <MetricCards stats={stats} />
+              <SessionsTable
+                sessions={stats?.recentSessions || []}
+                onSelectSession={(session) => setSelectedSession(session)}
+              />
+            </>
+          )}
 
-          {/* Sessions Data Table */}
-          <SessionsTable
-            sessions={stats?.recentSessions || []}
-            onSelectSession={(session) => setSelectedSession(session)}
-          />
+          {/* 3D TRAINEE VR VIEW */}
+          {activeView === 'vr_view' && (
+            <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+          )}
 
-          {/* Event Simulator */}
-          <EventSimulator onSessionCreated={fetchDashboardStats} />
+          {/* TELEMETRY SIMULATOR VIEW */}
+          {activeView === 'simulator' && (
+            <EventSimulator onSessionCreated={fetchDashboardStats} />
+          )}
         </main>
 
         {/* Session Detail Modal */}
@@ -157,3 +173,4 @@ export default function App() {
     </>
   );
 }
+
