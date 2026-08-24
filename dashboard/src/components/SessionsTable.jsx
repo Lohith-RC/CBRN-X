@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Eye, Search, CheckCircle2, XCircle, Clock, Loader, Ban, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const STATUS_OPTIONS = ['ALL', 'PASSED', 'FAILED', 'IN_PROGRESS', 'TIMED_OUT', 'VOIDED'];
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -89,7 +90,7 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
 
     setVoidingId(session.sessionId);
     try {
-      const res = await fetch(`/api/sessions/${session.sessionId}/void`, {
+      const res = await apiFetch(`/api/sessions/${session.sessionId}/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Voided by instructor from command center' }),

@@ -1,5 +1,12 @@
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        # SameSite=Lax + HttpOnly harden the instructor session cookie against
+        # cross-site attachment and script theft; CSRF is enforced separately
+        same-site: lax
+        http-only: true
   # Security headers
   error:
     include-message: never
@@ -70,3 +77,8 @@ cbrsx:
     trainee: ${CBRSX_TRAINEE_KEY:}
   security:
     fail-closed: ${CBRSX_FAIL_CLOSED:false}
+  # Initial administrator account (seeded only when instructor_users is empty).
+  # ALWAYS override the password via CBRSX_ADMIN_PASSWORD outside local dev.
+  admin:
+    username: ${CBRSX_ADMIN_USERNAME:admin}
+    password: ${CBRSX_ADMIN_PASSWORD:ndrf-admin-123}

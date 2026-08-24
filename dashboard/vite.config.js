@@ -1,20 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const apiKey = process.env.CBRSX_API_KEY || '';
+// The instructor dashboard authenticates interactively (username/password +
+// session cookie). Do NOT inject X-API-Key here: machine keys belong to
+// simulation clients calling the backend directly.
 
 const apiProxy = {
   '/api': {
     target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
     changeOrigin: true,
-    // Inject API key header on proxied requests
-    ...(apiKey ? {
-      configure: (proxy) => {
-        proxy.on('proxyReq', (proxyReq) => {
-          proxyReq.setHeader('X-API-Key', apiKey);
-        });
-      },
-    } : {}),
   },
 };
 

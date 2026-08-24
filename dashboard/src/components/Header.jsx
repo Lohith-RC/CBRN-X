@@ -1,7 +1,9 @@
 import React from 'react';
-import { Shield, Radio, RefreshCw, WifiOff } from 'lucide-react';
+import { Shield, Radio, RefreshCw, WifiOff, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Header({ onRefresh, loading, liveConnected = false }) {
+  const { user, logout } = useAuth();
   return (
     <header
       className="glass-panel scan-line animate-fade-in"
@@ -76,15 +78,24 @@ export default function Header({ onRefresh, loading, liveConnected = false }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
-            COMMAND CENTER
+            {user?.role === 'ADMIN' ? 'ADMINISTRATOR' : 'COMMAND CENTER'}
           </span>
           <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--accent-cyan)' }}>
-            10th NDRF Battalion
+            {user?.displayName || user?.username || 'Instructor'}
+            {user?.unit ? ` — ${user.unit}` : ''}
           </span>
         </div>
         <button className="btn-secondary" onClick={onRefresh} disabled={loading}>
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           {loading ? 'Refreshing...' : 'Refresh Telemetry'}
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={logout}
+          title="End session and return to login"
+          style={{ padding: '9px 12px' }}
+        >
+          <LogOut size={16} />
         </button>
       </div>
     </header>

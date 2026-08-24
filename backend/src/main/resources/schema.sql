@@ -38,6 +38,18 @@ CREATE TABLE IF NOT EXISTS events (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
+-- 5. Instructor / Admin interactive accounts (BCrypt password hashes).
+--    Rows are seeded by AdminUserSeeder at startup; never insert raw passwords here.
+CREATE TABLE IF NOT EXISTS instructor_users (
+    username VARCHAR(64) PRIMARY KEY,
+    password_hash VARCHAR(100) NOT NULL,
+    display_name VARCHAR(120) NOT NULL,
+    unit VARCHAR(120),
+    role VARCHAR(20) NOT NULL DEFAULT 'INSTRUCTOR',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Performance indexes for hot query paths
 CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
 CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);

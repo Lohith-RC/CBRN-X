@@ -5,10 +5,12 @@ import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
+import Login from './components/Login.jsx';
 import useLiveTelemetry from './hooks/useLiveTelemetry.js';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { WifiOff } from 'lucide-react';
 
-export default function App() {
+function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -94,5 +96,36 @@ export default function App() {
         />
       </div>
     </>
+  );
+}
+
+function AuthGate() {
+  const { user, booting } = useAuth();
+
+  if (booting) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: '0.9rem',
+        }}
+      >
+        Establishing secure connection…
+      </div>
+    );
+  }
+
+  return user ? <Dashboard /> : <Login />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   );
 }

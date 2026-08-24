@@ -122,7 +122,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/swagger-ui.html")
                 || path.startsWith("/ws-telemetry")
-                || path.startsWith("/error");
+                || path.startsWith("/error")
+                // Interactive login/logout/session endpoints authenticate via credentials,
+                // not API keys (rate limiting for logins lives in AuthController)
+                || path.startsWith("/api/auth/");
     }
 
     @Override
@@ -145,6 +148,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             response.setContentType("application/json");
             response.setHeader("Retry-After", "60");
             response.getWriter().write("{\"error\":\"Too Many Requests\",\"message\":\"Rate limit exceeded. Try again later.\"}");
+            return;
+        }
+
+        // ── Session-authenticated browser request (instructor login) ──
+        // SecurityContextHolderFilter has already restored any saved context;
+        // if one exists, honor it instead of demanding an API key.
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
             return;
         }
 
