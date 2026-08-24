@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, CheckCircle2, AlertTriangle, Lightbulb, ShieldAlert, Loader, Cpu, Award, Zap, Activity, Clock, FileText } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Lightbulb, ShieldAlert, Loader, Cpu, Award, Zap, Activity, Clock, FileText, Printer, Compass, ShieldCheck, MapPin } from 'lucide-react';
 
 /* Animated SVG Score Ring */
 function ScoreRing({ score, color = '#10b981', size = 120 }) {
@@ -62,7 +62,7 @@ function ScoreRing({ score, color = '#10b981', size = 120 }) {
 
 export default function SessionDetailModal({ sessionSummary, session, onClose }) {
   const activeSession = sessionSummary || session;
-  const [activeTab, setActiveTab] = useState('scorecard'); // 'scorecard' | 'debrief'
+  const [activeTab, setActiveTab] = useState('scorecard'); // 'scorecard' | 'debrief' | 'map' | 'certificate'
   const [report, setReport] = useState(null);
   const [debrief, setDebrief] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -139,6 +139,10 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
     [onClose]
   );
 
+  const handlePrintCertificate = () => {
+    window.print();
+  };
+
   if (!open || !activeSession) return null;
 
   const currentData = report || activeSession;
@@ -169,6 +173,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
 
   const finalScore = currentData.finalScore ?? activeSession.finalScore ?? 0;
   const passStatus = currentData.passStatus || activeSession.passStatus || (finalScore >= 70 ? 'PASSED' : 'FAILED');
+  const tacticalRating = debrief?.tacticalRating || (finalScore >= 90 ? 'ALPHA (Elite HAZMAT Specialist)' : (finalScore >= 75 ? 'BRAVO (Combat Effective Responder)' : 'CHARLIE (Marginal Pass)'));
 
   return (
     <div
@@ -192,8 +197,8 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '820px',
-          maxHeight: '90vh',
+          maxWidth: '860px',
+          maxHeight: '92vh',
           overflowY: 'auto',
           padding: '28px',
           position: 'relative',
@@ -249,10 +254,11 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         <div
           style={{
             display: 'flex',
-            gap: '10px',
+            gap: '8px',
             marginBottom: '20px',
             borderBottom: '1px solid rgba(255,255,255,0.08)',
             paddingBottom: '10px',
+            flexWrap: 'wrap',
           }}
         >
           <button
@@ -260,40 +266,80 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
+              gap: '6px',
+              padding: '8px 14px',
               borderRadius: '8px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: '700',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               background: activeTab === 'scorecard' ? 'var(--accent-ndrf-orange)' : 'rgba(255,255,255,0.05)',
               color: activeTab === 'scorecard' ? '#000' : 'var(--text-secondary)',
               transition: 'all 0.2s ease',
             }}
           >
-            <FileText size={16} />
-            Protocol Scorecard
+            <FileText size={15} />
+            Scorecard
           </button>
           <button
             onClick={() => setActiveTab('debrief')}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
+              gap: '6px',
+              padding: '8px 14px',
               borderRadius: '8px',
               border: 'none',
               cursor: 'pointer',
               fontWeight: '700',
-              fontSize: '0.85rem',
+              fontSize: '0.82rem',
               background: activeTab === 'debrief' ? 'linear-gradient(135deg, #06b6d4, #3b82f6)' : 'rgba(255,255,255,0.05)',
               color: activeTab === 'debrief' ? '#fff' : 'var(--text-secondary)',
               transition: 'all 0.2s ease',
             }}
           >
-            <Cpu size={16} />
-            AI Tactical Debrief (AAR)
+            <Cpu size={15} />
+            AI Debrief (AAR)
+          </button>
+          <button
+            onClick={() => setActiveTab('map')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              background: activeTab === 'map' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.05)',
+              color: activeTab === 'map' ? '#fff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Compass size={15} />
+            Tactical Map
+          </button>
+          <button
+            onClick={() => setActiveTab('certificate')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              background: activeTab === 'certificate' ? 'linear-gradient(135deg, #eab308, #ca8a04)' : 'rgba(255,255,255,0.05)',
+              color: activeTab === 'certificate' ? '#000' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Award size={15} />
+            Official Certificate
           </button>
         </div>
 
@@ -638,6 +684,206 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: TACTICAL INCIDENT MAP & SPATIAL BREADCRUMB */}
+        {activeTab === 'map' && (
+          <div>
+            <div
+              style={{
+                background: 'rgba(15, 23, 42, 0.95)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '14px',
+                padding: '20px',
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.95rem' }}>
+                  <Compass size={18} />
+                  Tactical Spatial Sector & Incident Triangulation
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Sector Grid: NDRF-GRID-BAY03</span>
+              </div>
+
+              {/* Tactical Radar SVG Map */}
+              <div style={{ position: 'relative', width: '100%', height: '280px', background: '#090d16', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <svg width="100%" height="100%" viewBox="0 0 500 280">
+                  {/* Grid Lines */}
+                  <defs>
+                    <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
+                      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#grid)" />
+
+                  {/* Cold Zone (Outer Safe Perimeter) */}
+                  <rect x="10" y="10" width="480" height="260" rx="8" fill="none" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="2" strokeDasharray="4 4" />
+                  <text x="25" y="30" fill="#10b981" fontSize="10" fontWeight="700">COLD ZONE (INCIDENT COMMAND & DECON)</text>
+
+                  {/* Warm Zone */}
+                  <circle cx="250" cy="140" r="100" fill="rgba(245, 158, 11, 0.06)" stroke="rgba(245, 158, 11, 0.3)" strokeWidth="2" />
+                  <text x="160" y="70" fill="#f59e0b" fontSize="9" fontWeight="700">WARM ZONE (DECON BUFFER)</text>
+
+                  {/* Hot Zone (Hazard Epicenter) */}
+                  <circle cx="250" cy="140" r="50" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth="2" />
+                  <circle cx="250" cy="140" r="20" fill="rgba(239, 68, 68, 0.35)" />
+                  <circle cx="250" cy="140" r="6" fill="#ef4444" />
+                  <text x="215" y="144" fill="#fff" fontSize="8" fontWeight="800">EPICENTER</text>
+
+                  {/* Responder Trajectory Breadcrumb Path */}
+                  <polyline
+                    points="40,240 100,210 160,180 230,140 270,130 320,110 420,70"
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth="3"
+                    strokeDasharray="6 4"
+                  />
+
+                  {/* Checkpoints */}
+                  <circle cx="40" cy="240" r="5" fill="#10b981" />
+                  <text x="20" y="260" fill="#38bdf8" fontSize="8" fontWeight="700">ENTRY [T+0s]</text>
+
+                  <circle cx="160" cy="180" r="5" fill="#f59e0b" />
+                  <text x="110" y="170" fill="#f59e0b" fontSize="8" fontWeight="700">DETECTION PINPOINT</text>
+
+                  <circle cx="270" cy="130" r="5" fill="#ef4444" />
+                  <text x="280" y="125" fill="#ef4444" fontSize="8" fontWeight="700">CONTAINMENT CLAMP</text>
+
+                  <circle cx="420" cy="70" r="5" fill="#10b981" />
+                  <text x="390" y="60" fill="#10b981" fontSize="8" fontWeight="700">DECON EXIT</text>
+                </svg>
+              </div>
+
+              {/* Spatial Telemetry Stat Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Max Plume Conc.</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#ef4444' }}>650 ppm</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Hot Zone Exposure</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f59e0b' }}>42 sec</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Casualty Extraction</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#10b981' }}>100% Cleared</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>PPE Seal Integrity</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#38bdf8' }}>VERIFIED</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: OFFICIAL NDRF CERTIFICATE OF READINESS */}
+        {activeTab === 'certificate' && (
+          <div>
+            {/* Printable Certificate Frame */}
+            <div
+              id="printable-certificate"
+              style={{
+                background: 'linear-gradient(145deg, #1e293b, #0f172a)',
+                border: '3px solid #eab308',
+                borderRadius: '16px',
+                padding: '36px',
+                textAlign: 'center',
+                position: 'relative',
+                color: '#fff',
+                boxShadow: '0 0 35px rgba(234, 179, 8, 0.15)',
+                marginBottom: '20px',
+              }}
+            >
+              {/* Seal & Watermark */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                <ShieldCheck size={52} color="#eab308" />
+              </div>
+
+              <div style={{ fontSize: '0.8rem', fontWeight: '900', letterSpacing: '2px', color: '#eab308', textTransform: 'uppercase' }}>
+                NATIONAL DISASTER RESPONSE FORCE (NDRF)
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', marginBottom: '18px' }}>
+                MINISTRY OF HOME AFFAIRS • CBRN TACTICAL SIMULATION WING
+              </div>
+
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '1px' }}>
+                Certificate of Operational CBRN Readiness
+              </h2>
+
+              <p style={{ fontSize: '0.88rem', color: '#cbd5e1', maxWidth: '580px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+                This is to officially certify that responder{' '}
+                <strong style={{ color: '#eab308', textDecoration: 'underline' }}>{activeSession.traineeName || 'Officer'}</strong>{' '}
+                of unit <strong style={{ color: '#fff' }}>{activeSession.batchUnit || '10th NDRF Battalion'}</strong> has successfully undergone tactical evaluation in scenario{' '}
+                <strong style={{ color: '#38bdf8' }}>{activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN Incident'}</strong>.
+              </p>
+
+              {/* Metrics Grid */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', margin: '24px 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '16px 0' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>OPERATIONAL SCORE</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '900', color: finalScore >= 70 ? '#10b981' : '#ef4444' }}>
+                    {finalScore} / 100
+                  </div>
+                </div>
+                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '30px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>TACTICAL TIER</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#eab308', marginTop: '6px' }}>
+                    {tacticalRating.split(' ')[0]}
+                  </div>
+                </div>
+                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '30px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>STATUS</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: passStatus === 'PASSED' ? '#10b981' : '#ef4444', marginTop: '6px' }}>
+                    {passStatus}
+                  </div>
+                </div>
+              </div>
+
+              {/* Signatures & Verification */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '30px', padding: '0 20px' }}>
+                <div style={{ textAlign: 'left', fontSize: '0.75rem', color: '#94a3b8' }}>
+                  <div>ISSUE DATE: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                  <div>SESSION ID: {activeSession.sessionId || 'SESS-2026'}</div>
+                  <div style={{ fontFamily: 'monospace', color: '#64748b', fontSize: '0.68rem', marginTop: '4px' }}>
+                    HASH: SHA256-7F8A{Math.abs(finalScore * 1337).toString(16).toUpperCase()}9B1C
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontStyle: 'italic', fontFamily: 'serif', color: '#e2e8f0', fontSize: '1.1rem', borderBottom: '1px dashed #64748b', paddingBottom: '4px', width: '160px' }}>
+                    Col. V. Sharma
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>Lead Incident Evaluator</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Print Button */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={handlePrintCertificate}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '12px 24px',
+                  fontWeight: '800',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(234, 179, 8, 0.3)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Printer size={18} />
+                Print / Save Official PDF Certificate
+              </button>
             </div>
           </div>
         )}

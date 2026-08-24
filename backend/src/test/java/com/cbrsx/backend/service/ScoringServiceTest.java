@@ -277,4 +277,60 @@ class ScoringServiceTest {
         assertEquals(45, report.getBreakdown().getTotalPenalties());
         assertEquals(3, report.getMistakes().size());
     }
+
+    @Test
+    void finalizeSession_RadiologicalPerfectRun_ShouldPassWith100() {
+        when(scenarioRepository.findById("scen-chem-01")).thenReturn(Optional.of(
+                Scenario.builder().scenarioId("scen-rad-02").code("CBRN-RAD-02").title("Radiological Vault").build()
+        ));
+
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("lead_apron_equipped").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("dosimeter_equipped").timestamp(Instant.now().minusSeconds(110)).build(),
+                SessionEvent.builder().eventType("rad_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("technician_extracted").eventData("{\"tech_id\":1}").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("technician_extracted").eventData("{\"tech_id\":2}").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("shielding_blanket_deployed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("rad_washdown_completed").timestamp(Instant.now().minusSeconds(10)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        assertTrue(report.isPassed());
+        assertEquals(100, report.getFinalScore());
+        assertTrue(report.getMistakes().isEmpty());
+    }
+
+    @Test
+    void finalizeSession_BiologicalPerfectRun_ShouldPassWith100() {
+        when(scenarioRepository.findById("scen-chem-01")).thenReturn(Optional.of(
+                Scenario.builder().scenarioId("scen-bio-03").code("CBRN-BIO-03").title("Level-4 Pathogen Lab").build()
+        ));
+
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("papr_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("bio_sampler_equipped").timestamp(Instant.now().minusSeconds(110)).build(),
+                SessionEvent.builder().eventType("pathogen_breach_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("lab_personnel_evacuated").eventData("{\"staff_id\":1}").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("lab_personnel_evacuated").eventData("{\"staff_id\":2}").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("airlock_sealed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("autoclave_sterilization_completed").timestamp(Instant.now().minusSeconds(10)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        assertTrue(report.isPassed());
+        assertEquals(100, report.getFinalScore());
+        assertTrue(report.getMistakes().isEmpty());
+    }
 }

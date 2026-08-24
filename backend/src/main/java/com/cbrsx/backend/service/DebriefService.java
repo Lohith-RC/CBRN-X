@@ -176,14 +176,31 @@ public class DebriefService {
             case "scenario_started": return "Incident Authorization";
             case "ppe_donning_completed":
             case "ppe_item_equipped":
+            case "lead_apron_equipped":
+            case "papr_donning_completed":
             case "entered_hazard_zone_without_ppe": return "PPE Donning & Perimeter Check";
             case "detector_equipped":
-            case "leak_source_identified": return "Hazard Detection & PID Triangulation";
+            case "dosimeter_equipped":
+            case "bio_sampler_equipped":
+            case "leak_source_identified":
+            case "rad_source_identified":
+            case "pathogen_breach_identified": return "Hazard Detection & Triangulation";
             case "civilian_evacuated":
+            case "technician_extracted":
+            case "lab_personnel_evacuated":
             case "evacuation_incomplete": return "Search & Rescue / Evacuation";
-            case "containment_completed": return "Hazard Sealing & Containment";
-            case "decontamination_completed": return "Decontamination & Exit";
+            case "containment_completed":
+            case "shielding_blanket_deployed":
+            case "hot_cell_isolated":
+            case "airlock_sealed":
+            case "negative_pressure_engaged": return "Hazard Sealing & Containment";
+            case "decontamination_completed":
+            case "rad_washdown_completed":
+            case "autoclave_sterilization_completed":
+            case "bio_misting_completed": return "Decontamination & Exit";
             case "scenario_completed": return "Mission Debrief";
+            case "trainee_heartbeat": return "Telemetry Liveness";
+            case "spatial_telemetry": return "Spatial Tracking";
             default: return "Tactical Action";
         }
     }
@@ -191,7 +208,8 @@ public class DebriefService {
     private String determineEventStatus(String eventType) {
         if (eventType == null) return "INFO";
         if (eventType.contains("without_ppe") || eventType.contains("incomplete")) return "VIOLATION";
-        if (eventType.contains("completed") || eventType.contains("equipped") || eventType.contains("evacuated")) return "SUCCESS";
+        if (eventType.contains("completed") || eventType.contains("equipped") || eventType.contains("evacuated")
+                || eventType.contains("extracted") || eventType.contains("deployed") || eventType.contains("sealed")) return "SUCCESS";
         return "INFO";
     }
 
@@ -202,10 +220,12 @@ public class DebriefService {
         if ("entered_hazard_zone_without_ppe".equals(type) || "evacuation_incomplete".equals(type)) {
             return "VIOLATION";
         }
-        if ("leak_source_identified".equals(type) && data != null && data.contains("\"correct\"") && data.contains("false")) {
+        if ((type.contains("identified") || type.contains("leak") || type.contains("source"))
+                && data != null && data.contains("\"correct\"") && data.contains("false")) {
             return "WARNING";
         }
-        if (type.contains("completed") || type.contains("equipped") || type.contains("evacuated") || type.contains("identified")) {
+        if (type.contains("completed") || type.contains("equipped") || type.contains("evacuated")
+                || type.contains("extracted") || type.contains("deployed") || type.contains("sealed") || type.contains("identified")) {
             return "SUCCESS";
         }
         return "INFO";
@@ -219,26 +239,62 @@ public class DebriefService {
             case "scenario_started":
                 return "Incident command initialized mission clock.";
             case "ppe_donning_completed":
+            case "ppe_item_equipped":
                 return "Complete CBRN Level-A ensemble donned and verified.";
+            case "lead_apron_equipped":
+                return "Heavy lead shielding apron and personal dosimeter secured.";
+            case "papr_donning_completed":
+                return "Powered Air-Purifying Respirator (PAPR) certified and airflow verified.";
             case "entered_hazard_zone_without_ppe":
-                return "CRITICAL VIOLATION: Stepped across hot zone threshold without respiratory protection.";
+                return "CRITICAL VIOLATION: Stepped across hot zone threshold without certified respiratory protection.";
             case "detector_equipped":
-                return "Photoionization PID detector powered on and calibrated.";
+                return "Photoionization PID detector powered on and zero-calibrated.";
+            case "dosimeter_equipped":
+                return "Radiation survey dosimeter powered on and baseline $\\mu$Sv/h background recorded.";
+            case "bio_sampler_equipped":
+                return "Bio-aerosol particulate sampler calibrated for airborne pathogen detection.";
             case "leak_source_identified":
                 if (data != null && data.contains("\"correct\"") && data.contains("false")) {
                     return "WARNING: Scanned incorrect storage drum (false positive identification).";
                 }
                 return "Correct leaking chemical drum identified through VOC ppm gradient.";
+            case "rad_source_identified":
+                if (data != null && data.contains("\"correct\"") && data.contains("false")) {
+                    return "WARNING: Flagged non-radioactive casing as isotope origin.";
+                }
+                return "Cesium-137 isotope capsule pinpointed via radiation dosimeter peak.";
+            case "pathogen_breach_identified":
+                if (data != null && data.contains("\"correct\"") && data.contains("false")) {
+                    return "WARNING: Flagged sterile storage unit as breach origin.";
+                }
+                return "Pathogen culture breach epicenter triangulated via aerosol particulate sensor.";
             case "civilian_evacuated":
-                return "Civilian casualty safely transported to green staging zone.";
+            case "technician_extracted":
+            case "lab_personnel_evacuated":
+                return "Casualty/Personnel safely escorted to green triage staging zone.";
             case "evacuation_incomplete":
                 return "WARNING: Non-combatant personnel remained unaccounted for in danger sector.";
             case "containment_completed":
                 return "Polymer seal clamp deployed to halt continuous chemical release.";
+            case "shielding_blanket_deployed":
+            case "hot_cell_isolated":
+                return "High-density lead shielding blanket secured over Cesium-137 radiation source.";
+            case "airlock_sealed":
+            case "negative_pressure_engaged":
+                return "Negative pressure airlock containment dampers locked and secured.";
             case "decontamination_completed":
-                return "High-pressure neutralizer shower cycle executed successfully.";
+                return "High-pressure chemical neutralizer shower cycle executed successfully.";
+            case "rad_washdown_completed":
+                return "Full 3-stage radiological washdown and dosimeter zeroing completed.";
+            case "autoclave_sterilization_completed":
+            case "bio_misting_completed":
+                return "Autoclave biological decontamination and aerosol neutralizer fogging complete.";
             case "scenario_completed":
                 return "Responder checked out at incident command post.";
+            case "trainee_heartbeat":
+                return "Responder biometrics & telemetry heartbeat verified active.";
+            case "spatial_telemetry":
+                return "3D GPS/VR spatial coordinate stream synchronized.";
             default:
                 return "Tactical telemetry event recorded.";
         }

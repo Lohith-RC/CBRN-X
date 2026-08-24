@@ -223,4 +223,24 @@ public class SessionService {
 
         return saved;
     }
+
+    /**
+     * Stale session timeout reaper.
+     * Automatically transitions abandoned sessions older than 30 minutes to TIMED_OUT status.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 60000)
+    @Transactional
+    public void reapStaleSessions() {
+        Instant cutoff = Instant.now().minus(Duration.ofMinutes(30));
+        List<TrainingSession> activeSessions = sessionRepository.findByPassStatus("IN_PROGRESS");
+        for (TrainingSession s : activeSessions) {
+            if (s.getStartedAt() != null && s.getStartedAt().isBefore(cutoff)) {
+                s.setCompletedAt(Instant.now());
+                s.setPassStatus("TIMED_OUT");
+                s.setFinalScore(0);
+                sessionRepository.save(s);
+                log.info("Reaped stale simulation session {} (started at {})", s.getSessionId(), s.getStartedAt());
+            }
+        }
+    }
 }
