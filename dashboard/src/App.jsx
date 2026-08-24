@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardBackground from './components/DashboardBackground.jsx';
 import Hero3DScene from './components/Hero3DScene.jsx';
 import Header from './components/Header.jsx';
@@ -7,6 +7,7 @@ import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
 import EventSimulator from './components/EventSimulator.jsx';
 import TraineeVrScreen from './components/TraineeVrScreen.jsx';
+import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { WifiOff } from 'lucide-react';
 
 export default function App() {
@@ -15,7 +16,7 @@ export default function App() {
   const [apiError, setApiError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     setLoading(true);
     setApiError(null);
     try {
@@ -32,11 +33,13 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDashboardStats();
-  }, []);
+  }, [fetchDashboardStats]);
+
+  const { liveConnected } = useLiveTelemetry({ onScenarioCompleted: fetchDashboardStats });
 
   return (
     <>
@@ -45,7 +48,7 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
-        <Header onRefresh={fetchDashboardStats} loading={loading} />
+        <Header onRefresh={fetchDashboardStats} loading={loading} liveConnected={liveConnected} />
 
         {apiError && (
           <div

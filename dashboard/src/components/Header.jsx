@@ -1,7 +1,7 @@
 import React from 'react';
-import { Shield, Radio, RefreshCw } from 'lucide-react';
+import { Shield, Radio, RefreshCw, WifiOff } from 'lucide-react';
 
-export default function Header({ onRefresh, loading }) {
+export default function Header({ onRefresh, loading, liveConnected = false }) {
   return (
     <header
       className="glass-panel scan-line animate-fade-in"
@@ -58,8 +58,13 @@ export default function Header({ onRefresh, loading }) {
             >
               CBRS-X
             </h1>
-            <span className="badge badge-pending animate-pulse-glow" style={{ fontSize: '0.65rem' }}>
-              <Radio size={12} /> LIVE TELEMETRY
+            <span
+              className={`badge ${liveConnected ? 'badge-passed animate-pulse-glow' : 'badge-failed'}`}
+              style={{ fontSize: '0.65rem' }}
+              title={liveConnected ? 'Connected to live STOMP telemetry stream' : 'Not connected to telemetry stream'}
+            >
+              {liveConnected ? <Radio size={12} /> : <WifiOff size={12} />}
+              {liveConnected ? 'LIVE TELEMETRY' : 'TELEMETRY OFFLINE'}
             </span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>

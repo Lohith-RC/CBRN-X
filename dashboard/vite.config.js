@@ -18,16 +18,24 @@ const apiProxy = {
   },
 };
 
+const wsProxy = {
+  '/ws-telemetry': {
+    target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
+    changeOrigin: true,
+    ws: true,
+  },
+};
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    proxy: apiProxy,
+    proxy: { ...apiProxy, ...wsProxy },
   },
   preview: {
     port: 3000,
     strictPort: true,
     host: true,
-    proxy: apiProxy,
+    proxy: { ...apiProxy, ...wsProxy },
   },
 });
