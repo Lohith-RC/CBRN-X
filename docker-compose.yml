@@ -1,0 +1,102 @@
+name: cbrsx
+
+services:
+  cbrsx-db:
+    image: postgres:15-alpine
+    container_name: cbrsx-db
+    environment:
+      POSTGRES_DB: cbrsx_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # [SEC-07] Credential externalized — must be provided via .env or shell env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - cbrsx-pgdata:/var/lib/postgresql/data
+    networks:
+      - cbrsx-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cbrsx-backend:
+    build: ./backend
+    container_name: cbrsx-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/cbrsx_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      # [SEC-07] Credential externalized — must match cbrsx-db POSTGRES_PASSWORD
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      # [SEC-07] API key for authentication — must be set for production
+      CBRSX_API_KEY: ${CBRSX_API_KEY:-}
+    depends_on:
+      cbrsx-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks:
+      - cbrsx-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  cbrsx-admin-dashboard:
+    build: ./dashboard
+    container_name: cbrsx-admin-dashboard
+    environment:
+      VITE_BACKEND_URL: http://localhost:8080
+    networks:
+      - cbrsx-net
+    depends_on:
+      - cbrsx-backend
+    restart: unless-stopped
+
+  cbrsx-trainee-view:
+    build: ./trainee_view
+    container_name: cbrsx-trainee-view
+    environment:
+      VITE_BACKEND_URL: http://localhost:8080
+    networks:
+      - cbrsx-net
+    depends_on:
+      - cbrsx-backend
+    restart: unless-stopped
+
+  # 5. Nginx Reverse Proxy (Port Routing & SSL Termination)
+  nginx-proxy:
+    image: nginx:1.25-alpine
+    container_name: cbrsx-nginx-proxy
+    ports:
+      - "80:80"
+      - "5000:5000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      cbrsx-admin-dashboard:
+        condition: service_healthy
+      cbrsx-trainee-view:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    mem_limit: 64m
+    networks:
+      - cbrsx-net
+
+volumes:
+  cbrsx-pgdata:
+
+networks:
+  cbrsx-net:
+    driver: bridge

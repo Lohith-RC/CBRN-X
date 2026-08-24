@@ -1,0 +1,65 @@
+server:
+  port: ${SERVER_PORT:8080}
+  # Security headers
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+spring:
+  application:
+    name: cbrsx-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:cbrsx_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  jpa:
+    database-platform: ${SPRING_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+    hibernate:
+      # [R2-04] Default to 'none' for security; dev profile (application-dev.yml) explicitly uses 'update'
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
+    open-in-view: false
+    show-sql: false
+  sql:
+    init:
+      mode: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      # Only expose status, not detailed health components
+      show-details: never
+  server:
+    port: -1  # Disable actuator on a separate port (not accessible externally)
+
+# CORS & Security Configuration
+cbrsx:
+  cors:
+    allowed-origins: ${CBRSX_CORS_ORIGINS:http://localhost:3000,http://localhost:5000}
+  # Master API key (grants all roles: ADMIN, INSTRUCTOR, SIMULATION, TRAINEE)
+  # Generate with: openssl rand -hex 32
+  api-key: ${CBRSX_API_KEY:}
+  # Role-specific API keys for least-privilege deployments
+  api-keys:
+    instructor: ${CBRSX_INSTRUCTOR_KEY:}
+    simulation: ${CBRSX_SIMULATION_KEY:}
+    trainee: ${CBRSX_TRAINEE_KEY:}
+  security:
+    fail-closed: ${CBRSX_FAIL_CLOSED:false}

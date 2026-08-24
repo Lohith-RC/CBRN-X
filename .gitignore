@@ -1,0 +1,87 @@
+# ==========================================
+# CBRS-X (CBRN VR Training) .gitignore
+# ==========================================
+
+# [SEC-07] Prevent accidental commit of production secrets
+.env
+!.env.example
+
+# 1. Java / Maven Backend Build Artifacts
+backend/target/
+backend/.mvn/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# 2. Node.js / React Build Artifacts & Dependencies
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
+trainee_view/node_modules/
+trainee_view/dist/
+trainee_view/.vite/
+*.log
+
+# 3. Unity Build Artifacts & Temporary Files
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# 4. Large Media Assets / Video Recordings (Keep repo lightweight)
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# 5. OS & IDE Configuration Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.bak
+
+# 6. Local Reports, Audits & Deliverables (DO NOT PUSH TO GITHUB)
+reports/
+/reports/
+reports/*
+Bay03_Cinematic_Screenshots/
+/Bay03_Cinematic_Screenshots/
+reports/*.pdf
+reports/*.html
+docs/*.pdf
+docs/*.html
+
+# 7. Documentation Files (Keep root and docs/ README/markdown files tracked)
+*.md
+!README.md
+!docs/**/*.md
+
+# 8. Environment Files (Security & Credentials)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# 9. PM2 Process Logs
+logs/
