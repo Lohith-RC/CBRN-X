@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, CheckCircle2, AlertTriangle, Lightbulb, ShieldAlert, Loader, Cpu, Award, Zap, Activity, Clock, FileText, Printer, Compass, ShieldCheck, MapPin } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Lightbulb, ShieldAlert, Loader, Cpu, Award, Zap, Activity, Clock, FileText, Printer, Compass, ShieldCheck, MapPin, Download, TrendingUp } from 'lucide-react';
 
 /* Animated SVG Score Ring */
 function ScoreRing({ score, color = '#10b981', size = 120 }) {
@@ -62,9 +62,10 @@ function ScoreRing({ score, color = '#10b981', size = 120 }) {
 
 export default function SessionDetailModal({ sessionSummary, session, onClose }) {
   const activeSession = sessionSummary || session;
-  const [activeTab, setActiveTab] = useState('scorecard'); // 'scorecard' | 'debrief' | 'map' | 'certificate'
+  const [activeTab, setActiveTab] = useState('scorecard'); // 'scorecard' | 'debrief' | 'map' | 'certificate' | 'growth'
   const [report, setReport] = useState(null);
   const [debrief, setDebrief] = useState(null);
+  const [progression, setProgression] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [loadingDebrief, setLoadingDebrief] = useState(false);
   const closeButtonRef = useRef(null);
@@ -75,6 +76,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
     if (!open || !activeSession?.sessionId) {
       setReport(null);
       setDebrief(null);
+      setProgression(null);
       setLoadingReport(false);
       setLoadingDebrief(false);
       return;
@@ -116,10 +118,20 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         if (!cancelled) setLoadingDebrief(false);
       });
 
+    // 3. Fetch Longitudinal Trainee Progression
+    if (activeSession.traineeId) {
+      fetch(`/api/trainees/${activeSession.traineeId}/progress`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!cancelled && data) setProgression(data);
+        })
+        .catch((err) => console.debug('Progression API unavailable:', err.message));
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [open, activeSession?.sessionId]);
+  }, [open, activeSession?.sessionId, activeSession?.traineeId]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -141,6 +153,15 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
 
   const handlePrintCertificate = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = () => {
+    const finalVal = report?.finalScore ?? activeSession?.finalScore ?? 0;
+    if (finalVal < 70) {
+      alert(`Official PDF Certificate is only available for passed simulations (Score >= 70%). Current Score: ${finalVal}/100.`);
+      return;
+    }
+    window.open(`/api/sessions/${activeSession.sessionId}/certificate`, '_blank');
   };
 
   if (!open || !activeSession) return null;
@@ -197,7 +218,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '860px',
+          maxWidth: '880px',
           maxHeight: '92vh',
           overflowY: 'auto',
           padding: '28px',
@@ -322,6 +343,26 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
             Tactical Map
           </button>
           <button
+            onClick={() => setActiveTab('growth')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '0.82rem',
+              background: activeTab === 'growth' ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'rgba(255,255,255,0.05)',
+              color: activeTab === 'growth' ? '#fff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <TrendingUp size={15} />
+            Trainee Growth
+          </button>
+          <button
             onClick={() => setActiveTab('certificate')}
             style={{
               display: 'flex',
@@ -346,7 +387,6 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         {/* TAB 1: STANDARD SCORECARD */}
         {activeTab === 'scorecard' && (
           <div>
-            {/* Score + Stages */}
             <div
               style={{
                 display: 'grid',
@@ -359,136 +399,114 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                 marginBottom: '24px',
               }}
             >
-              {/* Animated Score Ring */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '130px' }}>
                 <ScoreRing
                   score={finalScore}
                   color={finalScore >= 70 ? '#10b981' : '#ef4444'}
                 />
-                <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                  Pass Mark: 70
+                <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Threshold
+                  </div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: finalScore >= 70 ? '#10b981' : '#ef4444' }}>
+                    {finalScore >= 70 ? 'Pass (≥70%)' : 'Fail (<70%)'}
+                  </div>
                 </div>
               </div>
 
-              {/* Protocol Stage Breakdown */}
-              <div>
-                <div
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: '600',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '14px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  Protocol Stage Scores
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {stages.map((stage, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem' }}>
-                      <span>{stage.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>{stage.label}</span>
-                          <span style={{ fontWeight: '700', color: '#fff' }}>
-                            {stage.value}/{stage.max}
-                          </span>
-                        </div>
-                        <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              height: '100%',
-                              width: `${Math.min(Math.max((stage.value / stage.max) * 100, 0), 100)}%`,
-                              borderRadius: '2px',
-                              background:
-                                stage.value / stage.max >= 0.7
-                                  ? 'var(--accent-green)'
-                                  : stage.value / stage.max >= 0.4
-                                  ? 'var(--accent-ndrf-orange)'
-                                  : 'var(--accent-red)',
-                              transition: 'width 1s ease-out',
-                            }}
-                          />
-                        </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                {stages.map((stage) => {
+                  const pct = Math.round((stage.value / stage.max) * 100);
+                  const isPerfect = stage.value === stage.max;
+                  const isZero = stage.value === 0;
+
+                  return (
+                    <div
+                      key={stage.label}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{stage.icon}</span>
+                          {stage.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.85rem',
+                            fontWeight: '700',
+                            color: isPerfect ? '#10b981' : isZero ? '#ef4444' : '#f59e0b',
+                          }}
+                        >
+                          {stage.value} / {stage.max}
+                        </span>
+                      </div>
+                      <div className="progress-bar-bg" style={{ height: '6px' }}>
+                        <div
+                          className="progress-bar-fill"
+                          style={{
+                            width: `${pct}%`,
+                            background: isPerfect
+                              ? 'linear-gradient(90deg, #10b981, #34d399)'
+                              : isZero
+                              ? '#ef4444'
+                              : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
+                          }}
+                        />
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Mistakes */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  color: '#fff',
-                  marginBottom: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <ShieldAlert size={18} color="var(--accent-red)" />
-                Protocol Compliance Mistakes ({mistakes.length})
-              </h3>
-              {mistakes.length === 0 ? (
-                <div
+            {mistakes.length > 0 && (
+              <div style={{ marginBottom: '24px' }}>
+                <h3
                   style={{
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    color: 'var(--accent-green)',
-                    fontSize: '0.85rem',
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    color: '#f87171',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '12px',
                   }}
                 >
-                  ✅ Perfect protocol adherence! Zero safety violations committed during this mission.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <AlertTriangle size={16} />
+                  Operational Infractions & Protocol Violations ({mistakes.length})
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {mistakes.map((m, idx) => (
                     <div
                       key={idx}
-                      className="glass-card-deep"
                       style={{
-                        padding: '14px 18px',
                         display: 'flex',
-                        alignItems: 'flex-start',
+                        alignItems: 'center',
                         justifyContent: 'space-between',
-                        gap: '12px',
-                        borderRadius: '10px',
+                        padding: '10px 14px',
                         background: 'rgba(239, 68, 68, 0.08)',
-                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '8px',
+                        fontSize: '0.82rem',
                       }}
                     >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            color: 'var(--accent-red)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                          }}
-                        >
-                          [{m.severity || 'MEDIUM'}] STAGE: {m.stage || 'GENERAL'}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: '#fff', marginTop: '3px' }}>
-                          {m.description}
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: '700', color: '#fca5a5' }}>[{m.stage}]</span>
+                        <span style={{ color: '#e2e8f0' }}>{m.description}</span>
                       </div>
                       <span
                         style={{
-                          fontWeight: '700',
-                          color: 'var(--accent-red)',
-                          fontSize: '0.85rem',
-                          whiteSpace: 'nowrap',
+                          fontWeight: '800',
+                          color: '#ef4444',
+                          background: 'rgba(239, 68, 68, 0.2)',
                           padding: '2px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(239, 68, 68, 0.15)',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
                         }}
                       >
                         -{m.deductionPoints} pts
@@ -496,47 +514,45 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Recommendations */}
             <div>
               <h3
                 style={{
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   fontWeight: '700',
-                  color: '#fff',
-                  marginBottom: '12px',
+                  color: 'var(--accent-cyan)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  marginBottom: '12px',
                 }}
               >
-                <Lightbulb size={18} color="var(--accent-ndrf-orange)" />
-                NDRF Trainer Tactical Recommendations
+                <Lightbulb size={16} />
+                NDRF Tactical SOP Recommendations
               </h3>
-              <ul
-                style={{
-                  paddingLeft: '20px',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {recommendations.map((rec, idx) => (
-                  <li
+                  <div
                     key={idx}
                     style={{
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.5,
-                      paddingLeft: '4px',
+                      padding: '10px 14px',
+                      background: 'rgba(6, 182, 212, 0.06)',
+                      border: '1px solid rgba(6, 182, 212, 0.2)',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      color: '#cffafe',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
                     }}
                   >
-                    <span style={{ color: '#fff' }}>{rec}</span>
-                  </li>
+                    <span style={{ color: 'var(--accent-cyan)', fontWeight: '700' }}>•</span>
+                    <span>{rec}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         )}
@@ -544,63 +560,62 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
         {/* TAB 2: AI TACTICAL DEBRIEF (AAR) */}
         {activeTab === 'debrief' && (
           <div>
-            {/* Tactical Rating Card */}
             <div
               style={{
-                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.15))',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(59, 130, 246, 0.12))',
                 border: '1px solid rgba(6, 182, 212, 0.35)',
-                borderRadius: '14px',
-                padding: '20px',
+                borderRadius: '12px',
+                padding: '16px 20px',
                 marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Award size={22} color="#06b6d4" />
-                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#06b6d4', textTransform: 'uppercase' }}>
-                    Tactical Capability Assessment
-                  </span>
+              <div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '800' }}>
+                  TACTICAL AFTER-ACTION REVIEW (AAR)
                 </div>
-                <span
-                  style={{
-                    background: debrief?.tacticalRating?.includes('ALPHA') ? '#10b981' : debrief?.tacticalRating?.includes('BRAVO') ? '#06b6d4' : '#f59e0b',
-                    color: '#000',
-                    fontWeight: '900',
-                    fontSize: '0.8rem',
-                    padding: '4px 10px',
-                    borderRadius: '20px',
-                  }}
-                >
-                  {debrief?.tacticalRating || 'ALPHA (Elite Specialist)'}
-                </span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fff', marginTop: '2px' }}>
+                  {tacticalRating}
+                </div>
               </div>
-              <p style={{ fontSize: '0.9rem', color: '#f8fafc', lineHeight: 1.6 }}>
-                {debrief?.executiveSummary ||
-                  `Trainee executed the scenario with a verified final score of ${finalScore}/100. Response time and procedural adherence were evaluated against NDRF HAZMAT standard SOPs.`}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>MISSION RESULT</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: passStatus === 'PASSED' ? '#10b981' : '#ef4444' }}>
+                  {passStatus}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ fontSize: '0.9rem', color: '#fff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} color="var(--accent-cyan)" />
+                Executive Mission Summary
+              </h4>
+              <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {debrief?.executiveSummary || `Trainee ${activeSession.traineeName || 'Responder'} executed mission ${activeSession.scenarioCode || 'CBRN-CHEM-01'} with a final score of ${finalScore}/100.`}
               </p>
             </div>
 
-            {/* Velocity & Strengths Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-              {/* Velocity */}
               <div
                 style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid var(--border-subtle)',
+                  background: 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
                   borderRadius: '12px',
                   padding: '16px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#fbbf24', fontSize: '0.85rem', fontWeight: '700' }}>
-                  <Zap size={16} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#60a5fa', fontSize: '0.85rem', fontWeight: '700' }}>
+                  <Clock size={16} />
                   Response Velocity Assessment
                 </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.5 }}>
                   {debrief?.responseVelocityAssessment || `Mission completed in ${currentData.totalDurationSeconds || 140}s.`}
                 </p>
               </div>
 
-              {/* Strengths */}
               <div
                 style={{
                   background: 'rgba(16, 185, 129, 0.05)',
@@ -620,75 +635,10 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                 </ul>
               </div>
             </div>
-
-            {/* Timeline Milestones */}
-            {debrief?.timelineAnalysis && debrief.timelineAnalysis.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '0.9rem', color: '#fff', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Activity size={16} color="#38bdf8" />
-                  Chronological Mission Timeline Analysis
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {debrief.timelineAnalysis.map((milestone, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: milestone.status === 'VIOLATION' ? '#ef4444' : milestone.status === 'WARNING' ? '#f59e0b' : '#10b981',
-                          }}
-                        />
-                        <span style={{ fontWeight: '700', color: '#f8fafc' }}>{milestone.stage}</span>
-                        <span style={{ color: 'var(--text-secondary)' }}>• {milestone.evaluation}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Action Plan */}
-            <div>
-              <h4 style={{ fontSize: '0.9rem', color: '#fff', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lightbulb size={16} color="#f59e0b" />
-                Actionable NDRF SOP Remediation Plan
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(debrief?.ndrfActionPlan || recommendations).map((action, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: 'rgba(245, 158, 11, 0.08)',
-                      border: '1px solid rgba(245, 158, 11, 0.25)',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.82rem',
-                      color: '#fef3c7',
-                    }}
-                  >
-                    📌 {action}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* TAB 3: TACTICAL INCIDENT MAP & SPATIAL BREADCRUMB */}
+        {/* TAB 3: TACTICAL INCIDENT MAP */}
         {activeTab === 'map' && (
           <div>
             <div
@@ -708,10 +658,8 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                 <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Sector Grid: NDRF-GRID-BAY03</span>
               </div>
 
-              {/* Tactical Radar SVG Map */}
               <div style={{ position: 'relative', width: '100%', height: '280px', background: '#090d16', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <svg width="100%" height="100%" viewBox="0 0 500 280">
-                  {/* Grid Lines */}
                   <defs>
                     <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
                       <path d="M 25 0 L 0 0 0 25" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
@@ -719,21 +667,17 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                   </defs>
                   <rect width="100%" height="100%" fill="url(#grid)" />
 
-                  {/* Cold Zone (Outer Safe Perimeter) */}
                   <rect x="10" y="10" width="480" height="260" rx="8" fill="none" stroke="rgba(16, 185, 129, 0.2)" strokeWidth="2" strokeDasharray="4 4" />
-                  <text x="25" y="30" fill="#10b981" fontSize="10" fontWeight="700">COLD ZONE (INCIDENT COMMAND & DECON)</text>
+                  <text x="25" y="30" fill="#10b981" fontSize="10" fontWeight="700">COLD ZONE (COMMAND & DECON)</text>
 
-                  {/* Warm Zone */}
                   <circle cx="250" cy="140" r="100" fill="rgba(245, 158, 11, 0.06)" stroke="rgba(245, 158, 11, 0.3)" strokeWidth="2" />
                   <text x="160" y="70" fill="#f59e0b" fontSize="9" fontWeight="700">WARM ZONE (DECON BUFFER)</text>
 
-                  {/* Hot Zone (Hazard Epicenter) */}
                   <circle cx="250" cy="140" r="50" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" strokeWidth="2" />
                   <circle cx="250" cy="140" r="20" fill="rgba(239, 68, 68, 0.35)" />
                   <circle cx="250" cy="140" r="6" fill="#ef4444" />
                   <text x="215" y="144" fill="#fff" fontSize="8" fontWeight="800">EPICENTER</text>
 
-                  {/* Responder Trajectory Breadcrumb Path */}
                   <polyline
                     points="40,240 100,210 160,180 230,140 270,130 320,110 420,70"
                     fill="none"
@@ -742,48 +686,109 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                     strokeDasharray="6 4"
                   />
 
-                  {/* Checkpoints */}
                   <circle cx="40" cy="240" r="5" fill="#10b981" />
                   <text x="20" y="260" fill="#38bdf8" fontSize="8" fontWeight="700">ENTRY [T+0s]</text>
 
                   <circle cx="160" cy="180" r="5" fill="#f59e0b" />
                   <text x="110" y="170" fill="#f59e0b" fontSize="8" fontWeight="700">DETECTION PINPOINT</text>
-
-                  <circle cx="270" cy="130" r="5" fill="#ef4444" />
-                  <text x="280" y="125" fill="#ef4444" fontSize="8" fontWeight="700">CONTAINMENT CLAMP</text>
-
-                  <circle cx="420" cy="70" r="5" fill="#10b981" />
-                  <text x="390" y="60" fill="#10b981" fontSize="8" fontWeight="700">DECON EXIT</text>
                 </svg>
-              </div>
-
-              {/* Spatial Telemetry Stat Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginTop: '16px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Max Plume Conc.</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#ef4444' }}>650 ppm</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Hot Zone Exposure</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f59e0b' }}>42 sec</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Casualty Extraction</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#10b981' }}>100% Cleared</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>PPE Seal Integrity</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#38bdf8' }}>VERIFIED</div>
-                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: OFFICIAL NDRF CERTIFICATE OF READINESS */}
+        {/* TAB 4: LONGITUDINAL TRAINEE GROWTH ANALYTICS */}
+        {activeTab === 'growth' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.3)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#c4b5fd', textTransform: 'uppercase', fontWeight: '700' }}>TOTAL ATTEMPTS</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', marginTop: '4px' }}>
+                    {progression?.totalAttempts || 1}
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#a7f3d0', textTransform: 'uppercase', fontWeight: '700' }}>PASS RATE</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#10b981', marginTop: '4px' }}>
+                    {progression?.passRatePercentage != null ? `${progression.passRatePercentage}%` : '100%'}
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#bfdbfe', textTransform: 'uppercase', fontWeight: '700' }}>AVG SCORE</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#38bdf8', marginTop: '4px' }}>
+                    {progression?.averageScore != null ? progression.averageScore : finalScore}
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)', padding: '14px', borderRadius: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#fef08a', textTransform: 'uppercase', fontWeight: '700' }}>SKILL GROWTH</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#eab308', marginTop: '4px' }}>
+                    {progression?.growthPercentage != null && progression.growthPercentage > 0 ? `+${progression.growthPercentage}%` : (progression?.growthPercentage != null ? `${progression.growthPercentage}%` : '0%')}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '18px', marginBottom: '20px' }}>
+                <h4 style={{ fontSize: '0.88rem', color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={16} color="#a855f7" />
+                  Longitudinal Performance Curve Across Simulation Runs
+                </h4>
+                {progression?.attemptHistory && progression.attemptHistory.length > 0 ? (
+                  <div style={{ position: 'relative', width: '100%', height: '140px' }}>
+                    <svg width="100%" height="100%" viewBox="0 0 500 120">
+                      <line x1="40" y1="20" x2="480" y2="20" stroke="rgba(255,255,255,0.05)" />
+                      <line x1="40" y1="60" x2="480" y2="60" stroke="rgba(255,255,255,0.05)" />
+                      <line x1="40" y1="100" x2="480" y2="100" stroke="rgba(255,255,255,0.05)" />
+                      <text x="5" y="24" fill="#64748b" fontSize="8">100</text>
+                      <text x="5" y="64" fill="#64748b" fontSize="8">70</text>
+                      <text x="5" y="104" fill="#64748b" fontSize="8">0</text>
+
+                      <line x1="40" y1="60" x2="480" y2="60" stroke="rgba(16, 185, 129, 0.3)" strokeDasharray="4 4" strokeWidth="1.5" />
+
+                      <polyline
+                        points={progression.attemptHistory.map((a, i) => {
+                          const x = 50 + (i * 400) / Math.max(1, progression.attemptHistory.length - 1);
+                          const y = 100 - (a.finalScore / 100) * 80;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                        fill="none"
+                        stroke="#a855f7"
+                        strokeWidth="3"
+                      />
+
+                      {progression.attemptHistory.map((a, i) => {
+                        const x = 50 + (i * 400) / Math.max(1, progression.attemptHistory.length - 1);
+                        const y = 100 - (a.finalScore / 100) * 80;
+                        return (
+                          <g key={i}>
+                            <circle cx={x} cy={y} r="5" fill={a.finalScore >= 70 ? '#10b981' : '#ef4444'} stroke="#fff" strokeWidth="1.5" />
+                            <text x={x - 6} y={y - 8} fill="#fff" fontSize="8" fontWeight="700">
+                              {a.finalScore}
+                            </text>
+                            <text x={x - 10} y="115" fill="#94a3b8" fontSize="8">
+                              Run {a.attemptNumber}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center', margin: '20px 0' }}>
+                    Single session recorded. Additional simulation runs will populate the longitudinal learning curve.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: OFFICIAL NDRF CERTIFICATE */}
         {activeTab === 'certificate' && (
           <div>
-            {/* Printable Certificate Frame */}
             <div
               id="printable-certificate"
               style={{
@@ -798,41 +803,30 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                 marginBottom: '20px',
               }}
             >
-              {/* Seal & Watermark */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
                 <ShieldCheck size={52} color="#eab308" />
               </div>
-
               <div style={{ fontSize: '0.8rem', fontWeight: '900', letterSpacing: '2px', color: '#eab308', textTransform: 'uppercase' }}>
                 NATIONAL DISASTER RESPONSE FORCE (NDRF)
               </div>
               <div style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '1px', marginBottom: '18px' }}>
                 MINISTRY OF HOME AFFAIRS • CBRN TACTICAL SIMULATION WING
               </div>
-
               <h2 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '1px' }}>
                 Certificate of Operational CBRN Readiness
               </h2>
-
               <p style={{ fontSize: '0.88rem', color: '#cbd5e1', maxWidth: '580px', margin: '0 auto 20px', lineHeight: 1.6 }}>
                 This is to officially certify that responder{' '}
                 <strong style={{ color: '#eab308', textDecoration: 'underline' }}>{activeSession.traineeName || 'Officer'}</strong>{' '}
                 of unit <strong style={{ color: '#fff' }}>{activeSession.batchUnit || '10th NDRF Battalion'}</strong> has successfully undergone tactical evaluation in scenario{' '}
                 <strong style={{ color: '#38bdf8' }}>{activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN Incident'}</strong>.
               </p>
-
-              {/* Metrics Grid */}
+              
               <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', margin: '24px 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '16px 0' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>OPERATIONAL SCORE</div>
                   <div style={{ fontSize: '1.8rem', fontWeight: '900', color: finalScore >= 70 ? '#10b981' : '#ef4444' }}>
                     {finalScore} / 100
-                  </div>
-                </div>
-                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '30px' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>TACTICAL TIER</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#eab308', marginTop: '6px' }}>
-                    {tacticalRating.split(' ')[0]}
                   </div>
                 </div>
                 <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '30px' }}>
@@ -842,27 +836,32 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                   </div>
                 </div>
               </div>
-
-              {/* Signatures & Verification */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '30px', padding: '0 20px' }}>
-                <div style={{ textAlign: 'left', fontSize: '0.75rem', color: '#94a3b8' }}>
-                  <div>ISSUE DATE: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                  <div>SESSION ID: {activeSession.sessionId || 'SESS-2026'}</div>
-                  <div style={{ fontFamily: 'monospace', color: '#64748b', fontSize: '0.68rem', marginTop: '4px' }}>
-                    HASH: SHA256-7F8A{Math.abs(finalScore * 1337).toString(16).toUpperCase()}9B1C
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontStyle: 'italic', fontFamily: 'serif', color: '#e2e8f0', fontSize: '1.1rem', borderBottom: '1px dashed #64748b', paddingBottom: '4px', width: '160px' }}>
-                    Col. V. Sharma
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>Lead Incident Evaluator</div>
-                </div>
-              </div>
             </div>
 
-            {/* Print Button */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {/* Action Buttons: Download PDF & Print */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleDownloadPdf}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '12px 22px',
+                  fontWeight: '800',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Download size={18} />
+                Download Official PDF (Server Engine)
+              </button>
+
               <button
                 onClick={handlePrintCertificate}
                 style={{
@@ -873,16 +872,16 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                   color: '#000',
                   border: 'none',
                   borderRadius: '10px',
-                  padding: '12px 24px',
+                  padding: '12px 22px',
                   fontWeight: '800',
-                  fontSize: '0.9rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
                   boxShadow: '0 4px 15px rgba(234, 179, 8, 0.3)',
                   transition: 'all 0.2s ease',
                 }}
               >
                 <Printer size={18} />
-                Print / Save Official PDF Certificate
+                Print Certificate View
               </button>
             </div>
           </div>
