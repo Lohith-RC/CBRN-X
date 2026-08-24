@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
-import { Play, CheckCircle, AlertOctagon, Send } from 'lucide-react';
+import { Play, CheckCircle, AlertOctagon, Send, Radiation, Biohazard, ShieldAlert } from 'lucide-react';
+
+const SCENARIOS = [
+  { code: 'CBRN-CHEM-01', title: 'Chemical Spill Emergency (Bay 03)', icon: '☣️' },
+  { code: 'CBRN-RAD-02', title: 'Radiological Isotope Breach (Reactor Vault)', icon: '☢️' },
+  { code: 'CBRN-BIO-03', title: 'Biological Pathogen Isolation (Level-4 Lab)', icon: '🧬' },
+];
 
 export default function EventSimulator({ onSessionCreated }) {
+  const [selectedScenario, setSelectedScenario] = useState('CBRN-CHEM-01');
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [logs, setLogs] = useState([]);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -14,12 +21,12 @@ export default function EventSimulator({ onSessionCreated }) {
         body: JSON.stringify({
           traineeName: 'Constable Rahul Kumar',
           batchUnit: '10th NDRF Battalion',
-          scenarioCode: 'CBRN-CHEM-01',
+          scenarioCode: selectedScenario,
         }),
       });
       const data = await res.json();
       setActiveSessionId(data.sessionId);
-      setLogs([`Session started: ${data.sessionId}`]);
+      setLogs([`[INITIALIZED] Session started: ${data.sessionId} (${selectedScenario})`]);
     } catch (err) {
       console.error('Failed to start session:', err);
     }
@@ -33,7 +40,7 @@ export default function EventSimulator({ onSessionCreated }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: activeSessionId, eventType, eventData }),
       });
-      setLogs((prev) => [...prev, `[LOGGED] ${eventType} -> ${eventData}`]);
+      setLogs((prev) => [...prev, `[DISPATCHED] ${eventType} -> ${eventData}`]);
     } catch (err) {
       console.error('Failed to log event:', err);
     }
@@ -44,7 +51,10 @@ export default function EventSimulator({ onSessionCreated }) {
     try {
       const res = await fetch(`/api/sessions/${activeSessionId}/complete`, { method: 'POST' });
       const report = await res.json();
-      setLogs((prev) => [...prev, `[COMPLETE] Final Score: ${report.finalScore} | Status: ${report.passStatus}`]);
+      setLogs((prev) => [
+        ...prev,
+        `[FINAL AUDIT] Final Score: ${report.finalScore} / 100 [${report.passStatus}] | Mistakes: ${report.mistakes?.length || 0}`,
+      ]);
       if (onSessionCreated) onSessionCreated();
       setActiveSessionId(null);
     } catch (err) {
@@ -62,7 +72,7 @@ export default function EventSimulator({ onSessionCreated }) {
         body: JSON.stringify({
           traineeName: isPerfect ? 'Inspector Vikram Singh' : 'Constable Amit Patel',
           batchUnit: '10th NDRF Battalion',
-          scenarioCode: 'CBRN-CHEM-01',
+          scenarioCode: selectedScenario,
         }),
       });
       const session = await startRes.json();
@@ -77,17 +87,17 @@ export default function EventSimulator({ onSessionCreated }) {
 
       if (isPerfect) {
         await logBody('ppe_donning_completed', '{"mask":true,"suit":true,"gloves":true}');
-        await logBody('detector_equipped', '{"device":"PID Detector"}');
-        await logBody('leak_source_identified', '{"correct":true,"drumId":"DRUM-03"}');
+        await logBody('detector_equipped', '{"device":"PID / Dosimeter / Bio-Sampler"}');
+        await logBody('leak_source_identified', '{"correct":true,"sourceId":"HOT-ZONE-01"}');
         await logBody('civilian_evacuated', '{"civilianId":"CIV-01"}');
         await logBody('civilian_evacuated', '{"civilianId":"CIV-02"}');
-        await logBody('containment_completed', '{"sealant":"applied"}');
-        await logBody('decontamination_completed', '{"archway":true}');
+        await logBody('containment_completed', '{"shielding":"sealed"}');
+        await logBody('decontamination_completed', '{"multiStageShower":true}');
       } else {
         await logBody('entered_hazard_zone_without_ppe', '{"warning":true}');
-        await logBody('leak_source_identified', '{"correct":false,"drumId":"DRUM-01"}');
+        await logBody('leak_source_identified', '{"correct":false,"sourceId":"INCORRECT-01"}');
         await logBody('evacuation_incomplete', '{"count":1}');
-        await logBody('containment_completed', '{"sealant":"applied"}');
+        await logBody('containment_completed', '{"sealant":"partial"}');
       }
 
       const compRes = await fetch(`/api/sessions/${sId}/complete`, { method: 'POST' });
@@ -112,14 +122,44 @@ export default function EventSimulator({ onSessionCreated }) {
 
   return (
     <div className="glass-card-deep animate-fade-in" style={{ padding: '24px', animationDelay: '0.45s' }}>
-      <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>
-        VR Unity Telemetry Simulator
-      </h2>
-      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
-        Simulate live event streams from Unity desktop client to test Spring Boot backend scoring engine
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff', margin: 0 }}>
+            Multi-Hazard Tactical Telemetry Simulator
+          </h2>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px', marginBottom: 0 }}>
+            Simulate live event streams from VR / WebGL client into Spring Boot scoring and AI debrief engine
+          </p>
+        </div>
 
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {/* Scenario Selector Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Active Scenario:</span>
+          <select
+            value={selectedScenario}
+            onChange={(e) => setSelectedScenario(e.target.value)}
+            disabled={Boolean(activeSessionId) || isSimulating}
+            style={{
+              background: '#1e293b',
+              color: '#f8fafc',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              fontSize: '0.82rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+          >
+            {SCENARIOS.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.icon} {s.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', marginTop: '14px' }}>
         <button className="btn-primary" onClick={() => runFullPreset(true)} disabled={isSimulating}>
           <CheckCircle size={16} /> Simulate 100% Perfect Run
         </button>
@@ -149,7 +189,7 @@ export default function EventSimulator({ onSessionCreated }) {
 
         {!activeSessionId ? (
           <button className="btn-secondary" onClick={startNewSession}>
-            <Play size={14} /> Start Manual Session
+            <Play size={14} /> Start Manual Session ({selectedScenario})
           </button>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -157,22 +197,25 @@ export default function EventSimulator({ onSessionCreated }) {
               ⚠️ Enter Without PPE (-15)
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('ppe_donning_completed', '{"mask":true,"suit":true,"gloves":true}')}>
-              🛡️ Don PPE (+10)
+              🛡️ Don Full CBRN PPE (+10)
+            </button>
+            <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('detector_equipped', '{"calibrated":true}')}>
+              🔍 Equip Detector / Dosimeter
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('leak_source_identified', '{"correct":true}')}>
-              🔍 Identify Leak (+10)
+              🎯 Identify Source (+10)
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('leak_source_identified', '{"correct":false}')}>
-              ❌ Wrong Drum (-5)
+              ❌ False Positive Scan (-5)
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('civilian_evacuated', '{"civilianId":"CIV-01"}')}>
               🏃 Evacuate Civilian (+15)
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('containment_completed')}>
-              🛠️ Contain Drum (+15)
+              🛠️ Seal Hazard / Shield (+15)
             </button>
             <button className="btn-secondary" style={simBtnStyle} onClick={() => emitEvent('decontamination_completed')}>
-              🚿 Decontamination (+10)
+              🚿 Decon Shower (+10)
             </button>
             <button className="btn-primary" style={{ fontSize: '0.78rem', padding: '5px 12px' }} onClick={completeSimulation}>
               <Send size={14} /> Finalize Session

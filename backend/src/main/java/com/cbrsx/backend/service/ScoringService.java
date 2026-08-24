@@ -12,6 +12,8 @@ import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ScoringService {
+
+    private static final Logger log = LoggerFactory.getLogger(ScoringService.class);
 
     private final EventRepository eventRepository;
     private final SessionRepository sessionRepository;
@@ -135,14 +139,22 @@ public class ScoringService {
         int civiliansLeftBehindCount = 0;
         boolean containmentDone = false;
         boolean deconDone = false;
+        int unrecognizedEventCount = 0;
+
+        String scenarioCode = scenario.getCode() != null ? scenario.getCode().toUpperCase() : "CBRN-CHEM-01";
+        boolean isRad = scenarioCode.contains("RAD");
+        boolean isBio = scenarioCode.contains("BIO");
 
         for (SessionEvent event : events) {
             String type = event.getEventType();
             String data = event.getEventData();
 
             switch (type) {
+                // 1. PPE Donning Events (Chem Level-A / Rad Shielding / Bio PAPR)
                 case "ppe_donning_completed":
                 case "ppe_item_equipped":
+                case "lead_apron_equipped":
+                case "papr_donning_completed":
                     ppeDonned = true;
                     break;
 
@@ -151,20 +163,33 @@ public class ScoringService {
                     totalPenalties += PENALTY_ENTER_WITHOUT_PPE;
                     mistakes.add(MistakeDetailDTO.builder()
                             .stage("PPE Donning / Entry")
-                            .description("Entered chemical hazard zone without donning complete CBRN PPE.")
+                            .description(isRad ? "Entered radiological vault hot cell without radiation shielding & dosimeter."
+                                    : (isBio ? "Entered Level-4 bio-containment without active PAPR respirator."
+                                    : "Entered chemical hazard zone without donning complete CBRN PPE."))
                             .deductionPoints(PENALTY_ENTER_WITHOUT_PPE)
                             .severity("HIGH")
                             .timestamp(event.getTimestamp())
                             .build());
                     break;
 
+                // 2. Hazard Detection & Triangulation Events
+                case "detector_equipped":
+                case "dosimeter_equipped":
+                case "bio_sampler_equipped":
+                    // Benign calibration / equipment setup
+                    break;
+
                 case "leak_source_identified":
+                case "rad_source_identified":
+                case "pathogen_breach_identified":
                     if (data != null && data.contains(WRONG_SCAN_MARKER) && data.contains(FALSE_VALUE)) {
                         wrongDrumScans++;
                         totalPenalties += PENALTY_WRONG_DRUM_SCAN;
                         mistakes.add(MistakeDetailDTO.builder()
                                 .stage("Detection & Identification")
-                                .description("Flagged wrong chemical storage drum as leak source.")
+                                .description(isRad ? "Flagged uncompromised container as radiation leak source."
+                                        : (isBio ? "Flagged sterile culture chamber as pathogen breach origin."
+                                        : "Flagged wrong chemical storage drum as leak source."))
                                 .deductionPoints(PENALTY_WRONG_DRUM_SCAN)
                                 .severity("MEDIUM")
                                 .timestamp(event.getTimestamp())
@@ -174,7 +199,10 @@ public class ScoringService {
                     }
                     break;
 
+                // 3. Search & Rescue / Evacuation Events
                 case "civilian_evacuated":
+                case "technician_extracted":
+                case "lab_personnel_evacuated":
                     civiliansEvacuatedCount++;
                     break;
 
@@ -182,15 +210,33 @@ public class ScoringService {
                     civiliansLeftBehindCount = extractCount(data);
                     break;
 
+                // 4. Containment Events
                 case "containment_completed":
+                case "shielding_blanket_deployed":
+                case "hot_cell_isolated":
+                case "airlock_sealed":
+                case "negative_pressure_engaged":
                     containmentDone = true;
                     break;
 
+                // 5. Decontamination Events
                 case "decontamination_completed":
+                case "rad_washdown_completed":
+                case "autoclave_sterilization_completed":
+                case "bio_misting_completed":
                     deconDone = true;
                     break;
 
+                // Benign telemetry events
+                case "scenario_started":
+                case "scenario_completed":
+                case "trainee_heartbeat":
+                case "spatial_telemetry":
+                    break;
+
                 default:
+                    unrecognizedEventCount++;
+                    log.warn("Unrecognized event type encountered: '{}' in session '{}'", type, session.getSessionId());
                     break;
             }
         }
@@ -209,8 +255,7 @@ public class ScoringService {
             detectionScore = DETECTION_MAX_SCORE / 2;
         }
 
-        // 3. Evacuation Score - full clearance earns max; partial evacuations are
-        // scored per civilian but hard-capped so the component can never exceed its budget
+        // 3. Evacuation Score
         if (civiliansEvacuatedCount >= 2 && civiliansLeftBehindCount == 0) {
             evacuationScore = EVACUATION_MAX_SCORE;
         } else if (civiliansEvacuatedCount > 0) {
@@ -219,11 +264,12 @@ public class ScoringService {
         }
 
         if (civiliansLeftBehindCount > 0) {
-            int penalty = PENALTY_CIVILIAN_LEFT_BEHIND * civiliansLeftBehindCount;
-            totalPenalties += penalty;
+            // [SEC-02] Cap individual penalty to prevent overflow from inflated counts
+            int penalty = Math.min(PENALTY_CIVILIAN_LEFT_BEHIND * civiliansLeftBehindCount, 100);
+            totalPenalties = Math.min(totalPenalties + penalty, 500);
             mistakes.add(MistakeDetailDTO.builder()
-                    .stage("Civilian Evacuation")
-                    .description("Left " + civiliansLeftBehindCount + " civilian(s) un-evacuated in the danger zone.")
+                    .stage(isRad ? "Personnel Evacuation" : (isBio ? "Lab Personnel Extraction" : "Civilian Evacuation"))
+                    .description("Left " + civiliansLeftBehindCount + " casualty/personnel un-evacuated in the danger zone.")
                     .deductionPoints(penalty)
                     .severity("HIGH")
                     .timestamp(completedAt)
@@ -237,7 +283,9 @@ public class ScoringService {
             totalPenalties += PENALTY_CONTAINMENT_SKIPPED;
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Hazard Containment")
-                    .description("Failed to complete containment sealant protocol on leaking drum.")
+                    .description(isRad ? "Failed to deploy lead shielding blanket over radiation source."
+                            : (isBio ? "Failed to seal negative pressure airlock containment perimeter."
+                            : "Failed to complete containment sealant protocol on leaking drum."))
                     .deductionPoints(PENALTY_CONTAINMENT_SKIPPED)
                     .severity("HIGH")
                     .timestamp(completedAt)
@@ -251,7 +299,9 @@ public class ScoringService {
             totalPenalties += PENALTY_DECON_SKIPPED;
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Decontamination")
-                    .description("Skipped post-operation decontamination station protocol.")
+                    .description(isRad ? "Skipped mandatory post-operation radiological washdown & dosimeter zeroing."
+                            : (isBio ? "Skipped autoclave sterilization and aerosol neutralizer misting cycle."
+                            : "Skipped post-operation decontamination station protocol."))
                     .deductionPoints(PENALTY_DECON_SKIPPED)
                     .severity("MEDIUM")
                     .timestamp(completedAt)
@@ -280,23 +330,34 @@ public class ScoringService {
                 ? session.getPassStatus()
                 : (passed ? "PASSED" : "FAILED");
 
+        // Scenario-Specific Operational Recommendations
         if (enterWithoutPpeOccurred) {
-            recommendations.add("ALWAYS equip complete CBRN PPE (Mask, Suit, Gloves) before stepping past the hazard perimeter.");
+            recommendations.add(isRad ? "ALWAYS don full lead shielding apron and personal dosimeter before entering the vault."
+                    : (isBio ? "ALWAYS verify PAPR airflow and negative pressure seal before breaching bio-lab."
+                    : "ALWAYS equip complete CBRN PPE (Mask, Suit, Gloves) before stepping past the hazard perimeter."));
         }
         if (wrongDrumScans > 0) {
-            recommendations.add("Verify PID gas detector readings on all storage drums before flagging leak source.");
+            recommendations.add(isRad ? "Verify survey dosimeter and gamma spectrum peak before flagging isotope container."
+                    : (isBio ? "Verify bio-sampler aerosol concentration spikes before tagging pathogen breach origin."
+                    : "Verify PID gas detector readings on all storage drums before flagging leak source."));
         }
         if (civiliansLeftBehindCount > 0) {
-            recommendations.add("Ensure all non-combatant civilians are escorted to the Safe Zone before initiating containment.");
-        }
-        if (!deconDone) {
-            recommendations.add("Complete mandatory shower decontamination before ending mission to prevent cross-contamination.");
+            recommendations.add("Ensure all casualties and personnel are safely escorted to the green triage staging zone.");
         }
         if (!containmentDone) {
-            recommendations.add("Locate and seal the leaking drum with the containment kit before leaving the hazard zone.");
+            recommendations.add(isRad ? "Deploy lead shielding blanket directly over the Cesium-137 capsule before mission completion."
+                    : (isBio ? "Engage negative pressure airlock and secure all bio-containment dampers."
+                    : "Locate and seal the leaking drum with the containment kit before leaving the hazard zone."));
+        }
+        if (!deconDone) {
+            recommendations.add(isRad ? "Complete 3-stage radiological washdown and dosimeter zeroing before debrief."
+                    : (isBio ? "Execute full autoclave sterilization and bio-aerosol neutralizer cycle."
+                    : "Complete mandatory shower decontamination before ending mission to prevent cross-contamination."));
         }
         if (recommendations.isEmpty()) {
-            recommendations.add("Excellent response! Full compliance with NDRF Chemical Disaster Standard Operating Procedure.");
+            recommendations.add(isRad ? "Flawless radiological execution! Full compliance with NDRF Nuclear/Radiological Disaster SOP."
+                    : (isBio ? "Flawless biological containment! Full compliance with Level-4 Biosafety Emergency SOP."
+                    : "Excellent response! Full compliance with NDRF Chemical Disaster Standard Operating Procedure."));
         }
 
         ScoreBreakdownDTO breakdown = ScoreBreakdownDTO.builder()
@@ -326,12 +387,17 @@ public class ScoringService {
                 .breakdown(breakdown)
                 .mistakes(mistakes)
                 .recommendations(recommendations)
+                .unrecognizedEventCount(unrecognizedEventCount)
                 .build();
     }
 
     /**
      * Safely extract a numeric "count" value from JSON-like event data.
      * Uses simple string parsing instead of regex to avoid ReDoS vulnerabilities.
+     *
+     * [SEC-02] Parses as long and hard-clamps to [1, 50] to prevent integer overflow
+     * when the value is multiplied by penalty constants in score computation.
+     * 50 is the maximum physically realistic civilian count for any single scenario.
      */
     private int extractCount(String eventData) {
         if (eventData == null || !eventData.contains(COUNT_FIELD_KEY)) {
@@ -347,13 +413,16 @@ public class ScoringService {
             while (start < eventData.length() && Character.isWhitespace(eventData.charAt(start))) {
                 start++;
             }
-            // Read digits
+            // Read digits (limit to 10 digits max to avoid parsing absurdly long numbers)
             int end = start;
-            while (end < eventData.length() && Character.isDigit(eventData.charAt(end))) {
+            int maxDigits = Math.min(start + 10, eventData.length());
+            while (end < maxDigits && Character.isDigit(eventData.charAt(end))) {
                 end++;
             }
             if (end > start) {
-                return Integer.parseInt(eventData.substring(start, end));
+                long parsed = Long.parseLong(eventData.substring(start, end));
+                // Hard-clamp to realistic domain range [1, 50]
+                return (int) Math.min(Math.max(parsed, 1), 50);
             }
         } catch (Exception ignored) {
             // Return default on any parsing error

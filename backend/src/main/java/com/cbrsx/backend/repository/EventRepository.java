@@ -11,5 +11,7 @@ import java.util.List;
 public interface EventRepository extends JpaRepository<SessionEvent, String> {
     List<SessionEvent> findBySessionIdOrderByTimestampAsc(String sessionId);
     long countBySessionIdAndEventType(String sessionId, String eventType);
+    // [R2-02] Used by SessionService to enforce per-session event count limits
+    long countBySessionId(String sessionId);
     List<SessionEvent> findBySessionIdIn(Collection<String> sessionIds);
 }

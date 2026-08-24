@@ -114,6 +114,61 @@ class ScoringServiceTest {
     }
 
     @Test
+    void finalizeSession_DetectorNeverEquippedButLeakFlagged_ShouldNotCrash() {
+        // Detector is never equipped, but a leak_source_identified event still fires.
+        // The scoring engine should handle this gracefully (detection score depends
+        // only on correctness of identification, not on detector_equipped presence).
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                // NOTE: no detector_equipped event
+                SessionEvent.builder().eventType("leak_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(10)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        // Detection score should still be awarded for correct identification
+        assertEquals(10, report.getBreakdown().getDetectionScore());
+        // Should not crash — the test itself passing is the primary assertion
+    }
+
+    @Test
+    void finalizeSession_OneOfTwoEvacuated_ShouldApplyPartialCreditAndPenalty() {
+        // Exactly 1 civilian evacuated, 1 left behind.
+        // Expected: evacuationScore = 5 * 1 = 5 (partial credit)
+        //           penalty         = 10 * 1 = 10 (left-behind penalty)
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("leak_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(70)).build(),
+                // Only 1 evacuated; evacuation_incomplete with count=1 left behind
+                SessionEvent.builder().eventType("evacuation_incomplete").eventData("{\"count\":1}").timestamp(Instant.now().minusSeconds(55)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(10)).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        // Partial credit: 5 points per evacuated civilian
+        assertEquals(5, report.getBreakdown().getEvacuationScore());
+        // Left-behind penalty: 10 points per civilian left behind
+        // Total penalties include only the left-behind penalty (10)
+        assertEquals(10, report.getBreakdown().getTotalPenalties());
+    }
+
+    @Test
     void finalizeSession_EvacuationOverage_ShouldCapComponentScore() {
         List<SessionEvent> events = Arrays.asList(
                 SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(100)).build(),
@@ -132,6 +187,62 @@ class ScoringServiceTest {
 
         assertEquals(15, report.getBreakdown().getEvacuationScore());
         assertEquals(10, report.getBreakdown().getTotalPenalties());
+    }
+
+    @Test
+    void finalizeSession_ContainmentCompletedTwice_ShouldNotDoubleCount() {
+        // containment_completed fires twice — verify containment score is still 15 (not 30).
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("leak_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(40)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(35)).build(), // duplicate
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(10)).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        // Containment score must be exactly 15 — not double-counted
+        assertEquals(15, report.getBreakdown().getContainmentScore());
+        // With perfect run + time bonus 20, raw = 10+10+15+15+10+20 = 80, net 80, final 100
+        assertEquals(100, report.getFinalScore());
+    }
+
+    @Test
+    void finalizeSession_EvacuationIncompleteWithExtraNumericFields_ShouldParseCorrectCount() {
+        // event_data JSON contains a timestamp and a drum_id alongside the count field.
+        // The old regex approach would have concatenated all digits (e.g. "17356890001232" → wrong).
+        // extractCount-based parsing should extract only the "count" field value.
+        String eventDataWithExtraNumbers = "{\"count\":2,\"timestamp\":1735689000,\"drum_id\":\"DRUM-123\"}";
+
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("ppe_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("leak_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("civilian_evacuated").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("evacuation_incomplete").eventData(eventDataWithExtraNumbers).timestamp(Instant.now().minusSeconds(55)).build(),
+                SessionEvent.builder().eventType("containment_completed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("decontamination_completed").timestamp(Instant.now().minusSeconds(10)).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        // The left-behind penalty should be 10 * 2 = 20 (count=2, not some garbled number)
+        assertEquals(20, report.getBreakdown().getTotalPenalties());
+        // Evacuation score: 1 evacuated * 5 = 5
+        assertEquals(5, report.getBreakdown().getEvacuationScore());
+        // Verify the mistake description references the correct count
+        assertTrue(report.getMistakes().stream()
+                .anyMatch(m -> m.getDescription().contains("2 civilian(s)")));
     }
 
     @Test
@@ -165,5 +276,61 @@ class ScoringServiceTest {
 
         assertEquals(45, report.getBreakdown().getTotalPenalties());
         assertEquals(3, report.getMistakes().size());
+    }
+
+    @Test
+    void finalizeSession_RadiologicalPerfectRun_ShouldPassWith100() {
+        when(scenarioRepository.findById("scen-chem-01")).thenReturn(Optional.of(
+                Scenario.builder().scenarioId("scen-rad-02").code("CBRN-RAD-02").title("Radiological Vault").build()
+        ));
+
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("lead_apron_equipped").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("dosimeter_equipped").timestamp(Instant.now().minusSeconds(110)).build(),
+                SessionEvent.builder().eventType("rad_source_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("technician_extracted").eventData("{\"tech_id\":1}").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("technician_extracted").eventData("{\"tech_id\":2}").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("shielding_blanket_deployed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("rad_washdown_completed").timestamp(Instant.now().minusSeconds(10)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        assertTrue(report.isPassed());
+        assertEquals(100, report.getFinalScore());
+        assertTrue(report.getMistakes().isEmpty());
+    }
+
+    @Test
+    void finalizeSession_BiologicalPerfectRun_ShouldPassWith100() {
+        when(scenarioRepository.findById("scen-chem-01")).thenReturn(Optional.of(
+                Scenario.builder().scenarioId("scen-bio-03").code("CBRN-BIO-03").title("Level-4 Pathogen Lab").build()
+        ));
+
+        List<SessionEvent> events = Arrays.asList(
+                SessionEvent.builder().eventType("scenario_started").timestamp(Instant.now().minusSeconds(145)).build(),
+                SessionEvent.builder().eventType("papr_donning_completed").timestamp(Instant.now().minusSeconds(130)).build(),
+                SessionEvent.builder().eventType("bio_sampler_equipped").timestamp(Instant.now().minusSeconds(110)).build(),
+                SessionEvent.builder().eventType("pathogen_breach_identified").eventData("{\"correct\":true}").timestamp(Instant.now().minusSeconds(90)).build(),
+                SessionEvent.builder().eventType("lab_personnel_evacuated").eventData("{\"staff_id\":1}").timestamp(Instant.now().minusSeconds(70)).build(),
+                SessionEvent.builder().eventType("lab_personnel_evacuated").eventData("{\"staff_id\":2}").timestamp(Instant.now().minusSeconds(50)).build(),
+                SessionEvent.builder().eventType("airlock_sealed").timestamp(Instant.now().minusSeconds(30)).build(),
+                SessionEvent.builder().eventType("autoclave_sterilization_completed").timestamp(Instant.now().minusSeconds(10)).build(),
+                SessionEvent.builder().eventType("scenario_completed").timestamp(Instant.now()).build()
+        );
+
+        when(eventRepository.findBySessionIdOrderByTimestampAsc(sessionId)).thenReturn(events);
+
+        ScoreReportDTO report = scoringService.finalizeSession(sessionId);
+
+        assertNotNull(report);
+        assertTrue(report.isPassed());
+        assertEquals(100, report.getFinalScore());
+        assertTrue(report.getMistakes().isEmpty());
     }
 }

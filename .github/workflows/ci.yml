@@ -43,6 +43,10 @@ jobs:
         working-directory: dashboard
         run: npm ci
 
+      - name: Audit NPM Dependencies
+        working-directory: dashboard
+        run: npm audit --audit-level=critical || true
+
       - name: Build Production Bundle
         working-directory: dashboard
         run: npm run build
@@ -65,13 +69,31 @@ jobs:
         working-directory: trainee_view
         run: npm ci
 
+      - name: Audit NPM Dependencies
+        working-directory: trainee_view
+        run: npm audit --audit-level=critical || true
+
       - name: Build Production Bundle
         working-directory: trainee_view
         run: npm run build
 
+  security-scan:
+    name: Security & Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for Uncommitted Secrets (.env files)
+        run: |
+          if [ -f .env ]; then
+            echo "ERROR: .env file found in repository root!"
+            exit 1
+          fi
+
   docker-containers-validation:
     name: Docker Container Validation
-    needs: [backend-test-and-build, dashboard-build, trainee-view-build]
+    needs: [backend-test-and-build, dashboard-build, trainee-view-build, security-scan]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -103,3 +125,4 @@ jobs:
 
       - name: Validate Docker Compose Config
         run: docker compose config
+

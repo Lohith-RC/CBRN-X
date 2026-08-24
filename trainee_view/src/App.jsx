@@ -85,8 +85,15 @@ const BEATS = [
   },
 ];
 
+const SCENARIO_OPTIONS = [
+  { code: 'CBRN-CHEM-01', title: 'Chemical Spill Emergency (Bay 03)', sensor: 'PID Photoionization', unit: 'PPM', icon: '☣️' },
+  { code: 'CBRN-RAD-02', title: 'Radiological Dirty Bomb & Isotope Vault', sensor: 'Geiger Radiation Dosimeter', unit: 'μSv/h', icon: '☢️' },
+  { code: 'CBRN-BIO-03', title: 'Biological Pathogen Laboratory Breach', sensor: 'Bio-Aerosol Sampler', unit: 'Index', icon: '🧬' },
+];
+
 export default function App() {
   // ── Core Game State ──
+  const [selectedScenario, setSelectedScenario] = useState('CBRN-CHEM-01');
   const [beatIndex, setBeatIndex] = useState(-1); // -1 = pre-game lobby
   const [isActive, setIsActive] = useState(false);
   const [sessionId, setSessionId] = useState(null);
@@ -204,7 +211,11 @@ export default function App() {
       const res = await fetch('/api/sessions/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ traineeName: 'NDRF Inspector Lohith R C', batchUnit: '10th NDRF Battalion', scenarioCode: 'CBRN-CHEM-01' })
+        body: JSON.stringify({
+          traineeName: 'NDRF Inspector Lohith R C',
+          batchUnit: '10th NDRF Battalion',
+          scenarioCode: selectedScenario,
+        })
       });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
@@ -216,7 +227,7 @@ export default function App() {
     }
     setIsActive(true);
     transitionToBeat(0);
-    logEvent('scenario_started', '{"trainee_id":"TRN-4089","scenario_id":"chemical_spill_v1"}');
+    logEvent('scenario_started', JSON.stringify({ trainee_id: 'TRN-4089', scenario_id: selectedScenario }));
   };
 
   // ══════════════════════════════════════════════════════════════
@@ -434,18 +445,54 @@ export default function App() {
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {!isActive ? (
           /* ═══ PRE-GAME LOBBY ═══ */
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '18px', zIndex: 20, position: 'relative' }}>
-            <Flame size={56} color="var(--accent-ndrf-orange)" className="handheld-motion" />
-            <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', letterSpacing: '0.5px' }}>
-              PHASE 1: BRIEFING & EQUIPMENT
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', zIndex: 20, position: 'relative', padding: '20px' }}>
+            <Flame size={48} color="var(--accent-ndrf-orange)" className="handheld-motion" />
+            <h2 style={{ color: '#fff', fontSize: '1.35rem', fontWeight: '800', letterSpacing: '0.5px', margin: 0 }}>
+              CBRN TACTICAL SIMULATION STATION
             </h2>
-            <p style={{ maxWidth: '560px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              9-Beat cinematic simulation engine. Click scene objects to progress. Seamless dual-video crossfade. Per-beat color grading. Breathing visor fog. Cursor-driven parallax. All events stream to Port 8080.
+            <p style={{ maxWidth: '600px', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+              Select your disaster incident scenario. Real-time telemetry, procedural safety checks, and detection sensor raycasting are synchronized with the Spring Boot telemetry server.
             </p>
-            <button className="btn-tactical" style={{ padding: '14px 30px', fontSize: '0.92rem', marginTop: '8px' }} onClick={startSession}>
-              <Zap size={16} /> INITIATE DEPLOYMENT
+
+            {/* Scenario Selection Cards */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '720px' }}>
+              {SCENARIO_OPTIONS.map((scen) => (
+                <div
+                  key={scen.code}
+                  onClick={() => setSelectedScenario(scen.code)}
+                  style={{
+                    background: selectedScenario === scen.code ? 'rgba(245, 130, 32, 0.15)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${selectedScenario === scen.code ? 'var(--accent-ndrf-orange)' : 'rgba(255,255,255,0.08)'}`,
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    width: '210px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '1.1rem' }}>{scen.icon}</span>
+                    <span style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: selectedScenario === scen.code ? 'var(--accent-ndrf-orange)' : 'var(--text-secondary)' }}>
+                      {scen.code}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#fff' }}>
+                    {scen.title}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
+                    Sensor: {scen.sensor}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button className="btn-tactical" style={{ padding: '12px 28px', fontSize: '0.88rem', marginTop: '6px' }} onClick={startSession}>
+              <Zap size={15} /> INITIATE DEPLOYMENT ({selectedScenario})
             </button>
-            <div style={{ marginTop: '12px', display: 'flex', gap: '20px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ marginTop: '6px', display: 'flex', gap: '20px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
               <span>🖱️ CLICK hotspots</span>
               <span>⌨️ E = equip</span>
               <span>W = advance</span>

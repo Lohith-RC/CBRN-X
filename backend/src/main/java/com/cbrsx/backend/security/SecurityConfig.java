@@ -1,5 +1,6 @@
 package com.cbrsx.backend.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -10,20 +11,35 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Security configuration:
  * - CSRF disabled (stateless REST API, no cookies/sessions)
  * - Session management: STATELESS
- * - CORS: strict origin allowlist
+ * - CORS: strict origin allowlist from environment (unified with WebCorsConfig)
  * - Authentication: handled by ApiKeyAuthFilter at filter level
  * - Authorization: permit all after filter (auth is enforced by the filter)
  * - Security headers: CSP, HSTS, X-Frame-Options, etc.
+ *
+ * [SEC-06] CORS origins are now read from ${cbrsx.cors.allowed-origins} instead
+ *          of being hardcoded, ensuring consistency with WebCorsConfig and
+ *          correct behavior across all deployment environments.
  */
 @EnableWebSecurity
 @Configuration
 public class SecurityConfig {
+
+    private final List<String> allowedOrigins;
+
+    public SecurityConfig(@Value("${cbrsx.cors.allowed-origins:http://localhost:3000,http://localhost:5000}") String allowedOrigins) {
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split("\\s*,\\s*"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, ApiKeyAuthFilter apiKeyAuthFilter) throws Exception {
@@ -34,12 +50,13 @@ public class SecurityConfig {
                 // Session: Stateless
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // CORS configuration
+                // [SEC-06] CORS configuration — unified with WebCorsConfig via shared env property
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5000"));
+                    config.setAllowedOrigins(allowedOrigins);
                     config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
                     config.setAllowedHeaders(List.of("Content-Type", "X-API-Key", "Authorization"));
+                    config.setExposedHeaders(List.of("Retry-After"));
                     config.setAllowCredentials(false);
                     config.setMaxAge(3600L);
                     return config;
@@ -72,3 +89,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
+

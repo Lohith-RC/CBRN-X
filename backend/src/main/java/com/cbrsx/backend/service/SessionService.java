@@ -16,9 +16,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +36,7 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public StartSessionResponse startSession(StartSessionRequest request) {
@@ -67,13 +70,22 @@ public class SessionService {
                 .build();
         eventRepository.save(startEvent);
 
-        return StartSessionResponse.builder()
+        StartSessionResponse response = StartSessionResponse.builder()
                 .sessionId(sessionId)
                 .traineeId(trainee.getTraineeId())
                 .scenarioId(scenario.getScenarioId())
                 .scenarioTitle(scenario.getTitle())
                 .startedAt(session.getStartedAt())
                 .build();
+
+        try {
+            messagingTemplate.convertAndSend("/topic/events", startEvent);
+            messagingTemplate.convertAndSend("/topic/sessions", response);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for session start: {}", e.getMessage());
+        }
+
+        return response;
     }
 
     /**
@@ -150,20 +162,85 @@ public class SessionService {
         }
     }
 
+    /**
+     * Maximum number of telemetry events accepted per session.
+     * [R2-02] Prevents unbounded event ingestion that could exhaust database storage.
+     */
+    private static final int MAX_EVENTS_PER_SESSION = 500;
+
+    /**
+     * Maximum acceptable drift (in seconds) between client-supplied and server timestamps.
+     * [R2-03] Prevents time bonus score manipulation via fabricated timestamps.
+     */
+    private static final long MAX_TIMESTAMP_DRIFT_SECONDS = 5;
+
     @Transactional
     public SessionEvent logEvent(LogEventRequest request) {
         String sessionId = request.getSessionId();
         TrainingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
+        // [R2-02] Reject events for already-completed sessions
+        if (session.getCompletedAt() != null) {
+            throw new IllegalArgumentException("Session already completed: " + sessionId);
+        }
+
+        // [R2-02] Enforce per-session event count limit
+        long existingCount = eventRepository.countBySessionId(sessionId);
+        if (existingCount >= MAX_EVENTS_PER_SESSION) {
+            throw new IllegalArgumentException("Event limit (" + MAX_EVENTS_PER_SESSION + ") reached for session: " + sessionId);
+        }
+
+        // [R2-03] Server-side timestamp validation — reject client timestamps with excessive drift
+        Instant serverNow = Instant.now();
+        Instant effectiveTimestamp = serverNow;
+        if (request.getTimestamp() != null) {
+            long driftSeconds = Math.abs(Duration.between(request.getTimestamp(), serverNow).getSeconds());
+            if (driftSeconds <= MAX_TIMESTAMP_DRIFT_SECONDS) {
+                effectiveTimestamp = request.getTimestamp();
+            } else {
+                log.warn("Client timestamp drift {}s exceeded {}s tolerance for session {} — using server time",
+                        driftSeconds, MAX_TIMESTAMP_DRIFT_SECONDS, sessionId);
+            }
+        }
+
         SessionEvent event = SessionEvent.builder()
                 .eventId("evt-" + UUID.randomUUID())
                 .sessionId(session.getSessionId())
                 .eventType(request.getEventType())
                 .eventData(request.getEventData())
-                .timestamp(request.getTimestamp() != null ? request.getTimestamp() : Instant.now())
+                .timestamp(effectiveTimestamp)
                 .build();
 
-        return eventRepository.save(event);
+        SessionEvent saved = eventRepository.save(event);
+
+        try {
+            messagingTemplate.convertAndSend("/topic/events", saved);
+            messagingTemplate.convertAndSend("/topic/sessions/" + saved.getSessionId(), saved);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for event {}: {}", saved.getEventId(), e.getMessage());
+        }
+
+        return saved;
+    }
+
+    /**
+     * Stale session timeout reaper.
+     * Automatically transitions abandoned sessions older than 30 minutes to TIMED_OUT status.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 60000)
+    @Transactional
+    public void reapStaleSessions() {
+        Instant cutoff = Instant.now().minus(Duration.ofMinutes(30));
+        List<TrainingSession> activeSessions = sessionRepository.findByPassStatus("IN_PROGRESS");
+        for (TrainingSession s : activeSessions) {
+            if (s.getStartedAt() != null && s.getStartedAt().isBefore(cutoff)) {
+                s.setCompletedAt(Instant.now());
+                s.setPassStatus("TIMED_OUT");
+                s.setFinalScore(0);
+                sessionRepository.save(s);
+                log.info("Reaped stale simulation session {} (started at {})", s.getSessionId(), s.getStartedAt());
+            }
+        }
     }
 }

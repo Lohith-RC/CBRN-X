@@ -15,8 +15,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -25,6 +26,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  * - Per-IP rate limiting (brute-force protection)
  * - Secure handling when no API key is configured
  * - Request size validation
+ *
+ * [SEC-03] Rate limiter uses a bounded LRU cache (max 10,000 entries) with
+ *          automatic stale-entry eviction to prevent heap exhaustion from
+ *          distributed traffic with randomized source IPs.
+ * [SEC-04] Client IP extraction uses only request.getRemoteAddr() to prevent
+ *          rate-limit bypass via spoofed X-Forwarded-For headers. Trusted proxy
+ *          headers should be handled at the Tomcat/container level with
+ *          RemoteIpValve or Spring's ForwardedHeaderFilter.
  */
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
@@ -36,11 +45,27 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private static final int RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
     private static final int MAX_REQUESTS_PER_WINDOW = 100;
 
+    // [SEC-03] Maximum number of unique IPs tracked simultaneously
+    private static final int MAX_RATE_LIMIT_ENTRIES = 10_000;
+
     private final String configuredApiKey;
     private final boolean authEnabled;
 
-    // Simple in-memory rate limiter (per-IP)
-    private final Map<String, RateLimitEntry> rateLimitMap = new ConcurrentHashMap<>();
+    /**
+     * [SEC-03] Bounded LRU rate-limit cache.
+     * When the cache exceeds MAX_RATE_LIMIT_ENTRIES, the eldest (least-recently-accessed)
+     * entry is automatically evicted. Synchronized wrapper prevents concurrent modification.
+     */
+    private final Map<String, RateLimitEntry> rateLimitMap = Collections.synchronizedMap(
+            new LinkedHashMap<String, RateLimitEntry>(MAX_RATE_LIMIT_ENTRIES, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, RateLimitEntry> eldest) {
+                    // Evict if over capacity OR if the eldest entry's window has expired
+                    return size() > MAX_RATE_LIMIT_ENTRIES
+                            || (System.currentTimeMillis() - eldest.getValue().windowStart) > RATE_LIMIT_WINDOW_MS * 2L;
+                }
+            }
+    );
 
     public ApiKeyAuthFilter(@Value("${cbrsx.api-key:}") String configuredApiKey) {
         String key = configuredApiKey == null ? "" : configuredApiKey.trim();
@@ -59,6 +84,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         return path.startsWith("/actuator/health")
                 || path.startsWith("/actuator/info")
                 || path.equals("/")
+                || path.startsWith("/ws-telemetry")
                 || path.startsWith("/error");
     }
 
@@ -149,28 +175,30 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
     }
 
+    /**
+     * [SEC-04] Securely extract client IP address.
+     * Uses ONLY request.getRemoteAddr() to prevent IP spoofing via attacker-controlled
+     * X-Forwarded-For or X-Real-IP headers. Trusted proxy header translation should
+     * be configured at the container level (Tomcat RemoteIpValve or Spring's
+     * ForwardedHeaderFilter) with an explicit trusted-proxy CIDR allowlist.
+     */
     private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
         return request.getRemoteAddr();
     }
 
+    /**
+     * [SEC-03] Bounded rate limiter with automatic stale-entry eviction.
+     */
     private boolean isRateLimited(String clientIp) {
         long now = System.currentTimeMillis();
-        RateLimitEntry entry = rateLimitMap.compute(clientIp, (key, existing) -> {
-            if (existing == null || (now - existing.windowStart) > RATE_LIMIT_WINDOW_MS) {
-                return new RateLimitEntry(now, new AtomicInteger(1));
+        synchronized (rateLimitMap) {
+            RateLimitEntry entry = rateLimitMap.get(clientIp);
+            if (entry == null || (now - entry.windowStart) > RATE_LIMIT_WINDOW_MS) {
+                rateLimitMap.put(clientIp, new RateLimitEntry(now, new AtomicInteger(1)));
+                return false;
             }
-            existing.count.incrementAndGet();
-            return existing;
-        });
-        return entry.count.get() > MAX_REQUESTS_PER_WINDOW;
+            return entry.count.incrementAndGet() > MAX_REQUESTS_PER_WINDOW;
+        }
     }
 
     private static class RateLimitEntry {
