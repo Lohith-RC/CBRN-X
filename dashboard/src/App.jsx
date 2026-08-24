@@ -5,8 +5,6 @@ import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
-import EventSimulator from './components/EventSimulator.jsx';
-import TraineeVrScreen from './components/TraineeVrScreen.jsx';
 import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { WifiOff } from 'lucide-react';
 
@@ -81,17 +79,11 @@ export default function App() {
           {/* Metric Cards */}
           <MetricCards stats={stats} />
 
-          {/* VR First-Person Screen */}
-          <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
-
           {/* Sessions Data Table */}
           <SessionsTable
             sessions={stats?.recentSessions || []}
             onSelectSession={(session) => setSelectedSession(session)}
           />
-
-          {/* Event Simulator */}
-          <EventSimulator onSessionCreated={fetchDashboardStats} />
         </main>
 
         {/* Session Detail Modal */}

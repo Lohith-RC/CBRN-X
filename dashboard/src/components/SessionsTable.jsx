@@ -133,7 +133,7 @@ export default function SessionsTable({ sessions, onSelectSession }) {
                     color: 'var(--text-muted)',
                   }}
                 >
-                  No mission session records match your search query. Run a simulation using the test panel or VR viewer.
+                  No mission session records found. Sessions appear here automatically when trainees complete simulations on their VR or WebGL stations.
                 </td>
               </tr>
             ) : (
