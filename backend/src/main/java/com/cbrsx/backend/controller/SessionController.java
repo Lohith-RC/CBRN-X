@@ -1,21 +1,25 @@
 package com.cbrsx.backend.controller;
 
+import com.cbrsx.backend.dto.PagedSessionsDTO;
 import com.cbrsx.backend.dto.ScoreReportDTO;
 import com.cbrsx.backend.dto.StartSessionRequest;
 import com.cbrsx.backend.dto.StartSessionResponse;
 import com.cbrsx.backend.entity.TrainingSession;
 import com.cbrsx.backend.service.CertificateService;
 import com.cbrsx.backend.service.ScoringService;
+import com.cbrsx.backend.service.SessionQueryService;
 import com.cbrsx.backend.service.SessionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -27,6 +31,20 @@ public class SessionController {
     private final SessionService sessionService;
     private final ScoringService scoringService;
     private final CertificateService certificateService;
+    private final SessionQueryService sessionQueryService;
+
+    @GetMapping
+    public ResponseEntity<PagedSessionsDTO> listSessions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "ALL") String status,
+            @RequestParam(required = false) String traineeId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        PagedSessionsDTO sessions = sessionQueryService.getSessions(page, size, status, traineeId, q, from, to);
+        return ResponseEntity.ok(sessions);
+    }
 
     @PostMapping("/start")
     public ResponseEntity<StartSessionResponse> startSession(@Valid @RequestBody StartSessionRequest request) {
