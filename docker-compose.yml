@@ -6,8 +6,9 @@ services:
     container_name: cbrsx-db
     environment:
       POSTGRES_DB: cbrsx_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      # [SEC-07] Credential externalized — must be provided via .env or shell env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
       - "5432:5432"
     volumes:
@@ -25,9 +26,12 @@ services:
     container_name: cbrsx-backend
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/cbrsx_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      # [SEC-07] Credential externalized — must match cbrsx-db POSTGRES_PASSWORD
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      # [SEC-07] API key for authentication — must be set for production
+      CBRSX_API_KEY: ${CBRSX_API_KEY:-}
     depends_on:
       cbrsx-db:
         condition: service_healthy

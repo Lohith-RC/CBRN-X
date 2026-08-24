@@ -226,8 +226,9 @@ public class ScoringService {
         }
 
         if (civiliansLeftBehindCount > 0) {
-            int penalty = PENALTY_CIVILIAN_LEFT_BEHIND * civiliansLeftBehindCount;
-            totalPenalties += penalty;
+            // [SEC-02] Cap individual penalty to prevent overflow from inflated counts
+            int penalty = Math.min(PENALTY_CIVILIAN_LEFT_BEHIND * civiliansLeftBehindCount, 100);
+            totalPenalties = Math.min(totalPenalties + penalty, 500);
             mistakes.add(MistakeDetailDTO.builder()
                     .stage("Civilian Evacuation")
                     .description("Left " + civiliansLeftBehindCount + " civilian(s) un-evacuated in the danger zone.")
@@ -340,6 +341,10 @@ public class ScoringService {
     /**
      * Safely extract a numeric "count" value from JSON-like event data.
      * Uses simple string parsing instead of regex to avoid ReDoS vulnerabilities.
+     *
+     * [SEC-02] Parses as long and hard-clamps to [1, 50] to prevent integer overflow
+     * when the value is multiplied by penalty constants in score computation.
+     * 50 is the maximum physically realistic civilian count for any single scenario.
      */
     private int extractCount(String eventData) {
         if (eventData == null || !eventData.contains(COUNT_FIELD_KEY)) {
@@ -355,13 +360,16 @@ public class ScoringService {
             while (start < eventData.length() && Character.isWhitespace(eventData.charAt(start))) {
                 start++;
             }
-            // Read digits
+            // Read digits (limit to 10 digits max to avoid parsing absurdly long numbers)
             int end = start;
-            while (end < eventData.length() && Character.isDigit(eventData.charAt(end))) {
+            int maxDigits = Math.min(start + 10, eventData.length());
+            while (end < maxDigits && Character.isDigit(eventData.charAt(end))) {
                 end++;
             }
             if (end > start) {
-                return Integer.parseInt(eventData.substring(start, end));
+                long parsed = Long.parseLong(eventData.substring(start, end));
+                // Hard-clamp to realistic domain range [1, 50]
+                return (int) Math.min(Math.max(parsed, 1), 50);
             }
         } catch (Exception ignored) {
             // Return default on any parsing error
