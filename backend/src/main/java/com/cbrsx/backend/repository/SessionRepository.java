@@ -11,6 +11,8 @@ import java.util.List;
 @Repository
 public interface SessionRepository extends JpaRepository<TrainingSession, String> {
     List<TrainingSession> findByTraineeId(String traineeId);
+    // [Task 3] Query for longitudinal skill-growth tracking ordered chronologically
+    List<TrainingSession> findByTraineeIdOrderByStartedAtAsc(String traineeId);
     List<TrainingSession> findByPassStatus(String passStatus);
     long countByPassStatusIgnoreCase(String passStatus);
     List<TrainingSession> findTop10ByOrderByStartedAtDesc();
