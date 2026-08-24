@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       # [SEC-07] Credential externalized — must be provided via .env or shell env
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-    ports:
-      - "5432:5432"
     volumes:
       - cbrsx-pgdata:/var/lib/postgresql/data
     networks:
@@ -95,7 +93,6 @@ services:
     mem_limit: 64m
     networks:
       - cbrsx-net
-    restart: unless-stopped
 
 volumes:
   cbrsx-pgdata:

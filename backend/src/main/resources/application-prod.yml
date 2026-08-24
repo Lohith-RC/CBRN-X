@@ -14,3 +14,7 @@ logging:
   level:
     com.cbrsx: INFO
     org.hibernate.SQL: WARN
+
+cbrsx:
+  security:
+    fail-closed: true

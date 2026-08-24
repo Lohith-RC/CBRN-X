@@ -269,7 +269,7 @@ public class ScoringService {
             totalPenalties = Math.min(totalPenalties + penalty, 500);
             mistakes.add(MistakeDetailDTO.builder()
                     .stage(isRad ? "Personnel Evacuation" : (isBio ? "Lab Personnel Extraction" : "Civilian Evacuation"))
-                    .description("Left " + civiliansLeftBehindCount + " casualty/personnel un-evacuated in the danger zone.")
+                    .description("Left " + civiliansLeftBehindCount + (isRad || isBio ? " casualty/personnel" : " civilian(s)") + " un-evacuated in the danger zone.")
                     .deductionPoints(penalty)
                     .severity("HIGH")
                     .timestamp(completedAt)

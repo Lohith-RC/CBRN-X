@@ -3,6 +3,7 @@ package com.cbrsx.backend.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
  * - Session management: STATELESS
  * - CORS: strict origin allowlist from environment (unified with WebCorsConfig)
  * - Authentication: handled by ApiKeyAuthFilter at filter level
- * - Authorization: permit all after filter (auth is enforced by the filter)
+ * - Authorization: Granular Role-Based Access Control (RBAC)
  * - Security headers: CSP, HSTS, X-Frame-Options, etc.
  *
  * [SEC-06] CORS origins are now read from ${cbrsx.cors.allowed-origins} instead
@@ -62,10 +63,30 @@ public class SecurityConfig {
                     return config;
                 }))
 
-                // Authorization: permit all — actual auth is enforced by ApiKeyAuthFilter
-                // which runs before this filter chain. Requests that fail API key auth
-                // never reach this authorization layer.
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                // Granular Role-Based Access Control
+                .authorizeHttpRequests(auth -> auth
+                        // Public status and health checks
+                        .requestMatchers("/", "/error", "/actuator/health", "/actuator/info").permitAll()
+                        // WebSocket handshake (STOMP frames verified via WebSocketAuthInterceptor)
+                        .requestMatchers("/ws-telemetry/**").permitAll()
+
+                        // Simulation device ingestion endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/events/**").hasAnyRole("SIMULATION", "ADMIN", "INSTRUCTOR")
+                        .requestMatchers(HttpMethod.POST, "/api/sessions/start").hasAnyRole("SIMULATION", "ADMIN", "INSTRUCTOR")
+
+                        // Instructor operations (dashboard stats, debriefs, session completions)
+                        .requestMatchers("/api/dashboard/**").hasAnyRole("INSTRUCTOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/sessions/*/complete").hasAnyRole("INSTRUCTOR", "ADMIN", "SIMULATION")
+                        .requestMatchers("/api/sessions/*/debrief").hasAnyRole("INSTRUCTOR", "ADMIN")
+
+                        // Trainee & General inquiry endpoints
+                        .requestMatchers("/api/scenarios/**").hasAnyRole("TRAINEE", "INSTRUCTOR", "SIMULATION", "ADMIN")
+                        .requestMatchers("/api/sessions/*/report").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
+
+                        // Catch-all API security
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().authenticated()
+                )
 
                 // Security Headers
                 .headers(headers -> headers
@@ -89,4 +110,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

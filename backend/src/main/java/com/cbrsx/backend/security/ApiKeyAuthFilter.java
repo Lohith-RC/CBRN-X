@@ -8,6 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -15,25 +18,23 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * API Key authentication filter with:
  * - Constant-time comparison (prevents timing attacks)
  * - Per-IP rate limiting (brute-force protection)
- * - Secure handling when no API key is configured
+ * - Role-based access mapping (Master, Instructor, Simulation, Trainee)
+ * - Fail-closed enforcement in production environments
  * - Request size validation
  *
  * [SEC-03] Rate limiter uses a bounded LRU cache (max 10,000 entries) with
  *          automatic stale-entry eviction to prevent heap exhaustion from
  *          distributed traffic with randomized source IPs.
  * [SEC-04] Client IP extraction uses only request.getRemoteAddr() to prevent
- *          rate-limit bypass via spoofed X-Forwarded-For headers. Trusted proxy
- *          headers should be handled at the Tomcat/container level with
- *          RemoteIpValve or Spring's ForwardedHeaderFilter.
+ *          rate-limit bypass via spoofed X-Forwarded-For headers.
  */
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
@@ -48,39 +49,71 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     // [SEC-03] Maximum number of unique IPs tracked simultaneously
     private static final int MAX_RATE_LIMIT_ENTRIES = 10_000;
 
-    private final String configuredApiKey;
+    private final String masterApiKey;
+    private final String instructorApiKey;
+    private final String simulationApiKey;
+    private final String traineeApiKey;
     private final boolean authEnabled;
+    private final boolean failClosed;
 
     /**
      * [SEC-03] Bounded LRU rate-limit cache.
-     * When the cache exceeds MAX_RATE_LIMIT_ENTRIES, the eldest (least-recently-accessed)
-     * entry is automatically evicted. Synchronized wrapper prevents concurrent modification.
      */
     private final Map<String, RateLimitEntry> rateLimitMap = Collections.synchronizedMap(
             new LinkedHashMap<String, RateLimitEntry>(MAX_RATE_LIMIT_ENTRIES, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, RateLimitEntry> eldest) {
-                    // Evict if over capacity OR if the eldest entry's window has expired
                     return size() > MAX_RATE_LIMIT_ENTRIES
                             || (System.currentTimeMillis() - eldest.getValue().windowStart) > RATE_LIMIT_WINDOW_MS * 2L;
                 }
             }
     );
 
-    public ApiKeyAuthFilter(@Value("${cbrsx.api-key:}") String configuredApiKey) {
-        String key = configuredApiKey == null ? "" : configuredApiKey.trim();
-        this.configuredApiKey = key;
-        this.authEnabled = !key.isEmpty();
-        if (!this.authEnabled) {
-            log.warn("⚠️  CBRSX_API_KEY is not configured. API key authentication is DISABLED. " +
-                    "Set the environment variable to enable authentication in production.");
+    public ApiKeyAuthFilter(
+            @Value("${cbrsx.api-key:}") String masterApiKey,
+            @Value("${cbrsx.api-keys.instructor:}") String instructorApiKey,
+            @Value("${cbrsx.api-keys.simulation:}") String simulationApiKey,
+            @Value("${cbrsx.api-keys.trainee:}") String traineeApiKey,
+            @Value("${cbrsx.security.fail-closed:false}") boolean failClosed) {
+
+        this.masterApiKey = cleanKey(masterApiKey);
+        this.instructorApiKey = cleanKey(instructorApiKey);
+        this.simulationApiKey = cleanKey(simulationApiKey);
+        this.traineeApiKey = cleanKey(traineeApiKey);
+        this.failClosed = failClosed;
+
+        boolean anyKeyConfigured = !this.masterApiKey.isEmpty()
+                || !this.instructorApiKey.isEmpty()
+                || !this.simulationApiKey.isEmpty()
+                || !this.traineeApiKey.isEmpty();
+
+        this.authEnabled = anyKeyConfigured;
+
+        if (failClosed && !anyKeyConfigured) {
+            log.error("FATAL: fail-closed security is enabled, but no CBRSX API keys are configured!");
+            throw new IllegalStateException("FATAL: CBRS-X is configured with fail-closed security, but no API keys were provided in the environment. Platform cannot start in insecure state.");
         }
+
+        if (!this.authEnabled) {
+            log.warn("⚠️  CBRSX_API_KEY is not configured. API key authentication is DISABLED in dev mode. " +
+                    "Set environment variables and enable fail-closed mode for production.");
+        } else {
+            log.info("🔐 CBRS-X Security Filter active. Roles configured: Master={}, Instructor={}, Simulation={}, Trainee={}",
+                    !this.masterApiKey.isEmpty(),
+                    !this.instructorApiKey.isEmpty(),
+                    !this.simulationApiKey.isEmpty(),
+                    !this.traineeApiKey.isEmpty());
+        }
+    }
+
+    private String cleanKey(String key) {
+        return key == null ? "" : key.trim();
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Only exempt health checks and the root status endpoint
+        // Only exempt health checks, info, root status, and error endpoints
         return path.startsWith("/actuator/health")
                 || path.startsWith("/actuator/info")
                 || path.equals("/")
@@ -100,12 +133,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // ── If no API key is configured, allow through with a warning log ──
-        if (!authEnabled) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         // ── Rate limiting per client IP ──
         String clientIp = getClientIp(request);
         if (isRateLimited(clientIp)) {
@@ -117,28 +144,82 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // ── If auth is disabled (dev mode only), grant full admin authority ──
+        if (!authEnabled) {
+            List<SimpleGrantedAuthority> devAuthorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_ADMIN"),
+                    new SimpleGrantedAuthority("ROLE_INSTRUCTOR"),
+                    new SimpleGrantedAuthority("ROLE_SIMULATION"),
+                    new SimpleGrantedAuthority("ROLE_TRAINEE")
+            );
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken("dev-anonymous", null, devAuthorities)
+            );
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // ── Validate API key with constant-time comparison ──
         String provided = request.getHeader(API_KEY_HEADER);
-        if (provided == null || provided.isEmpty()) {
+        if (provided == null || provided.isBlank()) {
             rejectUnauthorized(response, "Missing X-API-Key header");
             return;
         }
 
-        if (constantTimeEquals(configuredApiKey, provided)) {
-            filterChain.doFilter(request, response);
-        } else {
+        List<String> assignedRoles = authenticateAndGetRoles(provided);
+        if (assignedRoles.isEmpty()) {
             log.warn("Failed API key authentication attempt from IP: {} Path: {}", clientIp, request.getRequestURI());
             rejectUnauthorized(response, "Invalid API key");
+            return;
         }
+
+        List<SimpleGrantedAuthority> authorities = assignedRoles.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken("api-client", null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Determines granted roles based on constant-time match against configured keys.
+     */
+    private List<String> authenticateAndGetRoles(String providedKey) {
+        List<String> roles = new ArrayList<>();
+
+        if (!masterApiKey.isEmpty() && constantTimeEquals(masterApiKey, providedKey)) {
+            roles.add("ROLE_ADMIN");
+            roles.add("ROLE_INSTRUCTOR");
+            roles.add("ROLE_SIMULATION");
+            roles.add("ROLE_TRAINEE");
+            return roles;
+        }
+
+        if (!instructorApiKey.isEmpty() && constantTimeEquals(instructorApiKey, providedKey)) {
+            roles.add("ROLE_INSTRUCTOR");
+            roles.add("ROLE_TRAINEE");
+        }
+
+        if (!simulationApiKey.isEmpty() && constantTimeEquals(simulationApiKey, providedKey)) {
+            roles.add("ROLE_SIMULATION");
+            roles.add("ROLE_TRAINEE");
+        }
+
+        if (!traineeApiKey.isEmpty() && constantTimeEquals(traineeApiKey, providedKey)) {
+            roles.add("ROLE_TRAINEE");
+        }
+
+        return roles;
     }
 
     /**
      * Constant-time string comparison using HMAC-SHA256 to prevent timing attacks.
-     * Both strings are HMAC'd with a random key, then the digests are compared.
      */
     private boolean constantTimeEquals(String expected, String provided) {
         try {
-            // Generate a random key for this comparison
             byte[] comparisonKey = new byte[32];
             new java.security.SecureRandom().nextBytes(comparisonKey);
 
@@ -148,15 +229,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             byte[] expectedHash = mac.doFinal(expected.getBytes(StandardCharsets.UTF_8));
             byte[] providedHash = mac.doFinal(provided.getBytes(StandardCharsets.UTF_8));
 
-            // Compare the full HMAC digests (constant-time via Java's MessageDigest)
             return java.security.MessageDigest.isEqual(expectedHash, providedHash);
         } catch (Exception e) {
-            // Fallback: use standard MessageDigest.isEqual on raw bytes
-            // This is still constant-time via javax.crypto.Mac or manual XOR
             byte[] a = expected.getBytes(StandardCharsets.UTF_8);
             byte[] b = provided.getBytes(StandardCharsets.UTF_8);
             if (a.length != b.length) {
-                // Still do the comparison to avoid length-based timing
                 int dummy = 0;
                 for (byte bite : b) dummy |= bite;
                 return false;
@@ -177,10 +254,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     /**
      * [SEC-04] Securely extract client IP address.
-     * Uses ONLY request.getRemoteAddr() to prevent IP spoofing via attacker-controlled
-     * X-Forwarded-For or X-Real-IP headers. Trusted proxy header translation should
-     * be configured at the container level (Tomcat RemoteIpValve or Spring's
-     * ForwardedHeaderFilter) with an explicit trusted-proxy CIDR allowlist.
      */
     private String getClientIp(HttpServletRequest request) {
         return request.getRemoteAddr();
@@ -210,6 +283,4 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             this.count = count;
         }
     }
-
-
 }
