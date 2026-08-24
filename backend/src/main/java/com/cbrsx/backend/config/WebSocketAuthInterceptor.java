@@ -19,19 +19,22 @@ import java.util.*;
 
 /**
  * [SEC-01 & SEC-05 FIX] STOMP-level authentication and subscription authorization interceptor.
- * Validates the API key during the WebSocket STOMP CONNECT handshake,
- * and enforces topic subscription authorization on SUBSCRIBE commands.
  *
- * Clients must send the API key as a STOMP native header on CONNECT:
- *   CONNECT
- *   X-API-Key: <api-key-value>
+ * Two authentication paths are accepted on CONNECT:
+ *   1. Browser clients: the HTTP session (JSESSIONID cookie) was already
+ *      authenticated by Spring Security; {@link SessionRolesHandshakeInterceptor}
+ *      copied the ROLE_* authorities into the handshake attributes.
+ *   2. Machine clients (simulation engine): the CONNECT frame carries a native
+ *      X-API-Key header which is validated here.
+ *
+ * Topic subscription authorization is enforced on SUBSCRIBE commands.
  */
 @Component
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
-    private static final String API_KEY_HEADER = "X-API-Key";
-    private static final String ROLES_SESSION_KEY = "CBRSX_USER_ROLES";
+    public static final String API_KEY_HEADER = "X-API-Key";
+    public static final String ROLES_SESSION_KEY = "CBRSX_USER_ROLES";
 
     private final String masterApiKey;
     private final String instructorApiKey;
@@ -80,15 +83,26 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     }
 
     private void handleConnect(StompHeaderAccessor accessor) {
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+
         if (!authEnabled) {
             // In dev mode with no keys configured, grant all roles
-            Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
             if (sessionAttributes != null) {
                 sessionAttributes.put(ROLES_SESSION_KEY, List.of("ROLE_ADMIN", "ROLE_INSTRUCTOR", "ROLE_SIMULATION", "ROLE_TRAINEE"));
             }
             return;
         }
 
+        // Path 1: browser clients already authenticated via HTTP session cookie
+        // (roles captured by SessionRolesHandshakeInterceptor during the upgrade).
+        if (sessionAttributes != null && sessionAttributes.get(ROLES_SESSION_KEY) instanceof List<?> preAuthRoles
+                && !preAuthRoles.isEmpty()) {
+            log.debug("WebSocket CONNECT authenticated via session for session {} with roles: {}",
+                    accessor.getSessionId(), preAuthRoles);
+            return;
+        }
+
+        // Path 2: machine clients authenticate with the X-API-Key native header.
         String providedKey = accessor.getFirstNativeHeader(API_KEY_HEADER);
         if (providedKey == null || providedKey.isBlank()) {
             log.warn("WebSocket CONNECT rejected: missing {} header from session {}",
@@ -102,7 +116,6 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             throw new AccessDeniedException("Unauthorized: Invalid API key in STOMP CONNECT frame");
         }
 
-        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
         if (sessionAttributes != null) {
             sessionAttributes.put(ROLES_SESSION_KEY, roles);
         }

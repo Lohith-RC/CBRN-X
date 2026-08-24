@@ -7,13 +7,14 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
   callbacksRef.current = { onScenarioCompleted };
 
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_CBRSX_API_KEY || '';
+    // Browser clients authenticate the WebSocket via their session cookie
+    // (captured during the handshake by SessionRolesHandshakeInterceptor).
+    // Never ship API keys in the JS bundle.
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     let disposed = false;
 
     const client = new Client({
       brokerURL: `${protocol}://${window.location.host}/ws-telemetry`,
-      connectHeaders: apiKey ? { 'X-API-Key': apiKey } : {},
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,

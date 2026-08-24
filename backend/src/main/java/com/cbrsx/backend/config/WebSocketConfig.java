@@ -24,7 +24,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     public WebSocketConfig(
-            @Value("${cbrsx.cors.allowed-origins:http://localhost:80,http://localhost:3000,http://localhost:5000}") String allowedOrigins,
+            @Value("${cbrsx.cors.allowed-origins:http://localhost:80,http://localhost:3000,http://localhost:5000,http://localhost:8080}") String allowedOrigins,
             WebSocketAuthInterceptor webSocketAuthInterceptor) {
         this.allowedOrigins = Arrays.stream(allowedOrigins.split("\\s*,\\s*"))
                 .map(String::trim)
@@ -45,11 +45,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Pure WebSocket endpoint for direct STOMP clients
         registry.addEndpoint("/ws-telemetry")
-                .setAllowedOrigins(allowedOrigins);
+                .setAllowedOrigins(allowedOrigins)
+                .addInterceptors(new SessionRolesHandshakeInterceptor());
 
         // Fallback SockJS endpoint for legacy browser environments
         registry.addEndpoint("/ws-telemetry")
                 .setAllowedOrigins(allowedOrigins)
+                .addInterceptors(new SessionRolesHandshakeInterceptor())
                 .withSockJS();
     }
 
