@@ -47,6 +47,14 @@ public class AuthController {
     private static final int MAX_FAILED_ATTEMPTS_PER_WINDOW = 10;
     private static final long FAILED_ATTEMPT_WINDOW_MS = Duration.ofMinutes(5).toMillis();
     private static final int MAX_TRACKED_CLIENTS = 10_000;
+    /**
+     * BCrypt digest of random data computed once at class load; matched
+     * against when the submitted username is unknown to equalize verification
+     * work and remove the username-enumeration timing oracle.
+     */
+    private static final String DUMMY_BCRYPT_HASH =
+            new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+                    .encode(java.util.UUID.randomUUID().toString());
 
     private final InstructorUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -89,8 +97,11 @@ public class AuthController {
         String password = request.password() == null ? "" : request.password();
 
         InstructorUser user = userRepository.findById(username).orElse(null);
-        boolean valid = user != null && user.isEnabled()
-                && passwordEncoder.matches(password, user.getPasswordHash());
+        // Constant-work defense: always run a BCrypt comparison even when the
+        // user does not exist, so response timing cannot reveal valid usernames.
+        String hashToVerify = user != null ? user.getPasswordHash() : DUMMY_BCRYPT_HASH;
+        boolean valid = passwordEncoder.matches(password, hashToVerify)
+                && user != null && user.isEnabled();
 
         if (!valid) {
             recordFailedAttempt(clientIp);

@@ -3,11 +3,15 @@ server:
   forward-headers-strategy: framework
   servlet:
     session:
+      # Cap interactive instructor sessions at 30 minutes of inactivity
+      timeout: 30m
       cookie:
         # SameSite=Lax + HttpOnly harden the instructor session cookie against
-        # cross-site attachment and script theft; CSRF is enforced separately
+        # cross-site attachment and script theft; CSRF is enforced separately.
+        # Enable CBRSX_SESSION_COOKIE_SECURE=true once TLS terminates at the gateway.
         same-site: lax
         http-only: true
+        secure: ${CBRSX_SESSION_COOKIE_SECURE:false}
   # Security headers
   error:
     include-message: never
@@ -54,7 +58,7 @@ management:
         enabled: true
       show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:never}
 
-# OpenAPI / Swagger Documentation
+# OpenAPI / Swagger Documentation (disabled in prod via application-prod.yml)
 springdoc:
   api-docs:
     path: /v3/api-docs

@@ -43,9 +43,10 @@ jobs:
         working-directory: dashboard
         run: npm ci
 
+      # [SEC-12] Dependency audit is a hard gate (no '|| true' suppression)
       - name: Audit NPM Dependencies
         working-directory: dashboard
-        run: npm audit --audit-level=critical || true
+        run: npm audit --audit-level=high --package-lock-only
 
       - name: Build Production Bundle
         working-directory: dashboard
@@ -69,9 +70,10 @@ jobs:
         working-directory: trainee_view
         run: npm ci
 
+      # [SEC-12] Dependency audit is a hard gate (no '|| true' suppression)
       - name: Audit NPM Dependencies
         working-directory: trainee_view
-        run: npm audit --audit-level=critical || true
+        run: npm audit --audit-level=high --package-lock-only
 
       - name: Build Production Bundle
         working-directory: trainee_view
@@ -83,6 +85,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check for Uncommitted Secrets (.env files)
         run: |
@@ -90,6 +94,12 @@ jobs:
             echo "ERROR: .env file found in repository root!"
             exit 1
           fi
+
+      # [SEC-12] Full-history secret scanning — fails the build on any detected credential
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker-containers-validation:
     name: Docker Container Validation
@@ -104,4 +114,13 @@ jobs:
 
       - name: Build All Docker Containers via Compose
         run: docker compose build
+
+      # [SEC-12] Container image vulnerability scanning
+      - name: Scan Backend Image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cbrsx-cbrsx-backend:latest
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
 

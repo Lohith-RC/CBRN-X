@@ -7,9 +7,8 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cbrsx_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cbrsx_secure_postgres_pass_2026}
-    ports:
-      - "${DB_PORT:-5432}:5432"
+      # [SEC-01] Required secret: no default password — compose fails fast if unset in .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - cbrsx-pgdata:/var/lib/postgresql/data
     networks:
@@ -33,15 +32,16 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/${POSTGRES_DB:-cbrsx_db}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cbrsx_secure_postgres_pass_2026}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
-      # NOTE: fail-closed is forced ON by the 'prod' profile (application-prod.yml);
-      # set SPRING_PROFILES_ACTIVE=dev locally if you need fail-open behavior.
-      CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:-ndrf-admin-secure-2026}
-      CBRSX_CORS_ORIGINS: ${CBRSX_CORS_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:5000}
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      # [SEC-01] Required secrets: no insecure defaults are baked into this file.
+      CBRSX_API_KEY: ${CBRSX_API_KEY:?set CBRSX_API_KEY in .env (openssl rand -hex 32)}
+      CBRSX_FAIL_CLOSED: ${CBRSX_FAIL_CLOSED:-true}
+      CBRSX_SESSION_COOKIE_SECURE: ${CBRSX_SESSION_COOKIE_SECURE:-true}
+      CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:?set CBRSX_ADMIN_PASSWORD in .env}
+    # [SEC-10] Backend is internal only: all traffic enters via the nginx gateway
+    expose:
+      - "8080"
     depends_on:
       cbrsx-db:
         condition: service_healthy
@@ -65,12 +65,11 @@ services:
   cbrsx-admin-dashboard:
     build: ./dashboard
     container_name: cbrsx-admin-dashboard
-    ports:
-      - "${DASHBOARD_PORT:-3000}:3000"
-    # CBRSX_API_KEY is substituted into the container's nginx template
-    # (X-API-Key header injection for proxied /api requests).
+    # [SEC-10] Internal only: reached via the nginx gateway, not exposed to the host
+    expose:
+      - "3000"
     environment:
-      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
+      VITE_BACKEND_URL: http://localhost:8080
     networks:
       - cbrsx-net
     depends_on:
@@ -86,10 +85,11 @@ services:
   cbrsx-trainee-view:
     build: ./trainee_view
     container_name: cbrsx-trainee-view
-    ports:
-      - "${TRAINEE_PORT:-5000}:5000"
+    # [SEC-10] Internal only: reached via the nginx gateway, not exposed to the host
+    expose:
+      - "5000"
     environment:
-      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
+      VITE_BACKEND_URL: http://localhost:8080
     networks:
       - cbrsx-net
     depends_on:
@@ -106,8 +106,10 @@ services:
   nginx-proxy:
     image: nginx:1.25-alpine
     container_name: cbrsx-nginx-proxy
+    # [SEC-10] Single ingress point: admin dashboard (:80) and trainee view (:5000)
     ports:
       - "${GATEWAY_PORT:-80}:80"
+      - "${TRAINEE_GATEWAY_PORT:-5000}:5000"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

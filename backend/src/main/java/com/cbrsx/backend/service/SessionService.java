@@ -334,15 +334,26 @@ public class SessionService {
             return;
         }
 
+        String principalName = auth.getName();
+
+        // [CBRN-SEC-01 FIX / BOLA] API-key and dev principals are anonymous with
+        // respect to data ownership — their name is never a traineeId, so they
+        // can never satisfy an ownership check. A caller holding ONLY the
+        // trainee role must therefore be denied rather than silently granted
+        // access to every session (previously 'api-client' bypassed all checks).
+        if ("api-client".equals(principalName) || "dev-anonymous".equals(principalName)
+                || principalName == null || principalName.isBlank()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Unauthorized: Trainee-level credentials cannot access session " + sessionId);
+        }
+
         TrainingSession session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
-        String principalName = auth.getName();
-        if (principalName != null && !principalName.equals("api-client") && !principalName.equals("dev-anonymous")) {
-            if (!session.getTraineeId().equalsIgnoreCase(principalName)) {
-                throw new org.springframework.security.access.AccessDeniedException(
-                        "Unauthorized: You do not have permission to view session " + sessionId);
-            }
+        // Named interactive user (instructor dashboard login): enforce ownership.
+        if (!session.getTraineeId().equalsIgnoreCase(principalName)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Unauthorized: You do not have permission to view session " + sessionId);
         }
     }
 }

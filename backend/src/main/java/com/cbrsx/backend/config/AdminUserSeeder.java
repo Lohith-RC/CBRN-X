@@ -66,7 +66,7 @@ public class AdminUserSeeder implements ApplicationRunner {
 
         if (DEFAULT_DEV_PASSWORD.equals(adminPassword)) {
             log.warn("===================================================================");
-            log.warn("DEFAULT ADMIN PASSWORD IN USE: username='{}' password='{}'", adminUsername, DEFAULT_DEV_PASSWORD);
+            log.warn("DEFAULT ADMIN PASSWORD IN USE: username='{}' (password redacted from logs)", adminUsername);
             log.warn("Set CBRSX_ADMIN_PASSWORD and change this account before production use.");
             log.warn("===================================================================");
         } else {
