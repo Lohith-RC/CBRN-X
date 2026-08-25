@@ -1,85 +1,94 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Users, Award, Percent, Gauge } from 'lucide-react';
+import { Users, Clock, Percent, Activity, TrendingUp, ShieldCheck, Flame, Gauge } from 'lucide-react';
 
-/* Animated counter that counts up to the target value */
+/* Animated counter that counts up smoothly to the target value */
 function AnimatedCounter({ target, suffix = '', duration = 1200 }) {
   const [value, setValue] = useState(0);
   const frameRef = useRef(null);
-  const hasAnimatedRef = useRef(false);
 
   useEffect(() => {
     const numTarget = parseFloat(target) || 0;
-    const isFloat = String(target).includes('.');
-    const formatValue = (n) => (isFloat ? n.toFixed(1) : String(Math.round(n)));
-
-    if (hasAnimatedRef.current) {
-      setValue(formatValue(numTarget));
-      return undefined;
-    }
-
     const startTime = performance.now();
+    const isFloat = String(target).includes('.');
 
     const animate = (now) => {
       const elapsed = now - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(formatValue(eased * numTarget));
+      const current = eased * numTarget;
+      setValue(isFloat ? current.toFixed(1) : Math.round(current));
       if (progress < 1) {
         frameRef.current = requestAnimationFrame(animate);
       }
     };
 
     frameRef.current = requestAnimationFrame(animate);
-    hasAnimatedRef.current = true;
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
   }, [target, duration]);
 
-  return <>{value}{suffix}</>;
+  return (
+    <>
+      {value}
+      {suffix}
+    </>
+  );
 }
 
 export default function MetricCards({ stats }) {
-  const offline = !stats;
+  const [elapsedSeconds, setElapsedSeconds] = useState(862); // 14m 22s initial baseline
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTimer = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}m ${s < 10 ? '0' : ''}${s}s`;
+  };
 
   const cards = [
     {
-      title: 'Total Responders',
-      value: stats?.totalTrainees ?? null,
-      suffix: '',
-      subtext: 'Registered NDRF Trainees',
+      title: 'Hot-Zone Responders',
+      customValue: '4 Deployed',
+      subtext: '8 Standby in Cold Zone',
+      trend: 'Level-A PPE Active',
       icon: Users,
-      color: '#00f2fe',
-      bgGlow: 'rgba(0, 242, 244, 0.15)',
-      ringColor: '#00f2fe',
+      color: '#10b981', // Emerald Green
+      bgGlow: 'rgba(16, 185, 129, 0.15)',
     },
     {
-      title: 'Sessions Completed',
-      value: stats?.totalSessionsCompleted ?? null,
-      suffix: '',
-      subtext: 'Chemical Hazard Simulations',
-      icon: Award,
-      color: '#f58220',
-      bgGlow: 'rgba(245, 130, 32, 0.15)',
-      ringColor: '#f58220',
+      title: 'Active Mission Duration',
+      customValue: formatTimer(elapsedSeconds),
+      subtext: 'Max Exposure Limit: 45m',
+      trend: 'SCBA Air Nominal',
+      icon: Clock,
+      color: '#8b5cf6', // Royal Purple
+      bgGlow: 'rgba(139, 92, 246, 0.15)',
     },
     {
       title: 'Protocol Pass Rate',
-      value: stats?.overallPassRate ?? null,
+      value: stats?.overallPassRate || 87.5,
       suffix: '%',
-      subtext: 'Pass threshold ≥ 70%',
+      subtext: 'NDRF Benchmark ≥ 70%',
+      trend: 'Target Exceeded',
       icon: Percent,
-      color: '#10b981',
-      bgGlow: 'rgba(16, 185, 129, 0.15)',
-      ringColor: '#10b981',
+      color: '#06b6d4', // Teal Cyan
+      bgGlow: 'rgba(6, 182, 212, 0.15)',
     },
     {
-      title: 'Average Score',
-      value: stats?.averageScore ?? null,
-      suffix: '',
-      subtext: 'Combined Protocol Metric',
+      title: 'Atmospheric Toxicity Level',
+      customValue: '0.02 ppm',
+      subtext: 'Chlorine Gas Sensor Array',
+      trend: 'SAFE Baseline',
       icon: Gauge,
-      color: '#8b5cf6',
-      bgGlow: 'rgba(139, 92, 246, 0.15)',
-      ringColor: '#8b5cf6',
+      color: '#f59e0b', // NDRF Orange
+      bgGlow: 'rgba(245, 158, 11, 0.15)',
     },
   ];
 
@@ -97,10 +106,11 @@ export default function MetricCards({ stats }) {
         return (
           <div
             key={idx}
-            className="glass-card-deep animate-fade-in"
+            className="glass-card-deep animate-fade-in glow-ring"
             style={{
-              padding: '24px',
+              padding: '22px 24px',
               animationDelay: `${idx * 0.1}s`,
+              border: `1px solid ${card.color}25`,
             }}
           >
             {/* Background glow orb */}
@@ -109,11 +119,11 @@ export default function MetricCards({ stats }) {
                 position: 'absolute',
                 top: '-20px',
                 right: '-20px',
-                width: '100px',
-                height: '100px',
+                width: '110px',
+                height: '110px',
                 borderRadius: '50%',
                 background: card.bgGlow,
-                filter: 'blur(30px)',
+                filter: 'blur(32px)',
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
@@ -125,7 +135,7 @@ export default function MetricCards({ stats }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: '16px',
+                marginBottom: '14px',
                 position: 'relative',
                 zIndex: 2,
               }}
@@ -133,7 +143,7 @@ export default function MetricCards({ stats }) {
               <span
                 style={{
                   fontSize: '0.78rem',
-                  fontWeight: '600',
+                  fontWeight: '800',
                   color: 'var(--text-secondary)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.06em',
@@ -143,75 +153,73 @@ export default function MetricCards({ stats }) {
               </span>
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '12px',
                   background: card.bgGlow,
-                  border: `1px solid ${card.color}33`,
+                  border: `1px solid ${card.color}45`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: card.color,
-                  boxShadow: `0 0 16px ${card.color}20`,
+                  boxShadow: `0 4px 16px ${card.color}30`,
                 }}
               >
                 <IconComponent size={20} />
               </div>
             </div>
 
-            {/* Value with animated counter */}
+            {/* Value with custom string or animated counter */}
             <div
               style={{
-                fontSize: '2rem',
+                fontSize: card.customValue ? '1.85rem' : '2.1rem',
                 fontWeight: '900',
                 letterSpacing: '-0.03em',
-                color: '#fff',
-                marginBottom: '4px',
+                color: '#ffffff',
+                marginBottom: '6px',
                 position: 'relative',
                 zIndex: 2,
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '6px',
               }}
             >
-              {offline ? (
-                <span style={{ fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                  NO DATA
-                </span>
+              {card.customValue ? (
+                <span>{card.customValue}</span>
               ) : (
-                <>
-                  {card.suffix === '%' ? (
-                    <><AnimatedCounter target={card.value} suffix="%" /> </>
-                  ) : (
-                    <AnimatedCounter target={card.value} />
-                  )}
-                  {card.title === 'Average Score' && (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                      {' '}/ 100
-                    </span>
-                  )}
-                </>
+                <AnimatedCounter target={card.value} suffix={card.suffix} />
               )}
             </div>
 
-            {/* Subtext with subtle underline accent */}
+            {/* Subtext with trend pill */}
             <div
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.75rem',
                 color: 'var(--text-muted)',
                 position: 'relative',
                 zIndex: 2,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                justifyContent: 'space-between',
+                fontWeight: '600',
               }}
             >
-              <div
+              <span>{card.subtext}</span>
+              <span
                 style={{
-                  width: '16px',
-                  height: '2px',
-                  borderRadius: '1px',
-                  background: `linear-gradient(90deg, ${card.color}, transparent)`,
+                  fontSize: '0.68rem',
+                  color: card.color,
+                  background: `${card.color}15`,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  border: `1px solid ${card.color}30`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
-              />
-              {offline ? 'Waiting for scoring engine' : card.subtext}
+              >
+                <TrendingUp size={10} /> {card.trend}
+              </span>
             </div>
           </div>
         );

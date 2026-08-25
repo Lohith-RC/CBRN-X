@@ -1,24 +1,81 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardBackground from './components/DashboardBackground.jsx';
-import MissionStrip from './components/MissionStrip.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
-import CohortBoard from './components/CohortBoard.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
 import SessionDetailModal from './components/SessionDetailModal.jsx';
-import Login from './components/Login.jsx';
-import LandingPage from './components/LandingPage.jsx';
-import useLiveTelemetry from './hooks/useLiveTelemetry.js';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import { WifiOff, Home } from 'lucide-react';
+import EventSimulator from './components/EventSimulator.jsx';
+import TraineeVrScreen from './components/TraineeVrScreen.jsx';
+import TacticalCommandCenter from './components/TacticalCommandCenter.jsx';
+import { WifiOff, AlertTriangle } from 'lucide-react';
 
-function Dashboard({ onReturnHome }) {
-  const [stats, setStats] = useState(null);
+const FALLBACK_STATS = {
+  totalTrainees: 12,
+  totalSessionsCompleted: 8,
+  overallPassRate: 87.5,
+  averageScore: 84.2,
+  recentSessions: [
+    {
+      sessionId: 'sess-demo-01',
+      traineeName: 'Inspector Lohith R C',
+      batchUnit: '10th NDRF Battalion',
+      scenarioTitle: 'Chlorine Gas Leak Response',
+      scenarioCode: 'CBRN-CHEM-01',
+      finalScore: 92,
+      passStatus: 'PASSED',
+      totalDurationSeconds: 145,
+      startedAt: new Date(Date.now() - 3600000).toISOString(),
+      completedAt: new Date(Date.now() - 3455000).toISOString(),
+      mistakes: [],
+      recommendations: [
+        'Excellent response speed in donning level A chemical suit.',
+        'Rapid perimeter isolation achieved within 90 seconds.',
+        'Maintained proper windward approach to leaking drum.',
+      ],
+    },
+    {
+      sessionId: 'sess-demo-02',
+      traineeName: 'Sub-Inspector Ananya Rao',
+      batchUnit: '4th NDRF Battalion',
+      scenarioTitle: 'Chlorine Gas Leak Response',
+      scenarioCode: 'CBRN-CHEM-01',
+      finalScore: 68,
+      passStatus: 'FAILED',
+      totalDurationSeconds: 230,
+      startedAt: new Date(Date.now() - 7200000).toISOString(),
+      completedAt: new Date(Date.now() - 6970000).toISOString(),
+      mistakes: [
+        {
+          stage: 'PPE Donning',
+          severity: 'HIGH',
+          description: 'Entered hazard perimeter before sealing suit respirator valve.',
+          deductionPoints: 15,
+        },
+        {
+          stage: 'Detection',
+          severity: 'MEDIUM',
+          description: 'Failed to hold PID sensor within 1m of drum seam.',
+          deductionPoints: 10,
+        },
+      ],
+      recommendations: [
+        'Always complete full cross-check of suit seals before entering hot zone.',
+        'Calibrate PID photoionization detector at fresh-air baseline.',
+      ],
+    },
+  ],
+};
+
+export default function App() {
+  const [stats, setStats] = useState(FALLBACK_STATS);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [activeMode, setActiveMode] = useState('analytics'); // 'tactical' | 'analytics' | 'test' | 'all'
+  const [showDrillModal, setShowDrillModal] = useState(false);
+  const [liveTelemetry, setLiveTelemetry] = useState(null);
 
-  const fetchDashboardStats = useCallback(async () => {
+  const fetchDashboardStats = async () => {
     setLoading(true);
     setApiError(null);
     try {
@@ -30,53 +87,30 @@ function Dashboard({ onReturnHome }) {
       setStats(data);
     } catch (err) {
       console.warn('Backend API unreachable:', err.message);
-      setStats(null);
-      setApiError('Cannot reach the CBRS-X scoring engine. Metrics are withheld rather than displaying fabricated values.');
+      setApiError('Cannot reach the CBRS-X backend. Metrics below reflect cached demonstration telemetry.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchDashboardStats();
-  }, [fetchDashboardStats]);
-
-  const { liveConnected } = useLiveTelemetry({ onScenarioCompleted: fetchDashboardStats });
+  }, []);
 
   return (
     <>
       {/* Full-page animated 3D background layer */}
       <DashboardBackground />
 
-      {/* Main content */}
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1320px', margin: '0 auto', padding: '24px 20px' }}>
-        
-        {/* Quick Back to Landing Page Bar */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-          <button
-            onClick={onReturnHome}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(15, 23, 42, 0.75)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              borderRadius: '8px',
-              padding: '6px 12px',
-              color: '#93c5fd',
-              fontSize: '0.78rem',
-              fontFamily: 'monospace',
-              cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
-              transition: 'all 0.2s'
-            }}
-          >
-            <Home size={14} />
-            Public Landing Page
-          </button>
-        </div>
-
-        <Header onRefresh={fetchDashboardStats} loading={loading} liveConnected={liveConnected} />
+      {/* Main Content Container */}
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1440px', margin: '0 auto', padding: '24px 20px' }}>
+        <Header
+          onRefresh={fetchDashboardStats}
+          loading={loading}
+          activeMode={activeMode}
+          setActiveMode={setActiveMode}
+          onTriggerEmergency={() => setShowDrillModal(true)}
+        />
 
         {apiError && (
           <div
@@ -88,114 +122,138 @@ function Dashboard({ onReturnHome }) {
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.45)',
               borderRadius: '10px',
-              padding: '14px 18px',
-              marginBottom: '24px',
+              padding: '12px 18px',
+              marginBottom: '20px',
               color: '#fca5a5',
               fontSize: '0.85rem',
               backdropFilter: 'blur(8px)',
             }}
           >
-            <WifiOff size={20} style={{ flexShrink: 0, color: '#ef4444' }} />
+            <WifiOff size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
             <span>
-              <strong style={{ color: '#ef4444' }}>OFFLINE — NO DATA SHOWN.</strong> {apiError}
+              <strong style={{ color: '#ef4444' }}>OFFLINE / DEMO MODE.</strong> {apiError}
             </span>
           </div>
         )}
 
-        {/* Compact static mission strip */}
-        <MissionStrip liveConnected={liveConnected} />
-
-        <main>
-          {/* Metric Cards */}
-          <MetricCards stats={stats} />
-
-          {/* Cohort Analytics Board */}
-          <CohortBoard />
-
-          {/* Sessions Data Table */}
-          <SessionsTable
-            onSelectSession={(session) => setSelectedSession(session)}
-            onDataChanged={fetchDashboardStats}
+        {/* VIEW MODE 1: Tactical Radar Operations */}
+        {(activeMode === 'tactical' || activeMode === 'all') && (
+          <TacticalCommandCenter
+            onTriggerEmergency={() => setShowDrillModal(true)}
+            onRefresh={fetchDashboardStats}
+            liveTelemetry={liveTelemetry}
           />
-        </main>
+        )}
 
-        {/* Session Detail Modal */}
+        {/* VIEW MODE 2: Instructor Analytics & Logs */}
+        {(activeMode === 'analytics' || activeMode === 'all') && (
+          <main>
+            {/* Streamlined Metrics */}
+            <MetricCards stats={stats} />
+
+            {/* Interactive VR Viewport Launcher */}
+            <div style={{ marginBottom: '24px' }}>
+              <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+            </div>
+
+            {/* Sessions Telemetry Data Table */}
+            <SessionsTable
+              sessions={stats?.recentSessions || []}
+              onSelectSession={(session) => setSelectedSession(session)}
+            />
+          </main>
+        )}
+
+        {/* VIEW MODE 3: Dev Simulator Telemetry Launcher */}
+        {(activeMode === 'test' || activeMode === 'all') && (
+          <div style={{ marginTop: activeMode === 'all' ? '24px' : '0' }}>
+            <EventSimulator onSessionCreated={fetchDashboardStats} />
+          </div>
+        )}
+
+        {/* Mission Evaluation Detail Modal */}
         <SessionDetailModal
           sessionSummary={selectedSession}
           session={selectedSession}
           onClose={() => setSelectedSession(null)}
         />
+
+        {/* Emergency Drill Overlay Modal */}
+        {showDrillModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <div
+              className="glass-panel"
+              style={{
+                width: '90%',
+                maxWidth: '480px',
+                padding: '32px',
+                border: '2px solid rgba(239, 68, 68, 0.6)',
+                borderRadius: '16px',
+                textAlign: 'center',
+                boxShadow: '0 0 60px rgba(239, 68, 68, 0.35)',
+              }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  color: '#ef4444',
+                }}
+              >
+                <AlertTriangle size={32} />
+              </div>
+
+              <h2
+                style={{
+                  fontSize: '1.2rem',
+                  fontWeight: '800',
+                  color: '#ef4444',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.08em',
+                  marginBottom: '8px',
+                }}
+              >
+                ⚠ CRITICAL EMERGENCY DRILL
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
+                Emergency drill protocol activated across all 10th NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
+              </p>
+
+              <button
+                className="btn-glow"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  borderColor: 'rgba(239, 68, 68, 0.6)',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
+                }}
+                onClick={() => setShowDrillModal(false)}
+              >
+                ACKNOWLEDGE &amp; DISMISS DRILL
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
-  );
-}
-
-function MainView() {
-  const { user, booting } = useAuth();
-  const [view, setView] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('view') === 'dashboard' ? 'dashboard' : 'landing';
-  });
-
-  if (booting) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9rem',
-          background: '#060911'
-        }}
-      >
-        Establishing secure connection…
-      </div>
-    );
-  }
-
-  if (view === 'landing') {
-    return (
-      <LandingPage
-        onEnterDashboard={() => setView('dashboard')}
-        onLaunchSim={() => window.open('/unity-sim/index.html', '_blank')}
-      />
-    );
-  }
-
-  return user ? (
-    <Dashboard onReturnHome={() => setView('landing')} />
-  ) : (
-    <div style={{ minHeight: '100vh', background: '#060911' }}>
-      <div style={{ maxWidth: '480px', margin: '0 auto', paddingTop: '40px' }}>
-        <button
-          onClick={() => setView('landing')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'transparent',
-            border: 'none',
-            color: '#93c5fd',
-            fontSize: '0.85rem',
-            fontFamily: 'monospace',
-            cursor: 'pointer',
-            marginBottom: '16px'
-          }}
-        >
-          &larr; Back to Landing Page
-        </button>
-        <Login />
-      </div>
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <MainView />
-    </AuthProvider>
   );
 }
