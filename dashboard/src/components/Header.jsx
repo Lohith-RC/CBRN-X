@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Radio, RefreshCw, LayoutDashboard, Compass, Eye, Cpu, AlertTriangle } from 'lucide-react';
+import { Shield, Radio, RefreshCw, LayoutDashboard, Compass, Eye, Cpu, AlertTriangle, Award, Wifi, WifiOff } from 'lucide-react';
 
-export default function Header({ onRefresh, loading, activeMode, setActiveMode, onTriggerEmergency, onReturnHome }) {
+export default function Header({ onRefresh, loading, activeMode, setActiveMode, onTriggerEmergency, onReturnHome, liveConnected = true, connectionState = 'CONNECTED' }) {
   const [utcClock, setUtcClock] = useState('00:00:00 UTC');
 
   useEffect(() => {
@@ -16,6 +16,10 @@ export default function Header({ onRefresh, loading, activeMode, setActiveMode, 
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Status Indicator Badge configuration (Task 4: Live, Connected, Reconnecting, Disconnected)
+  const isConnected = connectionState === 'CONNECTED' || liveConnected;
+  const isReconnecting = connectionState === 'RECONNECTING';
 
   return (
     <header
@@ -76,9 +80,30 @@ export default function Header({ onRefresh, loading, activeMode, setActiveMode, 
             >
               CBRS-X
             </h1>
-            <span className="badge badge-pending animate-pulse-glow" style={{ fontSize: '0.68rem', padding: '3px 10px' }}>
-              <span className="pulse-beacon" /> LIVE TELEMETRY
-            </span>
+
+            {/* DYNAMIC TELEMETRY STATUS INDICATORS (Task 4: Live, Connected, Reconnecting) */}
+            {isConnected ? (
+              <span
+                className="badge badge-success animate-pulse-glow"
+                style={{ fontSize: '0.68rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span className="pulse-beacon" /> LIVE • CONNECTED
+              </span>
+            ) : isReconnecting ? (
+              <span
+                className="badge badge-warning"
+                style={{ fontSize: '0.68rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid #f59e0b' }}
+              >
+                <RefreshCw size={11} className="animate-spin" /> RECONNECTING...
+              </span>
+            ) : (
+              <span
+                className="badge badge-failed"
+                style={{ fontSize: '0.68rem', padding: '3px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <WifiOff size={11} /> DISCONNECTED
+              </span>
+            )}
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 500 }}>
             NDRF Tactical Command &amp; VR CBRN Disaster Training Platform (SIH260088)
@@ -99,6 +124,27 @@ export default function Header({ onRefresh, loading, activeMode, setActiveMode, 
             gap: '4px',
           }}
         >
+          <button
+            onClick={() => setActiveMode('singlepane')}
+            style={{
+              padding: '8px 14px',
+              fontSize: '0.78rem',
+              fontWeight: '800',
+              fontFamily: 'var(--font-mono)',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: activeMode === 'singlepane' || activeMode === 'judges' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+              color: activeMode === 'singlepane' || activeMode === 'judges' ? '#fff' : 'var(--text-secondary)',
+              boxShadow: activeMode === 'singlepane' || activeMode === 'judges' ? '0 2px 12px rgba(16, 185, 129, 0.4)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Award size={14} /> Judges Evaluation View
+          </button>
           <button
             onClick={() => setActiveMode('tactical')}
             style={{

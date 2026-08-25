@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShieldCheck, Lock, User as UserIcon, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Login() {
+export default function Login({ onSuccess }) {
   const { login, error, submitting } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -10,7 +10,10 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password) return;
-    await login(username, password);
+    const success = await login(username, password);
+    if (success && onSuccess) {
+      onSuccess();
+    }
   };
 
   return (

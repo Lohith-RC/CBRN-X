@@ -5,7 +5,7 @@ import IncidentLogFeed from './IncidentLogFeed.jsx';
 import TraineeOverviewPanel from './TraineeOverviewPanel.jsx';
 import TacticalPerformanceBar from './TacticalPerformanceBar.jsx';
 
-export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh }) {
+export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh, liveEvents }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '28px' }}>
       {/* Top 3-Column Grid */}
@@ -36,7 +36,7 @@ export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh })
 
         {/* Right Stack: Incident Feed + Trainee Overview */}
         <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '16px', height: '100%' }}>
-          <IncidentLogFeed />
+          <IncidentLogFeed events={liveEvents} />
           <TraineeOverviewPanel onTriggerEmergency={onTriggerEmergency} />
         </div>
       </div>
