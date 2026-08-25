@@ -135,4 +135,32 @@ class SessionQueryExportTest {
                         .with(SecurityMockMvcRequestPostProcessors.user("t").roles("TRAINEE")))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void csvExportNeutralizesFormulaInjection() throws Exception {
+        traineeRepository.save(Trainee.builder()
+                .traineeId("tr-formula-hack")
+                .name("=cmd|'/C calc'!A1")
+                .batchUnit("+123456")
+                .build());
+        sessionRepository.save(TrainingSession.builder()
+                .sessionId("sess-formula-hack")
+                .traineeId("tr-formula-hack")
+                .scenarioId(SCENARIO_ID)
+                .startedAt(Instant.now().minusSeconds(100))
+                .completedAt(Instant.now())
+                .finalScore(95)
+                .passStatus("PASSED")
+                .build());
+
+        MvcResult result = mockMvc.perform(get("/api/sessions/export")
+                        .with(SecurityMockMvcRequestPostProcessors.user("inst").roles("INSTRUCTOR")))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        // Leading '=' and '+' must be prefixed with a single quote to neutralize formula injection
+        assertThat(body).contains("'=cmd|'/C calc'!A1");
+        assertThat(body).contains("'+123456");
+    }
 }

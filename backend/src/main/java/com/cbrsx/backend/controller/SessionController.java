@@ -102,12 +102,18 @@ public class SessionController {
     }
 
     private static String csvCell(String value) {
-        if (value == null) {
+        if (value == null || value.isEmpty()) {
             return "";
         }
-        return (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r"))
-                ? "\"" + value.replace("\"", "\"\"") + "\""
-                : value;
+        String sanitized = value;
+        // [CBRN-SEC-03] Neutralize CSV formula injection (DDE / Excel formula injection)
+        char firstChar = sanitized.charAt(0);
+        if (firstChar == '=' || firstChar == '+' || firstChar == '-' || firstChar == '@' || firstChar == '\t' || firstChar == '\r') {
+            sanitized = "'" + sanitized;
+        }
+        return (sanitized.contains(",") || sanitized.contains("\"") || sanitized.contains("\n") || sanitized.contains("\r"))
+                ? "\"" + sanitized.replace("\"", "\"\"") + "\""
+                : sanitized;
     }
 
     @PostMapping("/start")
@@ -147,6 +153,7 @@ public class SessionController {
                     regexp = "^[a-zA-Z0-9_-]+$",
                     message = "sessionId may only contain letters, digits, dashes and underscores"
             ) String sessionId) {
+        sessionService.validateSessionAccess(sessionId);
         ScoreReportDTO report = scoringService.previewScore(sessionId);
         return ResponseEntity.ok(report);
     }
@@ -157,6 +164,7 @@ public class SessionController {
                     regexp = "^[a-zA-Z0-9_-]+$",
                     message = "sessionId may only contain letters, digits, dashes and underscores"
             ) String sessionId) {
+        sessionService.validateSessionAccess(sessionId);
         return ResponseEntity.ok(sessionService.getEventTimeline(sessionId));
     }
 
@@ -166,6 +174,7 @@ public class SessionController {
                     regexp = "^[a-zA-Z0-9_-]+$",
                     message = "sessionId may only contain letters, digits, dashes and underscores"
             ) String sessionId) {
+        sessionService.validateSessionAccess(sessionId);
         byte[] pdfBytes = certificateService.generateCertificatePdf(sessionId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)

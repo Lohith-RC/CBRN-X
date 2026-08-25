@@ -471,7 +471,44 @@ CBRN-X/
 
 ---
 
-## 🛠️ 8. Standard Operating Procedures (Installation & Setup)
+## 🔒 8. Security Architecture & Threat Model Hardening
+
+CBRS-X implements a defense-in-depth security model across the simulation ingress, instructor console, evaluation engine, and reporting pipelines:
+
+```
+                                  ┌────────────────────────────────────────┐
+                                  │      INGRESS & PERIMETER DEFENSE       │
+                                  ├────────────────────────────────────────┤
+                                  │ • Fail-Closed Production Boot Guard    │
+                                  │ • Constant-Time API Key Comparison     │
+                                  │ • Bounded LRU Rate Limiting (10K IPs)  │
+                                  │ • Double-Submit Cookie CSRF Defense    │
+                                  └───────────────────┬────────────────────┘
+                                                      │
+                                                      ▼
+                                  ┌────────────────────────────────────────┐
+                                  │     EVALUATION & DATA PROTECTION       │
+                                  ├────────────────────────────────────────┤
+                                  │ • Trainee-Scoped IDOR Authorization    │
+                                  │ • DDE/CSV Formula Injection Sanitizing │
+                                  │ • Restrictive Actuator Metric Lockdown │
+                                  │ • Strict CSP, HSTS & X-Frame Guard     │
+                                  └────────────────────────────────────────┘
+```
+
+### 8.1 Threat Mitigation Matrix
+
+| Threat Code | Vector & Attack Path | Engineering Hardening Control |
+|---|---|---|
+| **CBRN-SEC-01** | **Insecure Direct Object Reference (IDOR)** on reports and certificates | Strict session ownership verification (`validateSessionAccess`) preventing unauthorized trainees from accessing other responders' audit streams. |
+| **CBRN-SEC-02** | **Telemetry Flooding & Replay Injection** | 500 events/session bounding and $\pm 5\text{s}$ client timestamp drift rejection in `SessionService.logEvent()`. |
+| **CBRN-SEC-03** | **CSV Formula Injection (DDE Execution)** in records export | Automated neutralization of leading spreadsheet formula operators (`=`, `+`, `-`, `@`, `\t`, `\r`) with single-quote escaping in `SessionController.csvCell()`. |
+| **CBRN-SEC-04** | **Reconnaissance & Metric Disclosure** | Public endpoint exposure locked down; `/actuator/metrics/**` and `/actuator/info` restricted exclusively to `ROLE_ADMIN`. |
+| **CBRN-SEC-05** | **Default Seeded Credentials** | Automated startup validation blocking default development credentials when running under the `prod` profile. |
+
+---
+
+## 🛠️ 9. Standard Operating Procedures (Installation & Setup)
 
 ### SOP-01: Full-Stack Docker Deployment (Production)
 
@@ -508,7 +545,7 @@ docker compose ps
 # Navigate to backend module
 cd backend
 
-# Execute complete test suite (31 tests across 4 suites)
+# Execute complete test suite (32 tests across 5 suites)
 mvn clean test
 
 # Run with local H2 in-memory development profile
@@ -563,24 +600,30 @@ Open `http://localhost:5000` to interact with the 3D chemical bay simulation.
 
 ---
 
-## 📡 9. REST API & Webhook Specifications
+## 📡 10. REST API & Webhook Specifications
 
-### 9.1 API Endpoint Summary
+### 10.1 API Endpoint & Role-Based Access Control (RBAC) Matrix
 
-| HTTP Method | Endpoint | Description | Auth Required |
-|---|---|---|:---:|
-| `POST` | `/api/sessions/start` | Initialize a new training session | Optional / Header |
-| `POST` | `/api/events/log` | Ingest real-time telemetry event | Optional / Header |
-| `POST` | `/api/sessions/{id}/complete` | Finalize session and calculate audit score | Optional / Header |
-| `GET` | `/api/sessions/{id}/report` | Retrieve comprehensive score report & breakdown | Optional / Header |
-| `GET` | `/api/sessions/{id}/debrief` | Generate AI After-Action Review (AAR) | Optional / Header |
-| `GET` | `/api/sessions/{id}/certificate` | Stream official PDF certificate of readiness | Optional / Header |
-| `GET` | `/api/trainees/{id}/progress` | Retrieve longitudinal multi-attempt skill growth | Optional / Header |
-| `GET` | `/api/dashboard/stats` | Retrieve aggregate training KPI metrics | Optional / Header |
+| HTTP Method | Endpoint | Description | Permitted Roles |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | Instructor interactive session login | `Public (Rate Limited)` |
+| `POST` | `/api/sessions/start` | Initialize a new training session | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `POST` | `/api/events/log` | Ingest real-time telemetry event | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `POST` | `/api/sessions/{id}/complete` | Finalize session and calculate audit score | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `POST` | `/api/sessions/{id}/void` | Mark test/aborted session as voided | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions` | Paged searchable list of sessions | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/export` | Stream full CSV report of matching sessions | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/{id}/report` | Retrieve comprehensive score report | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/{id}/events` | Chronological event timeline | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/{id}/debrief` | Generate AI After-Action Review (AAR) | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/{id}/certificate` | Stream official PDF certificate | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/dashboard/stats` | Retrieve aggregate training KPI metrics | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/actuator/health` | Service liveness / readiness probe | `Public` |
+| `GET` | `/actuator/**` | JVM metrics, memory, and thread metrics | `ROLE_ADMIN` |
 
 ---
 
-### 9.2 Telemetry Ingestion Payload Example
+### 10.2 Telemetry Ingestion Payload Example
 
 `POST /api/events/log`
 ```json

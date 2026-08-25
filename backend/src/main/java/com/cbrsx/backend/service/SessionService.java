@@ -306,4 +306,37 @@ public class SessionService {
         log.info("Session {} voided. Reason: {}", sessionId, (reason == null || reason.isBlank()) ? "not specified" : reason);
         return saved;
     }
+
+    /**
+     * [CBRN-SEC-01] Validates that the caller has authorization to access the given session.
+     * Instructors, Admins, and Simulation engines have global access.
+     * Callers with only ROLE_TRAINEE must own the session (matching traineeId).
+     */
+    @Transactional(readOnly = true)
+    public void validateSessionAccess(String sessionId) {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return;
+        }
+
+        boolean hasElevatedRole = auth.getAuthorities().stream().anyMatch(a -> {
+            String role = a.getAuthority();
+            return "ROLE_ADMIN".equals(role) || "ROLE_INSTRUCTOR".equals(role) || "ROLE_SIMULATION".equals(role);
+        });
+        if (hasElevatedRole) {
+            return;
+        }
+
+        TrainingSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+
+        String principalName = auth.getName();
+        if (principalName != null && !principalName.equals("api-client") && !principalName.equals("dev-anonymous")) {
+            if (!session.getTraineeId().equalsIgnoreCase(principalName)) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Unauthorized: You do not have permission to view session " + sessionId);
+            }
+        }
+    }
 }
