@@ -7,6 +7,9 @@ import SessionDetailModal from './components/SessionDetailModal.jsx';
 import EventSimulator from './components/EventSimulator.jsx';
 import TraineeVrScreen from './components/TraineeVrScreen.jsx';
 import TacticalCommandCenter from './components/TacticalCommandCenter.jsx';
+import PersonnelSafetyMatrix from './components/PersonnelSafetyMatrix.jsx';
+import EmergencyCommandBar from './components/EmergencyCommandBar.jsx';
+import MultiplayerCoopManager from './components/MultiplayerCoopManager.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import Login from './components/Login.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
@@ -33,37 +36,6 @@ const FALLBACK_STATS = {
       recommendations: [
         'Excellent response speed in donning level A chemical suit.',
         'Rapid perimeter isolation achieved within 90 seconds.',
-        'Maintained proper windward approach to leaking drum.',
-      ],
-    },
-    {
-      sessionId: 'sess-demo-02',
-      traineeName: 'Sub-Inspector Ananya Rao',
-      batchUnit: '4th NDRF Battalion',
-      scenarioTitle: 'Chlorine Gas Leak Response',
-      scenarioCode: 'CBRN-CHEM-01',
-      finalScore: 68,
-      passStatus: 'FAILED',
-      totalDurationSeconds: 230,
-      startedAt: new Date(Date.now() - 7200000).toISOString(),
-      completedAt: new Date(Date.now() - 6970000).toISOString(),
-      mistakes: [
-        {
-          stage: 'PPE Donning',
-          severity: 'HIGH',
-          description: 'Entered hazard perimeter before sealing suit respirator valve.',
-          deductionPoints: 15,
-        },
-        {
-          stage: 'Detection',
-          severity: 'MEDIUM',
-          description: 'Failed to hold PID sensor within 1m of drum seam.',
-          deductionPoints: 10,
-        },
-      ],
-      recommendations: [
-        'Always complete full cross-check of suit seals before entering hot zone.',
-        'Calibrate PID photoionization detector at fresh-air baseline.',
       ],
     },
   ],
@@ -74,7 +46,8 @@ function CommandDashboard({ onReturnHome }) {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
-  const [activeMode, setActiveMode] = useState('analytics'); // 'tactical' | 'analytics' | 'test' | 'all'
+  const [activeMode, setActiveMode] = useState('singlepane'); // 'singlepane' | 'tactical' | 'analytics' | 'test'
+  const [activeTeamId, setActiveTeamId] = useState('alpha');
   const [showDrillModal, setShowDrillModal] = useState(false);
 
   const fetchDashboardStats = async () => {
@@ -99,6 +72,27 @@ function CommandDashboard({ onReturnHome }) {
     fetchDashboardStats();
   }, []);
 
+  // Global Tactical Keybindings
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setActiveMode('tactical');
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        setActiveMode('singlepane');
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        fetchDashboardStats();
+      } else if (e.key === 'Escape') {
+        setSelectedSession(null);
+        setShowDrillModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <>
       {/* Full-page animated 3D background layer */}
@@ -114,6 +108,9 @@ function CommandDashboard({ onReturnHome }) {
           onTriggerEmergency={() => setShowDrillModal(true)}
           onReturnHome={onReturnHome}
         />
+
+        {/* Emergency Command Override Interface */}
+        <EmergencyCommandBar onTriggerEmergency={() => setShowDrillModal(true)} />
 
         {apiError && (
           <div
@@ -139,23 +136,27 @@ function CommandDashboard({ onReturnHome }) {
           </div>
         )}
 
-        {/* VIEW MODE 1: Tactical Radar Operations */}
-        {(activeMode === 'tactical' || activeMode === 'all') && (
-          <TacticalCommandCenter
-            onTriggerEmergency={() => setShowDrillModal(true)}
-            onRefresh={fetchDashboardStats}
-          />
-        )}
-
-        {/* VIEW MODE 2: Instructor Analytics & Logs */}
-        {(activeMode === 'analytics' || activeMode === 'all') && (
+        {/* SINGLE-PANE CONSOLE (DEFAULT): Zero-Click Battalion View */}
+        {(activeMode === 'singlepane' || activeMode === 'all') && (
           <main>
-            {/* Streamlined Metrics */}
+            {/* Multi-Responder Co-Op Live Telemetry Stream */}
+            <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
+
+            {/* Environmental & Mission Metrics */}
             <MetricCards stats={stats} />
+
+            {/* Personnel Safety & SCBA Readiness Matrix */}
+            <PersonnelSafetyMatrix />
+
+            {/* Tactical Operations Radar + Incident Feed */}
+            <TacticalCommandCenter
+              onTriggerEmergency={() => setShowDrillModal(true)}
+              onRefresh={fetchDashboardStats}
+            />
 
             {/* Interactive VR Viewport Launcher */}
             <div style={{ marginBottom: '24px' }}>
-              <TraineeVrScreen onSessionComplete={fetchDashboardStats} />
+              <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={fetchDashboardStats} />
             </div>
 
             {/* Sessions Telemetry Data Table */}
@@ -166,9 +167,17 @@ function CommandDashboard({ onReturnHome }) {
           </main>
         )}
 
-        {/* VIEW MODE 3: Dev Simulator Telemetry Launcher */}
-        {(activeMode === 'test' || activeMode === 'all') && (
-          <div style={{ marginTop: activeMode === 'all' ? '24px' : '0' }}>
+        {/* VIEW MODE: Dedicated Radar Focus */}
+        {activeMode === 'tactical' && (
+          <TacticalCommandCenter
+            onTriggerEmergency={() => setShowDrillModal(true)}
+            onRefresh={fetchDashboardStats}
+          />
+        )}
+
+        {/* VIEW MODE: Dev Telemetry Simulator */}
+        {activeMode === 'test' && (
+          <div>
             <EventSimulator onSessionCreated={fetchDashboardStats} />
           </div>
         )}

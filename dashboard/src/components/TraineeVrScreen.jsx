@@ -354,6 +354,30 @@ export default function TraineeVrScreen({ onSessionComplete }) {
       actorsGroup.add(group);
     });
 
+    // ── Multi-Responder Co-Op 3D Avatars (Bravo & Charlie Team) ──
+    const matBravoSuit = trackDispose(new THREE.MeshStandardMaterial({ color: 0x8b5cf6, roughness: 0.3, metalness: 0.2 }));
+    const matCharlieSuit = trackDispose(new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.3, metalness: 0.2 }));
+
+    // Bravo Team Responder Avatar
+    const responderBravo = new THREE.Group();
+    const bravoBody = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.35, 0.3, 1.4, 16)), matBravoSuit);
+    bravoBody.position.y = 0.7;
+    const bravoHead = new THREE.Mesh(trackDispose(new THREE.SphereGeometry(0.22, 16, 16)), matYellowSafety);
+    bravoHead.position.y = 1.55;
+    responderBravo.add(bravoBody, bravoHead);
+    responderBravo.position.set(-1.8, 0, 7.4);
+    actorsGroup.add(responderBravo);
+
+    // Charlie Team Responder Avatar
+    const responderCharlie = new THREE.Group();
+    const charlieBody = new THREE.Mesh(trackDispose(new THREE.CylinderGeometry(0.35, 0.3, 1.4, 16)), matCharlieSuit);
+    charlieBody.position.y = 0.7;
+    const charlieHead = new THREE.Mesh(trackDispose(new THREE.SphereGeometry(0.22, 16, 16)), matYellowSafety);
+    charlieHead.position.y = 1.55;
+    responderCharlie.add(charlieBody, charlieHead);
+    responderCharlie.position.set(0.0, 0, 3.2);
+    actorsGroup.add(responderCharlie);
+
     // ── 4-Line Color-Coded Piping Manifold on Rear Wall ──
     const pipeY = [3.8, 4.05, 4.3, 4.55];
     const pipeMats = [matPipeRed, matPipeYellow, matPipeBlue, matPipeGreen];

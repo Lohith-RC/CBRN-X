@@ -1,5 +1,5 @@
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Lora', Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Premium Dark Theme Palette */
@@ -66,13 +66,11 @@ body {
   position: absolute;
   inset: 0;
   border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    transparent 40%,
-    transparent 60%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.02) 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -89,11 +87,9 @@ body {
 
 /* ── Dark Glass Card with Deep Glow ── */
 .glass-card-deep {
-  background: linear-gradient(
-    145deg,
-    rgba(15, 23, 40, 0.85) 0%,
-    rgba(10, 16, 28, 0.92) 100%
-  );
+  background: linear-gradient(145deg,
+      rgba(15, 23, 40, 0.85) 0%,
+      rgba(10, 16, 28, 0.92) 100%);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -114,13 +110,11 @@ body {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(16, 185, 129, 0.06),
-    rgba(139, 92, 246, 0.06),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(16, 185, 129, 0.06),
+      rgba(139, 92, 246, 0.06),
+      transparent);
   transition: left 0.7s ease;
   pointer-events: none;
 }
@@ -149,14 +143,12 @@ body {
   position: absolute;
   inset: -2px;
   border-radius: 18px;
-  background: conic-gradient(
-    from 0deg,
-    transparent,
-    var(--accent-green),
-    transparent,
-    var(--accent-purple),
-    transparent
-  );
+  background: conic-gradient(from 0deg,
+      transparent,
+      var(--accent-green),
+      transparent,
+      var(--accent-purple),
+      transparent);
   z-index: -1;
   animation: glow-spin 4s linear infinite;
   opacity: 0;
@@ -169,7 +161,9 @@ body {
 }
 
 @keyframes glow-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Dark Mode Badges ── */
@@ -206,13 +200,23 @@ body {
   box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
 }
 
-/* ── Dark Buttons with Emerald Green & Royal Purple Highlights ── */
+/* ── Dark Capsule Buttons System (Lora Regular Typography) ── */
+button,
+.btn-primary,
+.btn-secondary,
+.btn-glow,
+.btn-tactical,
+.btn-outline {
+  border-radius: 9999px !important;
+  font-family: var(--font-sans) !important;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
+  padding: 10px 24px;
+  border-radius: 9999px !important;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -269,23 +273,49 @@ body {
 
 /* ── Animations ── */
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.02); }
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
 }
 
 @keyframes scan-line {
-  0% { top: -2px; }
-  100% { top: calc(100% + 2px); }
+  0% {
+    top: -2px;
+  }
+
+  100% {
+    top: calc(100% + 2px);
+  }
 }
 
 @keyframes float-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
 }
 
 @keyframes fade-in-up {
@@ -293,6 +323,7 @@ body {
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -300,8 +331,15 @@ body {
 }
 
 @keyframes border-glow-pulse {
-  0%, 100% { border-color: rgba(16, 185, 129, 0.2); }
-  50% { border-color: rgba(139, 92, 246, 0.5); }
+
+  0%,
+  100% {
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+
+  50% {
+    border-color: rgba(139, 92, 246, 0.5);
+  }
 }
 
 .animate-pulse-glow {
@@ -317,12 +355,10 @@ body {
 }
 
 .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(16, 185, 129, 0.08) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(16, 185, 129, 0.08) 50%,
+      transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
 }
@@ -333,7 +369,9 @@ body {
 
 /* ── Score Ring Animation ── */
 @keyframes score-ring-fill {
-  from { stroke-dashoffset: 283; }
+  from {
+    stroke-dashoffset: 283;
+  }
 }
 
 .score-ring {
@@ -364,13 +402,16 @@ body {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.3);
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-green);
 }
@@ -543,21 +584,43 @@ body {
 }
 
 @keyframes pulse-beacon-anim {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(1.3); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(1.3);
+  }
 }
 
 /* ── Responsive Polish & Breakpoints ── */
 @media (max-width: 768px) {
-  .glass-panel { border-radius: 12px; padding: 16px !important; }
-  .glass-card-deep { border-radius: 12px; }
-  .radar-chart-container { height: 220px !important; }
+  .glass-panel {
+    border-radius: 12px;
+    padding: 16px !important;
+  }
+
+  .glass-card-deep {
+    border-radius: 12px;
+  }
+
+  .radar-chart-container {
+    height: 220px !important;
+  }
 }
 
 @media (min-width: 1080px) {
-  .glass-panel { max-width: 940px; }
+  .glass-panel {
+    max-width: 940px;
+  }
 }
 
 @media (min-width: 1440px) {
-  .glass-panel { max-width: 1040px; }
+  .glass-panel {
+    max-width: 1040px;
+  }
 }
