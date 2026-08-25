@@ -5,7 +5,7 @@ import IncidentLogFeed from './IncidentLogFeed.jsx';
 import TraineeOverviewPanel from './TraineeOverviewPanel.jsx';
 import TacticalPerformanceBar from './TacticalPerformanceBar.jsx';
 
-export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh, liveTelemetry, activeSessionId }) {
+export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '28px' }}>
       {/* Top 3-Column Grid */}
@@ -31,7 +31,7 @@ export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh, l
             flexDirection: 'column',
           }}
         >
-          <TacticalMapCanvas liveTelemetry={liveTelemetry} activeSessionId={activeSessionId} />
+          <TacticalMapCanvas />
         </div>
 
         {/* Right Stack: Incident Feed + Trainee Overview */}

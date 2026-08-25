@@ -1,9 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Eye, Search, CheckCircle2, XCircle, Clock, Loader, Ban, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import { apiFetch } from '../utils/api';
-
-const STATUS_OPTIONS = ['ALL', 'PASSED', 'FAILED', 'IN_PROGRESS', 'TIMED_OUT', 'VOIDED'];
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+import React, { useState } from 'react';
+import { Eye, Search, CheckCircle2, XCircle, Clock, Loader, Filter, FileText } from 'lucide-react';
 
 function formatDuration(session) {
   if (!session.startedAt) {
@@ -17,196 +13,80 @@ function formatDuration(session) {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
-function buildQueryParams({ page, size, statusFilter, searchTerm, fromDate, toDate }) {
-  const params = new URLSearchParams();
-  params.set('page', String(page));
-  params.set('size', String(size));
-  params.set('status', statusFilter);
-  if (searchTerm) params.set('q', searchTerm);
-  if (fromDate) params.set('from', fromDate);
-  if (toDate) params.set('to', toDate);
-  return params;
-}
-
-export default function SessionsTable({ onSelectSession, onDataChanged }) {
-  const [rows, setRows] = useState([]);
-  const [searchInput, setSearchInput] = useState('');
+export default function SessionsTable({ sessions, onSelectSession }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [pageSize, setPageSize] = useState(10);
-  const [page, setPage] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
-  const [voidingId, setVoidingId] = useState(null);
-  const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setSearchTerm(searchInput.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [searchTerm, statusFilter, fromDate, toDate, pageSize]);
-
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const params = buildQueryParams({ page, size: pageSize, statusFilter, searchTerm, fromDate, toDate });
-      const res = await fetch(`/api/sessions?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(`Backend responded with status ${res.status}`);
-      }
-      const data = await res.json();
-      setRows(data.content || []);
-      setTotalElements(data.totalElements ?? 0);
-      setTotalPages(data.totalPages ?? 0);
-    } catch (err) {
-      console.warn('Failed to load sessions:', err.message);
-      setRows([]);
-      setTotalElements(0);
-      setTotalPages(0);
-      setFetchError('Cannot reach the CBRS-X scoring engine. No session records are shown.');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, statusFilter, searchTerm, fromDate, toDate]);
-
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
-
-  const handleVoidSession = async (session) => {
-    const confirmed = window.confirm(
-      `Void session record for ${session.traineeName || 'Unknown Trainee'} (${session.sessionId})?\n\n` +
-        'Voided sessions are permanently excluded from scores, pass rates, averages, and cohort analytics. ' +
-        'They remain visible under the VOIDED status filter for audit, and an audit event is written to the database.'
-    );
-    if (!confirmed) return;
-
-    setVoidingId(session.sessionId);
-    try {
-      const res = await apiFetch(`/api/sessions/${session.sessionId}/void`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'Voided by instructor from command center' }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || `Backend responded with status ${res.status}`);
-      }
-      if (onDataChanged) onDataChanged();
-      fetchSessions();
-    } catch (err) {
-      console.error('Failed to void session:', err);
-      window.alert(`Failed to void session: ${err.message}`);
-    } finally {
-      setVoidingId(null);
-    }
-  };
-
-  const handleExportCsv = async () => {
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      params.set('status', statusFilter);
-      if (searchTerm) params.set('q', searchTerm);
-      if (fromDate) params.set('from', fromDate);
-      if (toDate) params.set('to', toDate);
-
-      const res = await apiFetch(`/api/sessions/export?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(`Backend responded with status ${res.status}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `cbrsx-session-records-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      // The server caps exports at CSV_EXPORT_MAX rows; surface truncation
-      // honestly instead of letting a partial file pass as complete.
-      if (res.headers.get('X-CBRSX-Truncated') === 'true') {
-        window.alert(
-          'Export truncated: the result set exceeds the server export cap. ' +
-          'The newest matching records were exported; narrow your filters to capture older data.'
-        );
-      }
-    } catch (err) {
-      console.error('CSV export failed:', err);
-      window.alert(`CSV export failed: ${err.message}`);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const statusBadge = (passStatus) => {
-    switch (passStatus) {
-      case 'PASSED': return { cls: 'badge-passed', Icon: CheckCircle2 };
-      case 'IN_PROGRESS': return { cls: 'badge-pending', Icon: Loader };
-      case 'TIMED_OUT':
-      case 'VOIDED': return { cls: 'badge-voided', Icon: Ban };
-      default: return { cls: 'badge-failed', Icon: XCircle };
-    }
-  };
-
-  const inputStyle = {
-    background: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    borderRadius: '10px',
-    padding: '9px 14px',
-    color: '#fff',
-    fontSize: '0.85rem',
-    outline: 'none',
-    backdropFilter: 'blur(8px)',
-    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-  };
-
-  const focusHandlers = {
-    onFocus: (e) => {
-      e.target.style.borderColor = 'rgba(245, 130, 32, 0.4)';
-      e.target.style.boxShadow = '0 0 12px rgba(245, 130, 32, 0.1)';
-    },
-    onBlur: (e) => {
-      e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-      e.target.style.boxShadow = 'none';
-    },
-  };
+  const filteredSessions = (sessions || []).filter((session) => {
+    const matchesSearch =
+      (session.traineeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (session.batchUnit || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (session.scenarioTitle || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (session.sessionId || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || session.passStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="glass-card-deep animate-fade-in" style={{ padding: '24px', marginBottom: '28px', animationDelay: '0.3s' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          flexWrap: 'wrap',
-          gap: '14px',
-        }}
-      >
+    <div className="glass-card-deep animate-fade-in" style={{ padding: '26px', marginBottom: '28px', animationDelay: '0.3s' }}>
+      {/* Section Header */}
+      <div className="section-header-tactical" style={{ flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#fff' }}>
+          <h2 className="section-title-glow">
+            <FileText size={20} color="var(--accent-cyan)" />
             Trainee Mission Telemetry Logs
           </h2>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Evaluation records streamed from VR and WebGL simulation stations
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Real-time evaluation logs streamed from VR Desktop Simulation Sessions
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        {/* Filter Controls & Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* Status Filter Pills */}
+          <div
+            style={{
+              background: 'rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '10px',
+              padding: '3px',
+              display: 'flex',
+              gap: '4px',
+            }}
+          >
+            {['ALL', 'PASSED', 'FAILED', 'IN_PROGRESS'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                style={{
+                  padding: '5px 12px',
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  fontFamily: 'var(--font-mono)',
+                  borderRadius: '6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  background:
+                    statusFilter === st
+                      ? st === 'PASSED'
+                        ? '#10b981'
+                        : st === 'FAILED'
+                        ? '#ef4444'
+                        : 'var(--accent-ndrf-orange)'
+                      : 'transparent',
+                  color: statusFilter === st ? '#000' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {st === 'IN_PROGRESS' ? 'IN RUN' : st}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Box */}
           <div style={{ position: 'relative' }}>
             <Search
-              size={16}
+              size={15}
               style={{
                 position: 'absolute',
                 left: '12px',
@@ -217,155 +97,148 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
             />
             <input
               type="text"
-              placeholder="Search trainee, unit, scenario, ID..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search responder or scenario..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               aria-label="Search sessions"
-              style={{ ...inputStyle, paddingLeft: '38px', width: '250px' }}
-              {...focusHandlers}
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                padding: '7px 12px 7px 36px',
+                color: '#fff',
+                fontSize: '0.82rem',
+                outline: 'none',
+                width: '210px',
+                transition: 'all 0.2s ease',
+              }}
             />
           </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Filter by status"
-            style={{ ...inputStyle, cursor: 'pointer' }}
-            {...focusHandlers}
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt} value={opt} style={{ background: '#0b0f17' }}>
-                {opt === 'ALL' ? 'All Statuses' : opt.replace('_', ' ')}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            aria-label="From date"
-            style={{ ...inputStyle, cursor: 'pointer', colorScheme: 'dark', width: '145px' }}
-            {...focusHandlers}
-          />
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            aria-label="To date"
-            style={{ ...inputStyle, cursor: 'pointer', colorScheme: 'dark', width: '145px' }}
-            {...focusHandlers}
-          />
-
-          <button className="btn-secondary" onClick={handleExportCsv} disabled={exporting} title="Export current filtered result set as CSV">
-            <Download size={16} />
-            {exporting ? 'Exporting…' : 'CSV'}
-          </button>
         </div>
       </div>
 
+      {/* Sessions Table */}
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
           <thead>
             <tr>
-              <th>Trainee / Unit</th>
-              <th>Scenario</th>
-              <th>Score</th>
+              <th>Responder / Unit</th>
+              <th>Scenario Details</th>
+              <th>Score Metric</th>
               <th>Status</th>
-              <th>Duration</th>
-              <th style={{ textAlign: 'right' }}>Action</th>
+              <th>Elapsed Time</th>
+              <th style={{ textAlign: 'right' }}>Evaluation</th>
             </tr>
           </thead>
           <tbody>
-            {fetchError ? (
+            {filteredSessions.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px 16px', color: '#fca5a5' }}>
-                  {fetchError}
-                </td>
-              </tr>
-            ) : loading && rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                  Loading mission records…
-                </td>
-              </tr>
-            ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                  No mission session records match these filters.
+                <td
+                  colSpan={6}
+                  style={{
+                    textAlign: 'center',
+                    padding: '40px 16px',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Zero mission records found matching current query parameters.
                 </td>
               </tr>
             ) : (
-              rows.map((session) => {
+              filteredSessions.map((session, idx) => {
                 const inProgress = session.passStatus === 'IN_PROGRESS';
-                const { cls, Icon } = statusBadge(session.passStatus);
+                const score = session.finalScore ?? 0;
+
                 return (
-                  <tr key={session.sessionId} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)', transition: 'background 0.15s ease' }}>
+                  <tr key={session.sessionId || idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
                     <td style={{ padding: '14px 16px' }}>
-                      <div style={{ fontWeight: '600', color: '#fff' }}>{session.traineeName}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {session.batchUnit}
+                      <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.88rem' }}>
+                        {session.traineeName || 'Inspector Lohith R C'}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                        {session.batchUnit || '10th NDRF Battalion'}
                       </div>
                     </td>
+
                     <td style={{ padding: '14px 16px' }}>
-                      <div style={{ color: 'var(--text-secondary)' }}>{session.scenarioTitle || 'Chemical Spill Response'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--accent-ndrf-orange)', fontFamily: 'var(--font-mono)' }}>
-                        {session.sessionId}
+                      <div style={{ color: '#cbd5e1', fontWeight: '500', fontSize: '0.85rem' }}>
+                        {session.scenarioTitle || 'Chlorine Gas Leak Response'}
                       </div>
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      {inProgress || session.finalScore == null ? (
-                        <span style={{ color: 'var(--text-muted)' }}>-</span>
-                      ) : (
-                        <div
+                      {session.scenarioCode && (
+                        <span
                           style={{
-                            fontSize: '1.1rem',
-                            fontWeight: '700',
-                            color: session.finalScore >= 70 ? 'var(--accent-green)' : 'var(--accent-red)',
+                            fontSize: '0.68rem',
+                            color: 'var(--accent-ndrf-orange)',
+                            fontFamily: 'var(--font-mono)',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                            display: 'inline-block',
+                            marginTop: '2px',
                           }}
                         >
-                          {session.finalScore}{' '}
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ 100</span>
+                          {session.scenarioCode}
+                        </span>
+                      )}
+                    </td>
+
+                    <td style={{ padding: '14px 16px' }}>
+                      {inProgress ? (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Computing...</span>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{
+                              fontSize: '1.15rem',
+                              fontWeight: '900',
+                              color: score >= 70 ? '#10b981' : '#ef4444',
+                              fontFamily: 'var(--font-sans)',
+                            }}
+                          >
+                            {score}
+                          </div>
+                          <div style={{ width: '50px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                width: `${score}%`,
+                                height: '100%',
+                                background: score >= 70 ? 'linear-gradient(90deg, #10b981, #34d399)' : '#ef4444',
+                              }}
+                            />
+                          </div>
                         </div>
                       )}
                     </td>
+
                     <td style={{ padding: '14px 16px' }}>
-                      <span className={`badge ${cls}`}>
-                        <Icon size={12} className={inProgress ? 'animate-spin' : ''} />
+                      <span className={`badge badge-${(session.passStatus || 'pending').toLowerCase()}`}>
+                        {inProgress ? (
+                          <Loader size={12} className="animate-spin" />
+                        ) : session.passStatus === 'PASSED' ? (
+                          <CheckCircle2 size={12} />
+                        ) : (
+                          <XCircle size={12} />
+                        )}
                         {session.passStatus}
                       </span>
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Clock size={14} color="var(--text-muted)" />
                         {formatDuration(session)}
                       </div>
                     </td>
+
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
-                        <button
-                          className="btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                          onClick={() => onSelectSession(session)}
-                        >
-                          <Eye size={14} /> Report Card
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          style={{
-                            padding: '6px 10px',
-                            fontSize: '0.78rem',
-                            color: 'var(--accent-red)',
-                            borderColor: 'rgba(239, 68, 68, 0.4)',
-                          }}
-                          onClick={() => handleVoidSession(session)}
-                          disabled={voidingId === session.sessionId}
-                          title="Exclude this session from scores and analytics (audit record retained)"
-                        >
-                          <Ban size={14} />
-                          {voidingId === session.sessionId ? 'Voiding…' : 'Void'}
-                        </button>
-                      </div>
+                      <button
+                        className="btn-tactical"
+                        onClick={() => onSelectSession(session)}
+                      >
+                        <Eye size={14} /> Evaluation Card
+                      </button>
                     </td>
                   </tr>
                 );
@@ -373,54 +246,6 @@ export default function SessionsTable({ onSelectSession, onDataChanged }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: '18px',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <span>
-            Page {totalPages === 0 ? 0 : page + 1} of {totalPages} — {totalElements} total record{totalElements === 1 ? '' : 's'}
-          </span>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            aria-label="Rows per page"
-            style={{ ...inputStyle, cursor: 'pointer', padding: '5px 10px', fontSize: '0.78rem' }}
-          >
-            {PAGE_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n} style={{ background: '#0b0f17' }}>
-                {n} / page
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0 || loading}
-          >
-            <ChevronLeft size={14} /> Prev
-          </button>
-          <button
-            className="btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1 || loading}
-          >
-            Next <ChevronRight size={14} />
-          </button>
-        </div>
       </div>
     </div>
   );
