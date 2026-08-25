@@ -86,14 +86,8 @@ export default function TacticalMapCanvas() {
       ctx.lineWidth = 8;
       ctx.beginPath(); ctx.moveTo(0, H * 0.5); ctx.lineTo(W, H * 0.5); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(W * 0.5, 0); ctx.lineTo(W * 0.5, H); ctx.stroke();
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(139, 92, 246, 0.25)';
-      ctx.beginPath(); ctx.moveTo(0, H * 0.5); ctx.lineTo(W, H * 0.5); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(W * 0.5, 0); ctx.lineTo(W * 0.5, H); ctx.stroke();
-      ctx.setLineDash([]);
 
-      // Safe Perimeter Polyline (Emerald Green)
+      // Safe Perimeter Polyline
       ctx.setLineDash([6, 4]);
       ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
       ctx.lineWidth = 1.5;
@@ -129,7 +123,7 @@ export default function TacticalMapCanvas() {
         ctx.fillText(b.label, bx + bw / 2, by + bh / 2 + 3);
       });
 
-      // Animated Pulsing Hazard Zones
+      // Hazard Zones
       HAZARD_ZONES.forEach((hz) => {
         const cx = hz.x * W;
         const cy = hz.y * H;
@@ -153,23 +147,13 @@ export default function TacticalMapCanvas() {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Hazard Icon (Triangle)
-        const ts = 7;
-        ctx.fillStyle = `${hz.color}cc`;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - ts);
-        ctx.lineTo(cx - ts * 0.86, cy + ts * 0.5);
-        ctx.lineTo(cx + ts * 0.86, cy + ts * 0.5);
-        ctx.closePath();
-        ctx.fill();
-
         ctx.fillStyle = `${hz.color}ee`;
         ctx.font = '8px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.fillText(hz.label, cx, cy + r * pulse + 14);
       });
 
-      // Team Markers (Drifting + Ping Animation)
+      // Team Markers
       markers.forEach((m, idx) => {
         m.x += m.vx;
         m.y += m.vy;
@@ -179,7 +163,6 @@ export default function TacticalMapCanvas() {
         const mx = m.x * W;
         const my = m.y * H;
 
-        // Ping Ring
         const pingAlpha = (Math.sin(mapTime * 2.5 + idx) + 1) / 2;
         const pingR = 12 + pingAlpha * 8;
         ctx.strokeStyle = `${m.color}${Math.round(pingAlpha * 70).toString(16).padStart(2, '0')}`;
@@ -188,19 +171,11 @@ export default function TacticalMapCanvas() {
         ctx.arc(mx, my, pingR, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Solid Dot
         ctx.fillStyle = m.color;
         ctx.beginPath();
         ctx.arc(mx, my, 5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Inner Specular
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.beginPath();
-        ctx.arc(mx - 1.5, my - 1.5, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Label Badge
         const lbl = m.label;
         ctx.font = 'bold 9px "JetBrains Mono", monospace';
         const tw = ctx.measureText(lbl).width;
@@ -208,8 +183,7 @@ export default function TacticalMapCanvas() {
         const ly = my - 18;
         ctx.fillStyle = 'rgba(11, 17, 32, 0.85)';
         ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(lx, ly, tw + 8, 14, 3) : ctx.fillRect(lx, ly, tw + 8, 14);
-        ctx.fill();
+        ctx.fillRect(lx, ly, tw + 8, 14);
 
         ctx.fillStyle = m.color;
         ctx.textAlign = 'center';
@@ -233,31 +207,10 @@ export default function TacticalMapCanvas() {
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = '#64748b';
-      ctx.beginPath();
-      ctx.moveTo(compX, compY + 12);
-      ctx.lineTo(compX - 3.5, compY);
-      ctx.lineTo(compX + 3.5, compY);
-      ctx.closePath();
-      ctx.fill();
-
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 8px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.fillText('N', compX, compY - 18);
-
-      // Scale Bar
-      const sbx = W - 100;
-      const sby = H - 18;
-      ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(sbx, sby); ctx.lineTo(sbx + 70, sby); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(sbx, sby - 3); ctx.lineTo(sbx, sby + 3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(sbx + 70, sby - 3); ctx.lineTo(sbx + 70, sby + 3); ctx.stroke();
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '8px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('200m', sbx + 35, sby - 5);
 
       animFrameId = requestAnimationFrame(render);
     };
@@ -271,80 +224,8 @@ export default function TacticalMapCanvas() {
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#05080e', overflow: 'hidden' }}>
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
-
-      {/* Top Map Info Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '12px',
-          background: 'rgba(11, 17, 32, 0.85)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '8px',
-          padding: '6px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          fontSize: '0.72rem',
-          fontFamily: 'var(--font-mono)',
-          pointerEvents: 'none',
-        }}
-      >
-        <span style={{ color: 'var(--text-muted)' }}>SECTOR:</span>
-        <strong style={{ color: 'var(--accent-purple)' }}>DELTA-7</strong>
-        <span style={{ height: '12px', width: '1px', background: 'var(--border-subtle)' }} />
-        <span style={{ color: 'var(--text-muted)' }}>SCALE:</span>
-        <span style={{ color: '#fff' }}>1:2500</span>
-        <span style={{ height: '12px', width: '1px', background: 'var(--border-subtle)' }} />
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-green)', boxShadow: '0 0 8px var(--accent-green)' }} className="animate-pulse" />
-          LIVE RADAR
-        </span>
-      </div>
-
-      {/* Bottom Map Legend Overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '12px',
-          left: '12px',
-          background: 'rgba(11, 17, 32, 0.88)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '8px',
-          padding: '10px 14px',
-          fontSize: '0.7rem',
-          fontFamily: 'var(--font-mono)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '6px',
-          pointerEvents: 'none',
-          minWidth: '150px',
-        }}
-      >
-        <div style={{ color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.05em', marginBottom: '2px' }}>
-          MAP LEGEND
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
-          Team Positions
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#8b5cf6' }} />
-          Hazard Perimeter
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#06b6d4' }} />
-          Chemical Source
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
-          Safe Perimeter
-        </div>
-      </div>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
     </div>
   );
 }

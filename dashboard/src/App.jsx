@@ -149,6 +149,7 @@ function CommandDashboard({ onReturnHome }) {
               missionStage="Stage 2: Donning Level-A Suit & Hot-Zone Recon"
               unit={stats?.recentSessions?.[0]?.batchUnit || '10th NDRF Battalion'}
               status="IN MISSION"
+              onOpenReplay={() => setSelectedSession(stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0])}
             />
 
             {/* Multi-Responder Co-Op Live Telemetry Stream */}

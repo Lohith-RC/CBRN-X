@@ -7,6 +7,7 @@ export default function TraineeMetadataCard({
   missionStage = 'Stage 2: Donning Level-A Suit & Hot-Zone Recon',
   unit = '10th NDRF Battalion',
   status = 'IN MISSION',
+  onOpenReplay,
 }) {
   const STAGES = [
     { label: 'Stage 1: Briefing', done: true },
@@ -67,9 +68,35 @@ export default function TraineeMetadataCard({
             ACTIVE TRAINEE METADATA CONSOLE
           </span>
         </div>
-        <span className="badge badge-pending animate-pulse-glow" style={{ fontSize: '0.7rem', padding: '3px 10px' }}>
-          <span className="pulse-beacon" /> {status}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenReplay && (
+            <button
+              onClick={onOpenReplay}
+              style={{
+                padding: '5px 12px',
+                fontSize: '0.72rem',
+                fontWeight: '800',
+                fontFamily: 'var(--font-mono)',
+                borderRadius: '8px',
+                border: '1px solid rgba(6, 182, 212, 0.5)',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(2, 132, 199, 0.3))',
+                color: '#38bdf8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 0 12px rgba(6, 182, 212, 0.25)',
+              }}
+            >
+              🎛️ Launch Mission DVR Replay
+            </button>
+          )}
+
+          <span className="badge badge-pending animate-pulse-glow" style={{ fontSize: '0.7rem', padding: '3px 10px' }}>
+            <span className="pulse-beacon" /> {status}
+          </span>
+        </div>
       </div>
 
       {/* Main Metadata Grid */}
