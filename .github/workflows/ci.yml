@@ -99,30 +99,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Backend Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: false
-          tags: cbrsx-backend:test
-
-      - name: Build Dashboard Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./dashboard
-          push: false
-          tags: cbrsx-dashboard:test
-
-      - name: Build Trainee View Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./trainee_view
-          push: false
-          tags: cbrsx-trainee-view:test
-
       - name: Validate Docker Compose Config
         run: docker compose config
+
+      - name: Build All Docker Containers via Compose
+        run: docker compose build
 
