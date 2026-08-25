@@ -2,6 +2,12 @@
 
 A production-grade pipeline and automation framework for discovering, acquiring, importing, and integrating free Unity Asset Store assets with architectural and visual cohesion.
 
+**Authored By:**
+- **Harshini R B**: Unity Environment Artist & 3D Asset Developer
+- **Chandana M N**: Frontend Developer, Designer & Unity Physics Developer
+- **Lohith R C**: Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager
+- **Pavitra J H**: UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker
+
 ---
 
 ## 🎯 Pipeline Overview

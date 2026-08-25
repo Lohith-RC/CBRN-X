@@ -101,12 +101,12 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
   };
 
   const teamMembers = [
-    'Lohith R C',
-    'Monica K S',
-    'Chandana M N',
-    'Harshini R B',
-    'Chandana M P',
-    'Pavitra J H',
+    { name: 'Lohith R C', role: 'Team Lead, Unity Dev, Designer, DBA, Frontend Verifier, Backend Dev, Version Control Mgr' },
+    { name: 'Monica K S', role: 'Backend Dev & DBA' },
+    { name: 'Chandana M P', role: 'Admin Dashboard Dev (Frontend & Backend) & Workflow Mgr' },
+    { name: 'Chandana M N', role: 'Frontend Dev, Designer & Unity Physics Dev' },
+    { name: 'Harshini R B', role: 'Unity Environment Artist & 3D Asset Dev' },
+    { name: 'Pavitra J H', role: 'UI/UX Designer, Tester, Doc Mgr & Progress Tracker' },
   ];
 
   return (
@@ -490,13 +490,14 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
           style={{
             fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
             fontSize: '10.5px',
-            color: 'rgba(148, 163, 184, 0.45)',
+            color: 'rgba(148, 163, 184, 0.65)',
             letterSpacing: '0.02em',
             margin: 0,
-            lineHeight: 1.4,
+            lineHeight: 1.6,
+            maxWidth: '1200px',
           }}
         >
-          {teamMembers.join('  •  ')}
+          {teamMembers.map((m) => `${m.name} [${m.role}]`).join('  •  ')}
         </p>
       </footer>
     </div>

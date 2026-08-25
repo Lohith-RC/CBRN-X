@@ -4,6 +4,13 @@
 **Target Platform:** `CBRS-X (Chemical, Biological, Radiological Disaster Response Ecosystem)`  
 **Target Horizons:** `Horizon 1 (0-3 Months) | Horizon 2 (3-6 Months) | Horizon 3 (6-12 Months)`  
 **Audience:** `Engineering Task Force, Solution Architects, NDRF Stakeholders & Executive Leadership`  
+**Task Force Team Roles (SIH260088):**
+- **Lohith R C**: Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager
+- **Monica K S**: Backend Developer & Database Administrator
+- **Chandana M P**: Admin Dashboard Developer (Frontend and Backend) & Workflow Manager
+- **Chandana M N**: Frontend Developer, Designer & Unity Physics Developer
+- **Harshini R B**: Unity Environment Artist & 3D Asset Developer
+- **Pavitra J H**: UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker
 
 ---
 

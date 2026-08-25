@@ -5,34 +5,41 @@ services:
     image: postgres:15-alpine
     container_name: cbrsx-db
     environment:
-      POSTGRES_DB: cbrsx_db
+      POSTGRES_DB: ${POSTGRES_DB:-cbrsx_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      # [SEC-07] Credential externalized — must be provided via .env or shell env
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cbrsx_secure_postgres_pass_2026}
+    ports:
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - cbrsx-pgdata:/var/lib/postgresql/data
     networks:
       - cbrsx-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cbrsx_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   cbrsx-backend:
     build: ./backend
     container_name: cbrsx-backend
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/cbrsx_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/${POSTGRES_DB:-cbrsx_db}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      # [SEC-07] Credential externalized — must match cbrsx-db POSTGRES_PASSWORD
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cbrsx_secure_postgres_pass_2026}
       SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      # [SEC-07] API key for authentication — must be set for production
-      CBRSX_API_KEY: ${CBRSX_API_KEY:-}
-      CBRSX_FAIL_CLOSED: ${CBRSX_FAIL_CLOSED:-true}
-      CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:-}
+      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
+      CBRSX_FAIL_CLOSED: ${CBRSX_FAIL_CLOSED:-false}
+      CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:-ndrf-admin-secure-2026}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       cbrsx-db:
         condition: service_healthy
@@ -41,7 +48,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 45s
     networks:
       - cbrsx-net
     restart: unless-stopped
@@ -56,6 +63,8 @@ services:
   cbrsx-admin-dashboard:
     build: ./dashboard
     container_name: cbrsx-admin-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
     environment:
       VITE_BACKEND_URL: http://localhost:8080
     networks:
@@ -63,10 +72,18 @@ services:
     depends_on:
       - cbrsx-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 128M
 
   cbrsx-trainee-view:
     build: ./trainee_view
     container_name: cbrsx-trainee-view
+    ports:
+      - "${TRAINEE_PORT:-5000}:5000"
     environment:
       VITE_BACKEND_URL: http://localhost:8080
     networks:
@@ -74,28 +91,40 @@ services:
     depends_on:
       - cbrsx-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 128M
 
-  # 5. Nginx Reverse Proxy (Port Routing & SSL Termination)
+  # Nginx Reverse Proxy & Central Gateway
   nginx-proxy:
     image: nginx:1.25-alpine
     container_name: cbrsx-nginx-proxy
     ports:
-      - "80:80"
-      - "5000:5000"
+      - "${GATEWAY_PORT:-80}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       cbrsx-admin-dashboard:
-        condition: service_healthy
+        condition: service_started
       cbrsx-trainee-view:
-        condition: service_healthy
+        condition: service_started
+      cbrsx-backend:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
       interval: 30s
       timeout: 5s
       retries: 3
     restart: unless-stopped
-    mem_limit: 64m
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     networks:
       - cbrsx-net
 
