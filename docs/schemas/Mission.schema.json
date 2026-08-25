@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cbrsx.ndrf.gov.in/schemas/Mission.schema.json",
+  "title": "Mission",
+  "description": "Standardized disaster simulation scenario definition",
+  "type": "object",
+  "required": [
+    "scenarioId",
+    "code",
+    "title",
+    "maxScore"
+  ],
+  "properties": {
+    "scenarioId": {
+      "type": "string",
+      "description": "Unique scenario primary key (e.g. scen-chem-01)"
+    },
+    "code": {
+      "type": "string",
+      "enum": ["CBRN-CHEM-01", "CBRN-RAD-02", "CBRN-BIO-03"],
+      "description": "Tactical hazard code"
+    },
+    "title": {
+      "type": "string",
+      "description": "Operational mission title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Mission narrative, objectives, and danger classification"
+    },
+    "maxScore": {
+      "type": "integer",
+      "default": 100,
+      "description": "Maximum normalized evaluation score achievable"
+    }
+  },
+  "additionalProperties": false
+}

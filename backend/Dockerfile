@@ -1,15 +1,15 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
-RUN mvn -q dependency:go-offline
+RUN mvn dependency:resolve -B -q || true
 COPY src ./src
-RUN mvn -q package -DskipTests
+RUN mvn clean package -DskipTests -B
 
 FROM eclipse-temurin:17-jre-alpine
 RUN addgroup -S cbrsx && adduser -S cbrsx -G cbrsx
 USER cbrsx
 WORKDIR /app
-COPY --from=build /app/target/cbrsx-backend-*.jar app.jar
+COPY --from=build /app/target/app.jar app.jar
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1

@@ -20,8 +20,9 @@ CREATE TABLE IF NOT EXISTS scenarios (
 -- 3. Training Sessions Table
 CREATE TABLE IF NOT EXISTS sessions (
     session_id VARCHAR(64) PRIMARY KEY,
-    trainee_id VARCHAR(64) REFERENCES trainees(trainee_id),
-    scenario_id VARCHAR(64) REFERENCES scenarios(scenario_id),
+    trainee_id VARCHAR(64) REFERENCES trainees(trainee_id) ON DELETE CASCADE,
+    scenario_id VARCHAR(64) REFERENCES scenarios(scenario_id) ON DELETE RESTRICT,
+    squad_id VARCHAR(64),
     started_at TIMESTAMP WITH TIME ZONE NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
     final_score INT,
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 -- 4. Session Events Table
 CREATE TABLE IF NOT EXISTS events (
     event_id VARCHAR(64) PRIMARY KEY,
-    session_id VARCHAR(64) REFERENCES sessions(session_id),
+    session_id VARCHAR(64) REFERENCES sessions(session_id) ON DELETE CASCADE,
     event_type VARCHAR(100) NOT NULL,
     event_data TEXT,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL

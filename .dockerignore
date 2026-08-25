@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+dist
+target
+Library
+Temp
+Logs
+Builds
+UserSettings
+Bay03_Cinematic_Screenshots
+*.log
+.env

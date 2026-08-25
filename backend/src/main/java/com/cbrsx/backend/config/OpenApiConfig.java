@@ -26,9 +26,16 @@ public class OpenApiConfig {
                         .title("CBRS-X Tactical Backend API")
                         .version("1.0.0")
                         .description("Virtual Reality Chemical, Biological, Radiological & Nuclear (CBRN) Disaster Response Training Platform. " +
-                                "Provides high-frequency simulation telemetry ingestion, automated rule-based evaluation, timeline After-Action Review (AAR), and tamper-evident certificate generation.")
+                                "Provides high-frequency simulation telemetry ingestion, automated rule-based evaluation, timeline After-Action Review (AAR), and tamper-evident certificate generation.\n\n" +
+                                "### 👥 Engineering Task Force (Team SIH260088):\n" +
+                                "- **Lohith R C**: Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager\n" +
+                                "- **Monica K S**: Backend Developer & Database Administrator\n" +
+                                "- **Chandana M P**: Admin Dashboard Developer (Frontend and Backend) & Workflow Manager\n" +
+                                "- **Chandana M N**: Frontend Developer, Designer & Unity Physics Developer\n" +
+                                "- **Harshini R B**: Unity Environment Artist & 3D Asset Developer\n" +
+                                "- **Pavitra J H**: UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker")
                         .contact(new Contact()
-                                .name("CBRS-X Engineering Team")
+                                .name("CBRS-X Engineering Task Force (Team SIH260088)")
                                 .url("https://github.com/Lohith-RC/CBRN-X"))
                         .license(new License()
                                 .name("Apache 2.0")

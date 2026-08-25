@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cbrsx.ndrf.gov.in/schemas/ScoreResult.schema.json",
+  "title": "ScoreResult",
+  "description": "Deterministic scoring breakdown and qualification audit result",
+  "type": "object",
+  "required": [
+    "sessionId",
+    "traineeName",
+    "scenarioCode",
+    "totalDurationSeconds",
+    "finalScore",
+    "passStatus",
+    "passed",
+    "breakdown"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Unique session identifier"
+    },
+    "traineeName": {
+      "type": "string",
+      "description": "Full name of evaluated responder"
+    },
+    "batchUnit": {
+      "type": "string",
+      "description": "NDRF Battalion / Unit"
+    },
+    "scenarioCode": {
+      "type": "string",
+      "description": "Scenario code evaluated"
+    },
+    "scenarioTitle": {
+      "type": "string",
+      "description": "Scenario title evaluated"
+    },
+    "totalDurationSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Elapsed mission time in seconds"
+    },
+    "finalScore": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Normalized final score (0-100)"
+    },
+    "passStatus": {
+      "type": "string",
+      "enum": ["PASSED", "FAILED", "TIMED_OUT", "VOIDED"],
+      "description": "Pass or failure certification status"
+    },
+    "passed": {
+      "type": "boolean",
+      "description": "True if finalScore >= 70"
+    },
+    "breakdown": {
+      "type": "object",
+      "required": [
+        "ppeScore",
+        "detectionScore",
+        "evacuationScore",
+        "containmentScore",
+        "decontaminationScore",
+        "timeBonusScore",
+        "totalPenalties",
+        "netScore"
+      ],
+      "properties": {
+        "ppeScore": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "detectionScore": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "evacuationScore": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "containmentScore": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "decontaminationScore": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "timeBonusScore": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "totalPenalties": { "type": "integer", "minimum": 0 },
+        "netScore": { "type": "integer", "minimum": 0, "maximum": 80 }
+      }
+    },
+    "mistakes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of safety and procedural violations committed"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Actionable NDRF SOP compliance guidance"
+    }
+  },
+  "additionalProperties": false
+}

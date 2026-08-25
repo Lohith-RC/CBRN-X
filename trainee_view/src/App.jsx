@@ -662,6 +662,7 @@ export default function App() {
           <span>TELEMETRY (5000→8080): {telemetryLogs[0] || 'Awaiting interaction...'}</span>
         </div>
         <div style={{ display: 'flex', gap: '14px', color: 'var(--text-secondary)' }}>
+          <span>SIH260088 TASK FORCE</span>
           <span>CURSOR: {cursorPos.x},{cursorPos.y}</span>
           <span>ADMIN: PORT 3000</span>
         </div>

@@ -267,7 +267,7 @@ function MainView() {
     );
   }
 
-  // 3. Newly Committed Chandana M P Admin Dashboard Flow
+  // 3. Chandana M P Admin Dashboard (Frontend & Backend Integration Flow)
   return <CommandDashboard onReturnHome={() => setView('landing')} />;
 }
 

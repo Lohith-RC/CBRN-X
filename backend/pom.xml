@@ -20,6 +20,71 @@
         <java.version>17</java.version>
         <lombok.version>1.18.36</lombok.version>
     </properties>
+
+    <developers>
+        <developer>
+            <id>lohith</id>
+            <name>Lohith R C</name>
+            <roles>
+                <role>Team Lead</role>
+                <role>Unity Developer</role>
+                <role>Designer</role>
+                <role>Database Administrator</role>
+                <role>Frontend Verifier</role>
+                <role>Backend Developer</role>
+                <role>Version Control Manager</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+        <developer>
+            <id>monica</id>
+            <name>Monica K S</name>
+            <roles>
+                <role>Backend Developer</role>
+                <role>Database Administrator</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+        <developer>
+            <id>chandana_mp</id>
+            <name>Chandana M P</name>
+            <roles>
+                <role>Admin Dashboard Developer (Frontend and Backend)</role>
+                <role>Workflow Manager</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+        <developer>
+            <id>chandana_mn</id>
+            <name>Chandana M N</name>
+            <roles>
+                <role>Frontend Developer</role>
+                <role>Designer</role>
+                <role>Unity Physics Developer</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+        <developer>
+            <id>harshini</id>
+            <name>Harshini R B</name>
+            <roles>
+                <role>Unity Environment Artist</role>
+                <role>3D Asset Developer</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+        <developer>
+            <id>pavitra</id>
+            <name>Pavitra J H</name>
+            <roles>
+                <role>UI/UX Designer</role>
+                <role>Tester</role>
+                <role>Documentation Manager</role>
+                <role>Project Progress Tracker</role>
+            </roles>
+            <organization>Kalpataru Institute of Technology</organization>
+        </developer>
+    </developers>
     
     <dependencies>
         <!-- Spring Boot Web -->
@@ -116,6 +181,7 @@
     </dependencies>
 
     <build>
+        <finalName>app</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

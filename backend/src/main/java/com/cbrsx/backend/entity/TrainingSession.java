@@ -17,6 +17,9 @@ public class TrainingSession {
     @Column(name = "scenario_id", length = 64, nullable = false)
     private String scenarioId;
 
+    @Column(name = "squad_id", length = 64)
+    private String squadId;
+
     @Column(name = "started_at", nullable = false)
     private Instant startedAt;
 
@@ -34,15 +37,20 @@ public class TrainingSession {
 
     public TrainingSession() {}
 
-    public TrainingSession(String sessionId, String traineeId, String scenarioId, Instant startedAt, Instant completedAt, Integer finalScore, String passStatus, Instant createdAt) {
+    public TrainingSession(String sessionId, String traineeId, String scenarioId, String squadId, Instant startedAt, Instant completedAt, Integer finalScore, String passStatus, Instant createdAt) {
         this.sessionId = sessionId;
         this.traineeId = traineeId;
         this.scenarioId = scenarioId;
+        this.squadId = squadId;
         this.startedAt = startedAt;
         this.completedAt = completedAt;
         this.finalScore = finalScore;
         this.passStatus = passStatus != null ? passStatus : "PENDING";
         this.createdAt = createdAt;
+    }
+
+    public TrainingSession(String sessionId, String traineeId, String scenarioId, Instant startedAt, Instant completedAt, Integer finalScore, String passStatus, Instant createdAt) {
+        this(sessionId, traineeId, scenarioId, null, startedAt, completedAt, finalScore, passStatus, createdAt);
     }
 
     @PrePersist
@@ -59,6 +67,9 @@ public class TrainingSession {
 
     public String getScenarioId() { return scenarioId; }
     public void setScenarioId(String scenarioId) { this.scenarioId = scenarioId; }
+
+    public String getSquadId() { return squadId; }
+    public void setSquadId(String squadId) { this.squadId = squadId; }
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
@@ -81,6 +92,7 @@ public class TrainingSession {
         private String sessionId;
         private String traineeId;
         private String scenarioId;
+        private String squadId;
         private Instant startedAt;
         private Instant completedAt;
         private Integer finalScore;
@@ -90,6 +102,7 @@ public class TrainingSession {
         public TrainingSessionBuilder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
         public TrainingSessionBuilder traineeId(String traineeId) { this.traineeId = traineeId; return this; }
         public TrainingSessionBuilder scenarioId(String scenarioId) { this.scenarioId = scenarioId; return this; }
+        public TrainingSessionBuilder squadId(String squadId) { this.squadId = squadId; return this; }
         public TrainingSessionBuilder startedAt(Instant startedAt) { this.startedAt = startedAt; return this; }
         public TrainingSessionBuilder completedAt(Instant completedAt) { this.completedAt = completedAt; return this; }
         public TrainingSessionBuilder finalScore(Integer finalScore) { this.finalScore = finalScore; return this; }
@@ -97,7 +110,7 @@ public class TrainingSession {
         public TrainingSessionBuilder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
 
         public TrainingSession build() {
-            return new TrainingSession(sessionId, traineeId, scenarioId, startedAt, completedAt, finalScore, passStatus, createdAt);
+            return new TrainingSession(sessionId, traineeId, scenarioId, squadId, startedAt, completedAt, finalScore, passStatus, createdAt);
         }
     }
 }
