@@ -41,6 +41,9 @@ class ScoringServiceTest {
     @Mock
     private ScenarioRepository scenarioRepository;
 
+    @org.mockito.Spy
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
     @InjectMocks
     private ScoringService scoringService;
 

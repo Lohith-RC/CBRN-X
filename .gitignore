@@ -56,6 +56,7 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+.vsconfig
 *.swp
 *.bak
 

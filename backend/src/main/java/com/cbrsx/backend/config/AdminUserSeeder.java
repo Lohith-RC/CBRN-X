@@ -28,20 +28,31 @@ public class AdminUserSeeder implements ApplicationRunner {
     private final String adminUsername;
     private final String adminPassword;
 
+    private final org.springframework.core.env.Environment environment;
+
     public AdminUserSeeder(InstructorUserRepository userRepository,
                            PasswordEncoder passwordEncoder,
                            @Value("${cbrsx.admin.username:admin}") String adminUsername,
-                           @Value("${cbrsx.admin.password:" + DEFAULT_DEV_PASSWORD + "}") String adminPassword) {
+                           @Value("${cbrsx.admin.password:" + DEFAULT_DEV_PASSWORD + "}") String adminPassword,
+                           org.springframework.core.env.Environment environment) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.adminUsername = adminUsername == null ? "admin" : adminUsername.trim();
         this.adminPassword = adminPassword == null ? "" : adminPassword;
+        this.environment = environment;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         if (userRepository.count() > 0) {
             return;
+        }
+
+        boolean prodProfile = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        if (prodProfile && (DEFAULT_DEV_PASSWORD.equals(adminPassword) || adminPassword.isBlank())) {
+            log.error("FATAL: Production profile is active but CBRSX_ADMIN_PASSWORD is set to default or empty. " +
+                    "Set a secure, unique CBRSX_ADMIN_PASSWORD before deploying to production.");
+            throw new IllegalStateException("FATAL: Cannot initialize initial admin account in production with default credentials. Set CBRSX_ADMIN_PASSWORD.");
         }
 
         InstructorUser admin = new InstructorUser();
