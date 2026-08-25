@@ -19,17 +19,27 @@ if (-not (Test-Path ".git")) {
     Write-Host "[1/5] Git repository already initialized." -ForegroundColor Green
 }
 
-# 2. Configure Remote URL (override with CBRSX_REMOTE env var if needed)
-$remoteUrl = if ($env:CBRSX_REMOTE) { $env:CBRSX_REMOTE } else { "https://github.com/Lohith-RC/CBRN-X.git" }
+# 2. Configure Remote URL.
+#    An existing 'origin' is NEVER rewritten (fork contributors must keep their
+#    own remote). Only an explicit CBRSX_REMOTE env var may change it, and it
+#    is only auto-set when no origin exists yet.
 $currentRemote = git remote get-url origin 2>$null
-if ($null -eq $currentRemote) {
-    Write-Host "[2/5] Adding remote origin: $remoteUrl" -ForegroundColor Yellow
-    git remote add origin $remoteUrl
-} elseif ($currentRemote -ne $remoteUrl) {
-    Write-Host "[2/5] Updating remote origin to: $remoteUrl" -ForegroundColor Yellow
-    git remote set-url origin $remoteUrl
+if ($env:CBRSX_REMOTE) {
+    if ($null -eq $currentRemote) {
+        Write-Host "[2/5] Adding remote origin: $($env:CBRSX_REMOTE)" -ForegroundColor Yellow
+        git remote add origin $env:CBRSX_REMOTE
+    } elseif ($currentRemote -ne $env:CBRSX_REMOTE) {
+        Write-Host "[2/5] Updating remote origin to: $($env:CBRSX_REMOTE)" -ForegroundColor Yellow
+        git remote set-url origin $env:CBRSX_REMOTE
+    } else {
+        Write-Host "[2/5] Remote origin is correctly configured." -ForegroundColor Green
+    }
+} elseif ($null -eq $currentRemote) {
+    Write-Host "[ERROR] No 'origin' remote configured. Set one with:" -ForegroundColor Red
+    Write-Host "        git remote add origin <your-repo-url>   (or set CBRSX_REMOTE)" -ForegroundColor Yellow
+    exit 1
 } else {
-    Write-Host "[2/5] Remote origin is correctly configured." -ForegroundColor Green
+    Write-Host "[2/5] Using existing remote origin: $currentRemote" -ForegroundColor Green
 }
 
 # 3. Ensure we are on main (create only when missing; never force-rename a feature branch)

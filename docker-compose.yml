@@ -36,8 +36,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cbrsx_secure_postgres_pass_2026}
       SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
-      CBRSX_FAIL_CLOSED: ${CBRSX_FAIL_CLOSED:-false}
+      # NOTE: fail-closed is forced ON by the 'prod' profile (application-prod.yml);
+      # set SPRING_PROFILES_ACTIVE=dev locally if you need fail-open behavior.
       CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:-ndrf-admin-secure-2026}
+      CBRSX_CORS_ORIGINS: ${CBRSX_CORS_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:5000}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -65,8 +67,10 @@ services:
     container_name: cbrsx-admin-dashboard
     ports:
       - "${DASHBOARD_PORT:-3000}:3000"
+    # CBRSX_API_KEY is substituted into the container's nginx template
+    # (X-API-Key header injection for proxied /api requests).
     environment:
-      VITE_BACKEND_URL: http://localhost:8080
+      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
     networks:
       - cbrsx-net
     depends_on:
@@ -85,7 +89,7 @@ services:
     ports:
       - "${TRAINEE_PORT:-5000}:5000"
     environment:
-      VITE_BACKEND_URL: http://localhost:8080
+      CBRSX_API_KEY: ${CBRSX_API_KEY:-cbrsx-sim-secret-key-prod-001}
     networks:
       - cbrsx-net
     depends_on:
