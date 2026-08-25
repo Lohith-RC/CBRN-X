@@ -141,18 +141,19 @@ The four foundational contracts below are frozen across the entire CBRS-X pipeli
 ## ⚡ 3. STOMP WebSocket Message Protocol
 
 ### 3.1 Connection Handshake
-* **Endpoint:** `ws://localhost:8080/ws-telemetry` (or `wss://domain/ws-telemetry`)
+* **Endpoint:** `ws://localhost:8080/ws-cbrsx` (or `wss://domain/ws-cbrsx`, with SockJS fallback at `http://localhost:8080/ws-cbrsx`)
 * **Transport:** Native WebSocket / SockJS fallback
 * **Heartbeat:** `4000ms` Incoming / `4000ms` Outgoing
 
 ### 3.2 Broadcast Topic Catalog
 
-| STOMP Topic | Publishing Source | Payload Type | Description |
+| STOMP Topic / Mapping | Direction | Payload Type | Description |
 |---|---|---|---|
-| `/topic/events` | Spring Boot `EventController` | `SessionEvent` JSON | Broadcasts every raw telemetry event in real time to Instructor Command Radar. |
-| `/topic/sessions` | Spring Boot `SessionService` | `SessionSummaryDTO` JSON | Broadcasts session lifecycle transitions (`STARTED`, `COMPLETED`, `VOIDED`). |
-| `/topic/sessions/{sessionId}` | Spring Boot `SessionService` | `ScoreReportDTO` JSON | Scoped stream delivering individual evaluation results directly to the trainee terminal. |
-| `/user/queue/errors` | Spring Boot Exception Handler | `ValidationErrorDTO` JSON | Direct user queue for malformed telemetry or authentication rejections. |
+| `/topic/events/{sessionId}` | Server ➔ Client | `SessionEvent` JSON | Broadcasts raw telemetry event stream for a specific training session to command radar. |
+| `/topic/dashboard/live` | Server ➔ Client | `SessionSummaryDTO` JSON | Broadcasts live session lifecycle transitions (`STARTED`, `COMPLETED`, `VOIDED`) to instructor console. |
+| `/topic/coop/positions` | Server ➔ Client | `Map<String, Object>` | Broadcasts real-time 3D coordinates $(X, Y, Z)$ and SCBA pressure across multi-responder squad. |
+| `/app/coop/position` | Client ➔ Server | `Map<String, Object>` | Ingests positioning telemetry from active responder VR/WebGL client. |
+| `/user/queue/errors` | Server ➔ Client | `ValidationErrorDTO` JSON | Direct user queue for malformed telemetry or authentication rejections. |
 
 ---
 

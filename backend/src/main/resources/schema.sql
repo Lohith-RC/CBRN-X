@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     session_id VARCHAR(64) PRIMARY KEY,
     trainee_id VARCHAR(64) REFERENCES trainees(trainee_id) ON DELETE CASCADE,
     scenario_id VARCHAR(64) REFERENCES scenarios(scenario_id) ON DELETE RESTRICT,
+    squad_id VARCHAR(64),
     started_at TIMESTAMP WITH TIME ZONE NOT NULL,
     completed_at TIMESTAMP WITH TIME ZONE,
     final_score INT,

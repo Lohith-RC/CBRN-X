@@ -185,7 +185,7 @@ public class ScoringService {
                 case "leak_source_identified":
                 case "rad_source_identified":
                 case "pathogen_breach_identified":
-                    if (data != null && data.contains(WRONG_SCAN_MARKER) && data.contains(FALSE_VALUE)) {
+                    if (isWrongScan(data)) {
                         wrongDrumScans++;
                         totalPenalties += PENALTY_WRONG_DRUM_SCAN;
                         mistakes.add(MistakeDetailDTO.builder()
@@ -437,5 +437,31 @@ public class ScoringService {
         } catch (Exception ignored) {}
 
         return 1;
+    }
+
+    /**
+     * Safely checks whether an event data JSON payload indicates a false-positive / wrong scan.
+     * Uses Jackson ObjectMapper with resilient fallback to substring search.
+     */
+    private boolean isWrongScan(String eventData) {
+        if (eventData == null || eventData.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(eventData);
+            if (root.has("correct")) {
+                JsonNode correctNode = root.get("correct");
+                if (correctNode.isBoolean()) {
+                    return !correctNode.asBoolean();
+                } else if (correctNode.isTextual()) {
+                    return "false".equalsIgnoreCase(correctNode.asText());
+                } else if (correctNode.isNumber()) {
+                    return correctNode.asInt() == 0;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Standard JSON parsing failed for wrong-scan check, trying fallback: {}", e.getMessage());
+        }
+        return eventData.contains(WRONG_SCAN_MARKER) && eventData.contains(FALSE_VALUE);
     }
 }
