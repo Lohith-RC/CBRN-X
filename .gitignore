@@ -74,6 +74,8 @@ docs/*.html
 # 7. Documentation Files (Keep root and docs/ README/markdown files tracked)
 *.md
 !README.md
+!CBRS_X_MASTER_ARCHITECTURE_AUDIT.md
+!CBRS_X_STRATEGIC_PRODUCTION_ROADMAP.md
 !docs/**/*.md
 
 # 8. Environment Files (Security & Credentials)
