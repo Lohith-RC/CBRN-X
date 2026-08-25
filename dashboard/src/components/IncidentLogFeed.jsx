@@ -1,17 +1,20 @@
-import React from 'react';
-import { AlertTriangle, AlertOctagon, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { AlertTriangle, AlertOctagon, CheckCircle2, ShieldAlert, Radio } from 'lucide-react';
 
-const INCIDENTS = [
-  { severity: 'HIGH', team: 'BRAVO', msg: 'STRUCTURAL BREACH', detail: 'Load-bearing wall compromised, Section C-2', time: '12:58' },
-  { severity: 'HIGH', team: 'BRAVO', msg: 'SECONDARY FRACTURE', detail: 'Secondary fracture detected near egress route', time: '12:56' },
-  { severity: 'MED', team: 'TEAM', msg: 'CONTAINMENT FAILED', detail: 'Chemical drum seal integrity <40%', time: '12:54' },
-  { severity: 'MED', team: 'BRAVO', msg: 'SEALANT DEPLOYED', detail: 'Backup neutralizer spray applied to drum', time: '12:51' },
-  { severity: 'LOW', team: 'DELTA', msg: 'CONTAINMENT WARNING', detail: 'Drill container 7A pressure high', time: '12:48' },
-  { severity: 'MED', team: 'ECHO', msg: 'PPE O2 LOW', detail: 'Respirator O2 reserve at 35%', time: '12:45' },
-  { severity: 'LOW', team: 'ALPHA', msg: 'PERIMETER SECURED', detail: 'Sector B-4 isolated successfully', time: '12:42' },
-];
+export default function IncidentLogFeed({ events = [] }) {
+  const containerRef = useRef(null);
 
-export default function IncidentLogFeed() {
+  // Auto-scroll internal log container only (does NOT scroll the browser window)
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [events]);
+
+  const criticalCount = events.filter(
+    (e) => e.severity === 'CRITICAL' || e.severity === 'VIOLATION' || e.isViolation
+  ).length;
+
   return (
     <div
       className="glass-card-deep"
@@ -34,24 +37,31 @@ export default function IncidentLogFeed() {
           alignItems: 'center',
         }}
       >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Radio size={14} className="animate-spin" color="var(--accent-cyan)" />
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: '700',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.08em',
+            }}
+          >
+            REAL-TIME TELEMETRY FEED
+          </span>
+        </div>
         <span
-          style={{
-            fontSize: '0.75rem',
-            fontWeight: '700',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--text-muted)',
-            letterSpacing: '0.08em',
-          }}
+          className={criticalCount > 0 ? 'badge badge-failed' : 'badge badge-success'}
+          style={{ fontSize: '0.65rem', padding: '2px 8px' }}
         >
-          INCIDENT LOG & ALERTS
-        </span>
-        <span className="badge badge-failed" style={{ fontSize: '0.65rem', padding: '2px 8px' }}>
-          3 CRITICAL
+          {criticalCount} VIOLATIONS / ALERTS
         </span>
       </div>
 
-      {/* Feed List */}
+      {/* Feed List Container */}
       <div
+        ref={containerRef}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -61,27 +71,38 @@ export default function IncidentLogFeed() {
           gap: '8px',
         }}
       >
-        {INCIDENTS.map((item, idx) => {
-          const isHigh = item.severity === 'HIGH';
-          const isMed = item.severity === 'MED';
+        {events.map((item, idx) => {
+          const isViolation = item.severity === 'VIOLATION' || item.isViolation;
+          const isCritical = item.severity === 'CRITICAL';
+          const isWarning = item.severity === 'WARNING';
+          const isSuccess = item.severity === 'SUCCESS';
 
-          const cardBg = isHigh
+          const cardBg = isViolation
+            ? 'rgba(239, 68, 68, 0.15)'
+            : isCritical
             ? 'rgba(239, 68, 68, 0.08)'
-            : isMed
-            ? 'rgba(139, 92, 246, 0.08)'
-            : 'rgba(16, 185, 129, 0.06)';
+            : isWarning
+            ? 'rgba(245, 158, 11, 0.08)'
+            : isSuccess
+            ? 'rgba(16, 185, 129, 0.08)'
+            : 'rgba(6, 182, 212, 0.06)';
 
-          const cardBorder = isHigh
-            ? 'rgba(239, 68, 68, 0.3)'
-            : isMed
-            ? 'rgba(139, 92, 246, 0.3)'
-            : 'rgba(16, 185, 129, 0.2)';
+          const cardBorder = isViolation
+            ? '#ef4444'
+            : isCritical
+            ? 'rgba(239, 68, 68, 0.4)'
+            : isWarning
+            ? 'rgba(245, 158, 11, 0.4)'
+            : isSuccess
+            ? 'rgba(16, 185, 129, 0.3)'
+            : 'rgba(6, 182, 212, 0.2)';
 
-          const badgeColor = isHigh ? '#ef4444' : isMed ? '#8b5cf6' : '#10b981';
+          const badgeColor = isViolation || isCritical ? '#ef4444' : isWarning ? '#f59e0b' : isSuccess ? '#10b981' : '#06b6d4';
 
           return (
             <div
-              key={idx}
+              key={item.id || idx}
+              className="animate-fade-in"
               style={{
                 background: cardBg,
                 border: `1px solid ${cardBorder}`,
@@ -89,17 +110,51 @@ export default function IncidentLogFeed() {
                 padding: '10px 12px',
                 fontSize: '0.75rem',
                 fontFamily: 'var(--font-mono)',
-                transition: 'transform 0.15s ease',
+                transition: 'all 0.2s ease',
+                boxShadow: isViolation ? '0 0 12px rgba(239, 68, 68, 0.25)' : 'none',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: badgeColor }}>
-                  {isHigh ? <AlertOctagon size={13} /> : isMed ? <AlertTriangle size={13} /> : <CheckCircle2 size={13} />}
-                  <span>{item.team}: {item.msg}</span>
+              {/* Top Row: Severity Tag + Team + Timestamp */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800', color: badgeColor }}>
+                  {isViolation ? (
+                    <ShieldAlert size={14} color="#ef4444" />
+                  ) : isCritical ? (
+                    <AlertOctagon size={14} />
+                  ) : isWarning ? (
+                    <AlertTriangle size={14} />
+                  ) : isSuccess ? (
+                    <CheckCircle2 size={14} />
+                  ) : (
+                    <Radio size={13} />
+                  )}
+
+                  <span>
+                    [{item.team}]: {item.msg}
+                  </span>
                 </div>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{item.time}</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isViolation && (
+                    <span
+                      style={{
+                        background: '#ef4444',
+                        color: '#000',
+                        fontSize: '0.6rem',
+                        fontWeight: '900',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                      }}
+                    >
+                      VIOLATION
+                    </span>
+                  )}
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{item.time}</span>
+                </div>
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+
+              {/* Event Detail */}
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
                 {item.detail}
               </div>
             </div>

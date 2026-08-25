@@ -54,16 +54,17 @@ export default function MetricCards({ stats }) {
 
   const cards = [
     {
-      title: 'Hot-Zone Responders',
-      customValue: '4 Deployed',
-      subtext: '8 Standby in Cold Zone',
-      trend: 'Level-A PPE Active',
-      icon: Users,
+      title: 'Current Mission Score',
+      value: stats?.averageScore || 88,
+      suffix: ' / 100',
+      subtext: 'Live Protocol Adherence',
+      trend: 'TARGET PASS',
+      icon: ShieldCheck,
       color: '#10b981', // Emerald Green
       bgGlow: 'rgba(16, 185, 129, 0.15)',
     },
     {
-      title: 'Active Mission Duration',
+      title: 'Elapsed Mission Time',
       customValue: formatTimer(elapsedSeconds),
       subtext: 'Max Exposure Limit: 45m',
       trend: 'SCBA Air Nominal',
@@ -72,14 +73,13 @@ export default function MetricCards({ stats }) {
       bgGlow: 'rgba(139, 92, 246, 0.15)',
     },
     {
-      title: 'Protocol Pass Rate',
-      value: stats?.overallPassRate || 87.5,
-      suffix: '%',
-      subtext: 'NDRF Benchmark ≥ 70%',
-      trend: 'Target Exceeded',
-      icon: Percent,
-      color: '#06b6d4', // Teal Cyan
-      bgGlow: 'rgba(6, 182, 212, 0.15)',
+      title: 'Incident Status',
+      customValue: 'HOT ZONE ACTIVE',
+      subtext: 'Level 4 Chlorine Contaminant',
+      trend: 'PERIMETER LOCKED',
+      icon: Flame,
+      color: '#ef4444', // Alert Red
+      bgGlow: 'rgba(239, 68, 68, 0.15)',
     },
     {
       title: 'Atmospheric Toxicity Level',

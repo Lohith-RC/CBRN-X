@@ -10,9 +10,11 @@ import TacticalCommandCenter from './components/TacticalCommandCenter.jsx';
 import PersonnelSafetyMatrix from './components/PersonnelSafetyMatrix.jsx';
 import EmergencyCommandBar from './components/EmergencyCommandBar.jsx';
 import MultiplayerCoopManager from './components/MultiplayerCoopManager.jsx';
+import TraineeMetadataCard from './components/TraineeMetadataCard.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import Login from './components/Login.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { WifiOff, AlertTriangle } from 'lucide-react';
 
 const FALLBACK_STATS = {
@@ -50,6 +52,16 @@ function CommandDashboard({ onReturnHome }) {
   const [activeTeamId, setActiveTeamId] = useState('alpha');
   const [showDrillModal, setShowDrillModal] = useState(false);
 
+  const handleMissionCompleted = (sessionData) => {
+    fetchDashboardStats();
+    const sessionToOpen = sessionData || stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0];
+    setSelectedSession(sessionToOpen);
+  };
+
+  const { liveConnected, connectionState, liveEvents } = useLiveTelemetry({
+    onScenarioCompleted: handleMissionCompleted,
+  });
+
   const fetchDashboardStats = async () => {
     setLoading(true);
     setApiError(null);
@@ -69,6 +81,7 @@ function CommandDashboard({ onReturnHome }) {
   };
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchDashboardStats();
   }, []);
 
@@ -98,8 +111,8 @@ function CommandDashboard({ onReturnHome }) {
       {/* Full-page animated 3D background layer */}
       <DashboardBackground />
 
-      {/* Main Content Container */}
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1440px', margin: '0 auto', padding: '24px 20px' }}>
+      {/* Main Content Container (Task 4: High-density 1080p and 4K presentation layout scaling) */}
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1920px', width: '100%', margin: '0 auto', padding: '24px 32px' }}>
         <Header
           onRefresh={fetchDashboardStats}
           loading={loading}
@@ -107,6 +120,8 @@ function CommandDashboard({ onReturnHome }) {
           setActiveMode={setActiveMode}
           onTriggerEmergency={() => setShowDrillModal(true)}
           onReturnHome={onReturnHome}
+          liveConnected={liveConnected}
+          connectionState={connectionState}
         />
 
         {/* Emergency Command Override Interface */}
@@ -139,10 +154,19 @@ function CommandDashboard({ onReturnHome }) {
         {/* SINGLE-PANE CONSOLE (DEFAULT): Zero-Click Battalion View */}
         {(activeMode === 'singlepane' || activeMode === 'all') && (
           <main>
+            {/* Trainee Metadata Console Cards (Task 1: Name, Session ID, Active Mission Stage) */}
+            <TraineeMetadataCard
+              traineeName={stats?.recentSessions?.[0]?.traineeName || 'Inspector Lohith R C'}
+              sessionId={stats?.recentSessions?.[0]?.sessionId || 'SESS-CBRN-2026-088'}
+              missionStage="Stage 2: Donning Level-A Suit & Hot-Zone Recon"
+              unit={stats?.recentSessions?.[0]?.batchUnit || '10th NDRF Battalion'}
+              status="IN MISSION"
+            />
+
             {/* Multi-Responder Co-Op Live Telemetry Stream */}
             <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
 
-            {/* Environmental & Mission Metrics */}
+            {/* Environmental & Mission Metrics (Telemetry KPI Cards: Score, Time, Incident Status) */}
             <MetricCards stats={stats} />
 
             {/* Personnel Safety & SCBA Readiness Matrix */}
@@ -152,11 +176,12 @@ function CommandDashboard({ onReturnHome }) {
             <TacticalCommandCenter
               onTriggerEmergency={() => setShowDrillModal(true)}
               onRefresh={fetchDashboardStats}
+              liveEvents={liveEvents}
             />
 
             {/* Interactive VR Viewport Launcher */}
             <div style={{ marginBottom: '24px' }}>
-              <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={fetchDashboardStats} />
+              <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={handleMissionCompleted} />
             </div>
 
             {/* Sessions Telemetry Data Table */}
@@ -172,6 +197,7 @@ function CommandDashboard({ onReturnHome }) {
           <TacticalCommandCenter
             onTriggerEmergency={() => setShowDrillModal(true)}
             onRefresh={fetchDashboardStats}
+            liveEvents={liveEvents}
           />
         )}
 
@@ -299,14 +325,14 @@ function MainView() {
   if (view === 'landing') {
     return (
       <LandingPage
-        onEnterDashboard={() => setView('dashboard')}
+        onEnterDashboard={() => setView('login')}
         onLaunchSim={() => window.open('/unity-sim/index.html', '_blank')}
       />
     );
   }
 
   // 2. Sign In / Authentication Flow
-  if (!user) {
+  if (!user || (view === 'login' && !user)) {
     return (
       <div style={{ minHeight: '100vh', background: '#04060c', position: 'relative' }}>
         <div style={{ maxWidth: '440px', margin: '0 auto', paddingTop: '32px', paddingLeft: '16px', paddingRight: '16px' }}>
@@ -327,7 +353,7 @@ function MainView() {
           >
             &larr; Back to Landing Page
           </button>
-          <Login />
+          <Login onSuccess={() => setView('dashboard')} />
         </div>
       </div>
     );

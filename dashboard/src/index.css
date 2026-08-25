@@ -613,14 +613,19 @@ button,
   }
 }
 
-@media (min-width: 1080px) {
-  .glass-panel {
-    max-width: 940px;
+/* ── High-Density Presentation & 4K Ultra HD Display Polish (Task 4) ── */
+.glass-panel {
+  width: 100%;
+}
+
+@media (min-width: 1920px) {
+  body {
+    font-size: 17px;
   }
 }
 
-@media (min-width: 1440px) {
-  .glass-panel {
-    max-width: 1040px;
+@media (min-width: 2560px) {
+  body {
+    font-size: 18px;
   }
 }

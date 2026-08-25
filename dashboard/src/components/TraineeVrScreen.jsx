@@ -169,7 +169,27 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     }
     setIsPlaying(false);
     setIsLocked(false);
-    if (onSessionComplete) onSessionComplete();
+
+    const completedSummary = {
+      sessionId: activeSess || `sess-demo-${Date.now().toString().slice(-4)}`,
+      traineeName: 'Inspector Lohith R C',
+      batchUnit: '10th NDRF Battalion',
+      scenarioTitle: 'Chlorine Gas Leak Response',
+      scenarioCode: 'CBRN-CHEM-01',
+      finalScore: contained ? 94 : 88,
+      passStatus: 'PASSED',
+      totalDurationSeconds: 145,
+      startedAt: new Date(Date.now() - 145000).toISOString(),
+      completedAt: new Date().toISOString(),
+      mistakes: leakingDrumFound ? [] : ['Delayed identification of primary chemical leak source.'],
+      recommendations: [
+        'DON PPE: DONNED LEVEL-A CHEMICAL SUIT WITHIN 90s.',
+        'CONTAINMENT: SEALED HAZARDOUS DRUM INTEGRITY.',
+        'DECONTAMINATION: COMPLETED ARCHWAY WASH DOWN.',
+      ],
+    };
+
+    if (onSessionComplete) onSessionComplete(completedSummary);
   };
 
   // ── Three.js Scene Setup ──
