@@ -7,7 +7,6 @@ const apiProxy = {
   '/api': {
     target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
     changeOrigin: true,
-    // Inject API key header on proxied requests
     ...(apiKey ? {
       configure: (proxy) => {
         proxy.on('proxyReq', (proxyReq) => {
@@ -15,6 +14,11 @@ const apiProxy = {
         });
       },
     } : {}),
+  },
+  '/ws-telemetry': {
+    target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
+    ws: true,
+    changeOrigin: true,
   },
 };
 
