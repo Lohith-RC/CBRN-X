@@ -2,29 +2,41 @@
 # CBRS-X (CBRN VR Training) .gitignore
 # ==========================================
 
-# [SEC-07] Prevent accidental commit of production secrets
+# 1. Environment & Production Secrets (NEVER COMMIT)
 .env
+.env.*
 !.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
-# 1. Java / Maven Backend Build Artifacts
+# 2. Java / Maven Backend Build Artifacts
 backend/target/
 backend/.mvn/
+**/target/
 *.class
 *.jar
 *.war
 *.ear
 *.log
+.gradle/
+build/
 
-# 2. Node.js / React Build Artifacts & Dependencies
-dashboard/node_modules/
-dashboard/dist/
-dashboard/.vite/
-trainee_view/node_modules/
-trainee_view/dist/
-trainee_view/.vite/
-*.log
+# 3. Node.js / React Build Artifacts & Dependencies
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+**/.vite/
+.turbo/
+.parcel-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# 3. Unity Build Artifacts & Temporary Files
+# 4. Unity Build Artifacts, Cache & Temporary Files
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
@@ -33,9 +45,12 @@ trainee_view/.vite/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 /[Mm]emoryCaptures/
+*BurstDebugInformation_DoNotShip/
+**/*BurstDebugInformation_DoNotShip/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -43,24 +58,40 @@ trainee_view/.vite/
 *.pidb
 *.booproj
 *.svd
-
-# 4. Large Media Assets / Video Recordings (Keep repo lightweight)
-*.mp4
-*.mov
-*.avi
-*.mkv
+*.pdb
 
 # 5. OS & IDE Configuration Files
 .DS_Store
 Thumbs.db
 desktop.ini
 .idea/
+**/.idea/
 .vscode/
+**/.vscode/
+.vs/
+**/.vs/
 .vsconfig
 *.swp
 *.bak
+*.VC.db
+*.opendb
 
-# 6. Local Reports, Audits & Deliverables (DO NOT PUSH TO GITHUB)
+# 6. Python Cache Artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 7. Large Media Assets / Video Recordings
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# 8. Local Reports & Generated Output (Keep docs/ tracking)
 reports/
 /reports/
 reports/*
@@ -71,20 +102,13 @@ reports/*.html
 docs/*.pdf
 docs/*.html
 
-# 7. Documentation Files (Keep root and docs/ README/markdown files tracked)
+# 9. Markdown & Documentation
 *.md
 !README.md
 !CBRS_X_MASTER_ARCHITECTURE_AUDIT.md
 !CBRS_X_STRATEGIC_PRODUCTION_ROADMAP.md
 !docs/**/*.md
 
-# 8. Environment Files (Security & Credentials)
-.env
-.env.*
-!.env.example
-**/.env
-**/.env.*
-!**/.env.example
-
-# 9. PM2 Process Logs
+# 10. Process Logs
 logs/
+**/logs/

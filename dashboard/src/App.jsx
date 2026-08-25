@@ -72,16 +72,19 @@ function CommandDashboard({ onReturnHome }) {
     fetchDashboardStats();
   }, []);
 
-  // Global Tactical Keybindings
+  // Global Tactical Keybindings (Alt+1: Tactical, Alt+2: Single-pane, Alt+R: Refresh, Esc: Close)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'F1') {
+      // Don't intercept when user is typing in form inputs
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+      if ((e.altKey && e.key === '1') || e.key === 'F1') {
         e.preventDefault();
         setActiveMode('tactical');
-      } else if (e.key === 'F2') {
+      } else if ((e.altKey && e.key === '2') || e.key === 'F2') {
         e.preventDefault();
         setActiveMode('singlepane');
-      } else if (e.key === 'F5') {
+      } else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
         fetchDashboardStats();
       } else if (e.key === 'Escape') {
