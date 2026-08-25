@@ -715,6 +715,39 @@ Where $\omega_n$ is the spring natural frequency, $\zeta$ is the damping ratio, 
 
 ## 12. 🛠️ Standard Operating Procedures (Installation & Setup)
 
+### SOP-00: Prerequisites, Credentials & Environment
+
+**Toolchain requirements:**
+
+| Tool | Version | Notes |
+|---|---|---|
+| JDK | 17+ | Backend build & runtime |
+| Maven | 3.9+ | **Optional** — `backend/mvnw` wrapper auto-provisions the pinned version |
+| Node.js + npm | 18+ / 9+ | Both React frontends |
+| Docker Desktop | 4.x+ | Only for SOP-01 |
+| Unity Hub + Editor | 2022.3 LTS (+ OpenXR/URP) | Only for the VR client (SOP-05) |
+
+**Default credentials (local development only — override in any shared/prod deployment):**
+
+| What | Value | Override via |
+|---|---|---|
+| Dashboard login (username) | `admin` | `CBRSX_ADMIN_USERNAME` |
+| Dashboard login (password) | `ndrf-admin-123` | `CBRSX_ADMIN_PASSWORD` |
+| Simulation API key (`X-API-Key`) | *(empty in dev = auth optional)* | `CBRSX_API_KEY` |
+
+> [!WARNING]
+> The prod profile **forces fail-closed security ON** regardless of
+> `CBRSX_FAIL_CLOSED`. That variable only has effect under the dev profile.
+> Under `prod`, an unset/empty `CBRSX_API_KEY` rejects all API traffic.
+
+**Environment files:** copy `.env.example` → `.env`. The Vite dev servers and
+Docker Compose both read it. Key variables:
+
+- `POSTGRES_*` — database name/user/password
+- `CBRSX_API_KEY` — master simulation key; injected into proxied `/api` requests by both Vite dev proxies and the containerized nginx frontends
+- `CBRSX_CORS_ORIGINS` — comma-separated browser origin allowlist
+- `VITE_ENABLE_OFFLINE_LOGIN` — set `true` to permit demo sign-in when the backend is unreachable (**off by default**; when enabled the UI labels the session "Offline Instructor")
+
 ### SOP-01: Full-Stack Docker Deployment (Production)
 
 Stand up the entire CBRS-X ecosystem (PostgreSQL, Spring Boot backend, Instructor Dashboard, Trainee Web Station, and Nginx Gateway) with a single command:
@@ -744,19 +777,19 @@ docker compose ps
 
 ### SOP-02: Spring Boot Scoring Engine (Backend Setup)
 
-**Prerequisites:** JDK 17+ and Apache Maven 3.8+ installed.
+**Prerequisites:** JDK 17+. Maven itself is optional — use the pinned wrapper:
 
 ```powershell
 cd backend
 
 # Execute complete test suite (46 tests across 7 test suites)
-mvn clean test
+.\mvnw.cmd clean test        # (Linux/macOS: ./mvnw clean test)
 
-# Run with local H2 in-memory development profile
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Run with local H2 in-memory development profile (no external DB needed)
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 
-# (Optional) Run with production PostgreSQL profile
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
+# (Optional) Production PostgreSQL profile — see SOP-00 for env vars
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
 ---
@@ -798,6 +831,47 @@ Open `http://localhost:5000` to interact with the 3D chemical bay simulation.
 3. Open scene: `Assets/Scenes/StorageBay03_Training.unity`.
 4. In the Hierarchy, select `[CbrsEventLogger]` and verify `backendBaseUrl` is set to `http://localhost:8080/api`.
 5. Press **Play** or select **File $\to$ Build and Run** for Meta Quest APK / Windows PCVR.
+
+---
+
+### SOP-06: Operations & Troubleshooting Runbook
+
+**Port map (override via `.env` / compose vars):**
+
+| Port | Service | Compose variable |
+|---|---|---|
+| 80 | Nginx gateway → Instructor Dashboard | `GATEWAY_PORT` |
+| 3000 | Instructor Dashboard (direct) | `DASHBOARD_PORT` |
+| 5000 | Trainee Web Station (direct) | `TRAINEE_PORT` |
+| 8080 | Spring Boot API + Dev Portal | `BACKEND_PORT` |
+| 5432 | PostgreSQL | `DB_PORT` |
+
+**Common failures:**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Login says *"Cannot reach the CBRS-X backend"* | Backend not started, or wrong port | Start backend (SOP-02), check `http://localhost:8080/actuator/health` |
+| Dashboard loads but all metrics show demo/fallback data | Backend unreachable or API rejected | Open browser devtools → Network tab; look for failed `/api/dashboard/stats`. In prod profile an empty `CBRSX_API_KEY` rejects everything — set the key in `.env` and restart |
+| Trainee view shows missing/black video panels | Beat videos not present | Place `1..9.mp4` in `trainee_view/public/videos/` (see the README in that folder) |
+| Backend exits at startup with SQL script error on PostgreSQL | Stale build artifacts with old seed scripts | `mvnw clean spring-boot:run`; seeds are idempotent and cross-dialect as of this release |
+| `Port 3000/5000 already in use` | Another dev server or stale process | Change port via compose var, or kill the listener: `Get-NetTCPConnection -LocalPort 3000 \| Select OwningProcess` then `Stop-Process -Id <pid>` |
+
+**Credential & key rotation:**
+
+- Admin password: set `CBRSX_ADMIN_PASSWORD` before first startup of a fresh database (the account is seeded once). To rotate later, update the row in `instructor_users` with a new BCrypt hash.
+- API keys: rotate by setting a new `CBRSX_API_KEY` and restarting **all** services (backend validates it; both frontend proxies inject it).
+- Voiding a test session: `POST /api/sessions/{id}/void` with instructor/admin credentials.
+
+**Logs:**
+
+- Docker: `docker compose logs -f cbrsx-backend`
+- PM2 (`ecosystem.config.js`, optional bare-metal path — run `mvnw package` first): `logs/backend-out.log`, `logs/admin-out.log`, `logs/trainee-out.log`
+
+**Repository housekeeping notes:**
+
+- The Unity WebGL build exists in **two** places (`dashboard/public/unity-sim/` and `trainee_view/public/unity-sim/`) because each frontend ships its own static bundle. When you re-export the sim, **update both copies**.
+- First clone is large (~2 GB history) due to committed Unity texture sources under `assets/`. Migrating those paths to Git LFS is recommended before adding more binary assets:
+  `git lfs install && git lfs migrate import --include="assets/**,*.psd,*.tif" --everything` *(rewrites history — coordinate with all contributors first)*.
 
 ---
 
