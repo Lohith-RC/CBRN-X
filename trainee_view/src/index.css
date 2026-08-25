@@ -318,3 +318,21 @@ body {
 .achievement-banner {
   animation: achievementFlash 1s ease-in-out 3;
 }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE HUD BREAKPOINTS (<1280px, <1024px)
+   ═══════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .stage-prompt-animate {
+    max-width: 320px !important;
+    font-size: 0.74rem !important;
+    padding: 7px 12px !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .stage-prompt-animate {
+    max-width: 240px !important;
+    font-size: 0.68rem !important;
+  }
+}

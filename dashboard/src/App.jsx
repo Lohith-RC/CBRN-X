@@ -85,16 +85,19 @@ function CommandDashboard({ onReturnHome }) {
     fetchDashboardStats();
   }, []);
 
-  // Global Tactical Keybindings
+  // Global Tactical Keybindings (Alt+1: Tactical, Alt+2: Single-pane, Alt+R: Refresh, Esc: Close)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'F1') {
+      // Don't intercept when user is typing in form inputs
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+      if ((e.altKey && e.key === '1') || e.key === 'F1') {
         e.preventDefault();
         setActiveMode('tactical');
-      } else if (e.key === 'F2') {
+      } else if ((e.altKey && e.key === '2') || e.key === 'F2') {
         e.preventDefault();
         setActiveMode('singlepane');
-      } else if (e.key === 'F5') {
+      } else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
         fetchDashboardStats();
       } else if (e.key === 'Escape') {
@@ -128,22 +131,7 @@ function CommandDashboard({ onReturnHome }) {
         <EmergencyCommandBar onTriggerEmergency={() => setShowDrillModal(true)} />
 
         {apiError && (
-          <div
-            role="alert"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.45)',
-              borderRadius: '10px',
-              padding: '12px 18px',
-              marginBottom: '20px',
-              color: '#fca5a5',
-              fontSize: '0.85rem',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
+          <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.45)', borderRadius: '10px', padding: '12px 18px', marginBottom: '20px', color: '#fca5a5', fontSize: '0.85rem', backdropFilter: 'blur(8px)' }}>
             <WifiOff size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
             <span>
               <strong style={{ color: '#ef4444' }}>OFFLINE / DEMO MODE.</strong> {apiError}
@@ -217,74 +205,18 @@ function CommandDashboard({ onReturnHome }) {
 
         {/* Emergency Drill Overlay Modal */}
         {showDrillModal && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(0,0,0,0.85)',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <div
-              className="glass-panel"
-              style={{
-                width: '90%',
-                maxWidth: '480px',
-                padding: '32px',
-                border: '2px solid rgba(239, 68, 68, 0.6)',
-                borderRadius: '16px',
-                textAlign: 'center',
-                boxShadow: '0 0 60px rgba(239, 68, 68, 0.35)',
-              }}
-            >
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px auto',
-                  color: '#ef4444',
-                }}
-              >
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}>
+            <div className="glass-panel" style={{ width: '90%', maxWidth: '480px', padding: '32px', border: '2px solid rgba(239, 68, 68, 0.6)', borderRadius: '16px', textAlign: 'center', boxShadow: '0 0 60px rgba(239, 68, 68, 0.35)' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', color: '#ef4444' }}>
                 <AlertTriangle size={32} />
               </div>
-
-              <h2
-                style={{
-                  fontSize: '1.2rem',
-                  fontWeight: '800',
-                  color: '#ef4444',
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.08em',
-                  marginBottom: '8px',
-                }}
-              >
+              <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ef4444', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginBottom: '8px' }}>
                 ⚠ CRITICAL EMERGENCY DRILL
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
                 Emergency drill protocol activated across all 10th NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
               </p>
-
-              <button
-                className="btn-glow"
-                style={{
-                  width: '100%',
-                  justifyContent: 'center',
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                  borderColor: 'rgba(239, 68, 68, 0.6)',
-                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)',
-                }}
-                onClick={() => setShowDrillModal(false)}
-              >
+              <button className="btn-glow" style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', borderColor: 'rgba(239, 68, 68, 0.6)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }} onClick={() => setShowDrillModal(false)}>
                 ACKNOWLEDGE &amp; DISMISS DRILL
               </button>
             </div>
@@ -304,18 +236,7 @@ function MainView() {
 
   if (booting) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: '0.9rem',
-          background: '#04060c',
-          fontFamily: 'monospace'
-        }}
-      >
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', background: '#04060c', fontFamily: 'monospace' }}>
         Establishing secure NDRF connection…
       </div>
     );
@@ -336,21 +257,7 @@ function MainView() {
     return (
       <div style={{ minHeight: '100vh', background: '#04060c', position: 'relative' }}>
         <div style={{ maxWidth: '440px', margin: '0 auto', paddingTop: '32px', paddingLeft: '16px', paddingRight: '16px' }}>
-          <button
-            onClick={() => setView('landing')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'transparent',
-              border: 'none',
-              color: '#93c5fd',
-              fontSize: '0.85rem',
-              fontFamily: 'monospace',
-              cursor: 'pointer',
-              marginBottom: '16px'
-            }}
-          >
+          <button onClick={() => setView('landing')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#93c5fd', fontSize: '0.85rem', fontFamily: 'monospace', cursor: 'pointer', marginBottom: '16px' }}>
             &larr; Back to Landing Page
           </button>
           <Login onSuccess={() => setView('dashboard')} />
@@ -380,42 +287,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#04060c',
-            color: '#fff',
-            padding: '24px',
-            fontFamily: 'monospace',
-          }}
-        >
-          <div
-            className="glass-card-deep"
-            style={{
-              maxWidth: '540px',
-              padding: '32px',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              borderRadius: '16px',
-              textAlign: 'center',
-            }}
-          >
-            <h2 style={{ color: '#ef4444', marginBottom: '12px', fontSize: '1.2rem' }}>
-              ⚠ TACTICAL DASHBOARD VIEW EXCEPTION
-            </h2>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#04060c', color: '#fff', padding: '24px', fontFamily: 'monospace' }}>
+          <div className="glass-card-deep" style={{ maxWidth: '540px', padding: '32px', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', textAlign: 'center' }}>
+            <h2 style={{ color: '#ef4444', marginBottom: '12px', fontSize: '1.2rem' }}>⚠ TACTICAL DASHBOARD VIEW EXCEPTION</h2>
             <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '20px', lineHeight: 1.5 }}>
               {this.state.error?.message || 'An unexpected rendering error occurred inside the dashboard.'}
             </p>
-            <button
-              className="btn-primary"
-              style={{ padding: '10px 20px', fontSize: '0.85rem' }}
-              onClick={() => {
-                this.setState({ hasError: false, error: null });
-                window.location.href = '/?view=dashboard';
-              }}
-            >
+            <button className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.85rem' }} onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/?view=dashboard'; }}>
               Reload Command Dashboard
             </button>
           </div>

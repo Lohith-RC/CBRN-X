@@ -137,20 +137,22 @@ export default function Login({ onSuccess }) {
           </button>
         </form>
 
-        <div style={{
-          marginTop: '18px',
-          padding: '10px 14px',
-          background: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          borderRadius: '8px',
-          fontSize: '0.76rem',
-          color: '#93c5fd',
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-          textAlign: 'center'
-        }}>
-          <div><strong>Default NDRF Credentials:</strong></div>
-          <div style={{ marginTop: '3px', color: '#60a5fa' }}>User: <code>admin</code> &bull; Pass: <code>ndrf-admin-123</code></div>
-        </div>
+        {import.meta.env.DEV && (
+          <div style={{
+            marginTop: '18px',
+            padding: '10px 14px',
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            borderRadius: '8px',
+            fontSize: '0.76rem',
+            color: '#93c5fd',
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            textAlign: 'center'
+          }}>
+            <div><strong>Dev Sandbox Credentials:</strong></div>
+            <div style={{ marginTop: '3px', color: '#60a5fa' }}>User: <code>admin</code> &bull; Pass: <code>ndrf-admin-123</code></div>
+          </div>
+        )}
 
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '16px', lineHeight: 1.5 }}>
           Authorized personnel only. All access attempts are logged and audited.

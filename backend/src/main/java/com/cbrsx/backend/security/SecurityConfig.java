@@ -52,6 +52,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public org.springframework.web.filter.ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new org.springframework.web.filter.ForwardedHeaderFilter();
+    }
+
+    @Bean
     public CookieCsrfTokenRepository csrfTokenRepository() {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         repository.setCookieName("CBRSX-XSRF");
@@ -96,7 +101,8 @@ public class SecurityConfig {
                 // Granular Role-Based Access Control
                 .authorizeHttpRequests(auth -> auth
                         // Public status, health checks, and Swagger / OpenAPI documentation
-                        .requestMatchers("/", "/error", "/actuator/health", "/actuator/info", "/actuator/metrics/**").permitAll()
+                        .requestMatchers("/", "/error", "/actuator/health").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // WebSocket handshake (STOMP frames verified via WebSocketAuthInterceptor)
                         .requestMatchers("/ws-telemetry/**").permitAll()

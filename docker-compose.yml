@@ -23,6 +23,7 @@ services:
     build: ./backend
     container_name: cbrsx-backend
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://cbrsx-db:5432/cbrsx_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       # [SEC-07] Credential externalized — must match cbrsx-db POSTGRES_PASSWORD
@@ -30,6 +31,8 @@ services:
       SPRING_JPA_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       # [SEC-07] API key for authentication — must be set for production
       CBRSX_API_KEY: ${CBRSX_API_KEY:-}
+      CBRSX_FAIL_CLOSED: ${CBRSX_FAIL_CLOSED:-true}
+      CBRSX_ADMIN_PASSWORD: ${CBRSX_ADMIN_PASSWORD:-}
     depends_on:
       cbrsx-db:
         condition: service_healthy
@@ -45,8 +48,10 @@ services:
     deploy:
       resources:
         limits:
+          memory: 1024M
+          cpus: '1.5'
+        reservations:
           memory: 512M
-          cpus: '1.0'
 
   cbrsx-admin-dashboard:
     build: ./dashboard

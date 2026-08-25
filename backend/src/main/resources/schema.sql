@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS instructor_users (
 
 -- Performance indexes for hot query paths
 CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_session_timestamp ON events(session_id, timestamp ASC);
 CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_sessions_trainee_id ON sessions(trainee_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_pass_status ON sessions(pass_status);

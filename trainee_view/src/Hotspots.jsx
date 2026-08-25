@@ -51,6 +51,36 @@ const STAGE_HOTSPOTS = {
   ],
 };
 
+function playTacticalSound(type = 'click') {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'hover') {
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.03);
+      gain.gain.setValueAtTime(0.012, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.03);
+    } else {
+      osc.frequency.setValueAtTime(580, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.07);
+      gain.gain.setValueAtTime(0.035, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.07);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.07);
+    }
+  } catch (e) {
+    // Gracefully handle browser autoplay policies
+  }
+}
+
 /**
  * Hotspots Component — Renders invisible interactive click regions.
  * Hover: pulsing orange glow + corner brackets + script-accurate tooltip.
@@ -67,9 +97,15 @@ export default function Hotspots({ stage, onAction }) {
         return (
           <div
             key={hs.id}
-            onMouseEnter={() => setHoveredId(hs.id)}
+            onMouseEnter={() => {
+              setHoveredId(hs.id);
+              playTacticalSound('hover');
+            }}
             onMouseLeave={() => setHoveredId(null)}
-            onClick={() => onAction(hs.action)}
+            onClick={() => {
+              playTacticalSound('click');
+              onAction(hs.action);
+            }}
             style={{
               position: 'absolute',
               left: `${hs.x}%`, top: `${hs.y}%`,

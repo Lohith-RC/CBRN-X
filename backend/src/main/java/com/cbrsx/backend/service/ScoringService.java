@@ -11,6 +11,8 @@ import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +34,7 @@ public class ScoringService {
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
+    private final ObjectMapper objectMapper;
 
     public static final int PASS_THRESHOLD = 70;
     public static final int MAX_RAW_SCORE = 80;
@@ -392,41 +395,47 @@ public class ScoringService {
     }
 
     /**
-     * Safely extract a numeric "count" value from JSON-like event data.
-     * Uses simple string parsing instead of regex to avoid ReDoS vulnerabilities.
-     *
-     * [SEC-02] Parses as long and hard-clamps to [1, 50] to prevent integer overflow
-     * when the value is multiplied by penalty constants in score computation.
-     * 50 is the maximum physically realistic civilian count for any single scenario.
+     * Safely extract a numeric "count" value from JSON event data.
+     * Uses Jackson ObjectMapper with fallback, hard-clamping to [1, 50] to prevent
+     * score manipulation or integer overflow in penalty computations.
      */
     private int extractCount(String eventData) {
-        if (eventData == null || !eventData.contains(COUNT_FIELD_KEY)) {
+        if (eventData == null || eventData.isBlank()) {
             return 1;
         }
         try {
-            int keyIdx = eventData.indexOf(COUNT_FIELD_KEY);
-            if (keyIdx < 0) return 1;
-            int colonIdx = eventData.indexOf(':', keyIdx + COUNT_FIELD_KEY.length());
-            if (colonIdx < 0) return 1;
-            int start = colonIdx + 1;
-            // Skip whitespace
-            while (start < eventData.length() && Character.isWhitespace(eventData.charAt(start))) {
-                start++;
+            JsonNode root = objectMapper.readTree(eventData);
+            if (root.has("count") && root.get("count").isNumber()) {
+                long val = root.get("count").asLong();
+                return (int) Math.min(Math.max(val, 1), 50);
             }
-            // Read digits (limit to 10 digits max to avoid parsing absurdly long numbers)
-            int end = start;
-            int maxDigits = Math.min(start + 10, eventData.length());
-            while (end < maxDigits && Character.isDigit(eventData.charAt(end))) {
-                end++;
-            }
-            if (end > start) {
-                long parsed = Long.parseLong(eventData.substring(start, end));
-                // Hard-clamp to realistic domain range [1, 50]
-                return (int) Math.min(Math.max(parsed, 1), 50);
-            }
-        } catch (Exception ignored) {
-            // Return default on any parsing error
+        } catch (Exception e) {
+            log.debug("Standard JSON parsing failed for eventData, trying string fallback: {}", e.getMessage());
         }
+
+        // Fallback string-based extraction if eventData is raw key-value or partial
+        try {
+            if (eventData.contains(COUNT_FIELD_KEY)) {
+                int keyIdx = eventData.indexOf(COUNT_FIELD_KEY);
+                int colonIdx = eventData.indexOf(':', keyIdx + COUNT_FIELD_KEY.length());
+                if (colonIdx > 0) {
+                    int start = colonIdx + 1;
+                    while (start < eventData.length() && Character.isWhitespace(eventData.charAt(start))) {
+                        start++;
+                    }
+                    int end = start;
+                    int maxDigits = Math.min(start + 10, eventData.length());
+                    while (end < maxDigits && Character.isDigit(eventData.charAt(end))) {
+                        end++;
+                    }
+                    if (end > start) {
+                        long parsed = Long.parseLong(eventData.substring(start, end));
+                        return (int) Math.min(Math.max(parsed, 1), 50);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
         return 1;
     }
 }
