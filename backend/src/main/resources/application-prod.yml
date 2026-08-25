@@ -22,6 +22,12 @@ logging:
     com.cbrsx: INFO
     org.hibernate.SQL: WARN
 
+# API explorer is disabled under prod unless explicitly opted in
+# (set CBRSX_SWAGGER_ENABLED=true only on trusted/internal deployments)
+springdoc:
+  api-docs.enabled: ${CBRSX_SWAGGER_ENABLED:false}
+  swagger-ui.enabled: ${CBRSX_SWAGGER_ENABLED:false}
+
 cbrsx:
   security:
     fail-closed: true
