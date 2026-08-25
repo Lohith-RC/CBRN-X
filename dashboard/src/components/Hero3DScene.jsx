@@ -18,12 +18,18 @@ export default function Hero3DScene() {
     camera.position.set(0, 3.5, 9.5);
     camera.lookAt(0, 0.5, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    mount.appendChild(renderer.domElement);
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      mount.appendChild(renderer.domElement);
+    } catch (e) {
+      console.warn('Hero3DScene WebGL unavailable:', e);
+      return;
+    }
 
     // ── Lighting Rig (Dark Theme Emerald & Purple Rim Lights) ──
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);

@@ -328,10 +328,75 @@ function MainView() {
   return <CommandDashboard onReturnHome={() => setView('landing')} />;
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('CBRS-X ErrorBoundary caught exception:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#04060c',
+            color: '#fff',
+            padding: '24px',
+            fontFamily: 'monospace',
+          }}
+        >
+          <div
+            className="glass-card-deep"
+            style={{
+              maxWidth: '540px',
+              padding: '32px',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '16px',
+              textAlign: 'center',
+            }}
+          >
+            <h2 style={{ color: '#ef4444', marginBottom: '12px', fontSize: '1.2rem' }}>
+              ⚠ TACTICAL DASHBOARD VIEW EXCEPTION
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '20px', lineHeight: 1.5 }}>
+              {this.state.error?.message || 'An unexpected rendering error occurred inside the dashboard.'}
+            </p>
+            <button
+              className="btn-primary"
+              style={{ padding: '10px 20px', fontSize: '0.85rem' }}
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.href = '/?view=dashboard';
+              }}
+            >
+              Reload Command Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <MainView />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <MainView />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

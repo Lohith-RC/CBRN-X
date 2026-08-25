@@ -550,6 +550,36 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     };
     renderer.domElement.addEventListener('click', handleClick);
 
+    // ── Toxic Gas Cloud Particles (Yellow/Amber Vapor at Leak Drum #3) ──
+    const particleCount = 150;
+    const gasPositions = new Float32Array(particleCount * 3);
+    const gasVelocities = [];
+    for (let i = 0; i < particleCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 1.5;
+      gasPositions[i * 3] = Math.cos(a) * r;
+      gasPositions[i * 3 + 1] = Math.random() * 3;
+      gasPositions[i * 3 + 2] = Math.sin(a) * r;
+      gasVelocities.push({
+        x: (Math.random() - 0.5) * 0.01,
+        y: Math.random() * 0.015 + 0.005,
+        z: (Math.random() - 0.5) * 0.01,
+      });
+    }
+
+    const gasGeo = trackDispose(new THREE.BufferGeometry());
+    gasGeo.setAttribute('position', new THREE.BufferAttribute(gasPositions, 3));
+    const gasMat = trackDispose(new THREE.PointsMaterial({
+      color: 0xf59e0b,
+      size: 0.35,
+      transparent: true,
+      opacity: 0.45,
+      blending: THREE.AdditiveBlending,
+    }));
+    const gasCloud = new THREE.Points(gasGeo, gasMat);
+    gasCloud.position.set(1.9, 0.4, 7.8);
+    actorsGroup.add(gasCloud);
+
     const handleResize = () => {
       if (!mount) return;
       const w = mount.clientWidth;
@@ -571,21 +601,23 @@ export default function TraineeVrScreen({ onSessionComplete }) {
       const t = performance.now() * 0.001;
 
       // Animate gas cloud
-      const posAttr = gasCloud.geometry.getAttribute('position');
-      for (let i = 0; i < particleCount; i++) {
-        posAttr.array[i * 3] += velocities[i].x * 0.5;
-        posAttr.array[i * 3 + 1] += velocities[i].y * 0.5;
-        posAttr.array[i * 3 + 2] += velocities[i].z * 0.5;
-        if (posAttr.array[i * 3 + 1] > 3.5) {
-          posAttr.array[i * 3 + 1] = 0;
-          const a = Math.random() * Math.PI * 2;
-          const r = Math.random() * 2;
-          posAttr.array[i * 3] = Math.cos(a) * r;
-          posAttr.array[i * 3 + 2] = -4 + Math.sin(a) * r;
+      if (gasCloud && gasGeo) {
+        const posAttr = gasGeo.getAttribute('position');
+        for (let i = 0; i < particleCount; i++) {
+          posAttr.array[i * 3] += gasVelocities[i].x * 0.5;
+          posAttr.array[i * 3 + 1] += gasVelocities[i].y * 0.5;
+          posAttr.array[i * 3 + 2] += gasVelocities[i].z * 0.5;
+          if (posAttr.array[i * 3 + 1] > 3.5) {
+            posAttr.array[i * 3 + 1] = 0;
+            const a = Math.random() * Math.PI * 2;
+            const r = Math.random() * 2;
+            posAttr.array[i * 3] = Math.cos(a) * r;
+            posAttr.array[i * 3 + 2] = Math.sin(a) * r;
+          }
         }
+        posAttr.needsUpdate = true;
+        gasCloud.rotation.y += 0.003;
       }
-      posAttr.needsUpdate = true;
-      gasCloud.rotation.y += 0.003;
 
       // Animate emergency beacon
       emergencyBeacon.intensity = 2.5 + Math.sin(t * 8) * 1.5;

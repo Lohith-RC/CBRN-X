@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Radio, RefreshCw, LayoutDashboard, Compass, Eye, Cpu, AlertTriangle } from 'lucide-react';
 
-export default function Header({ onRefresh, loading, activeMode, setActiveMode, onTriggerEmergency }) {
+export default function Header({ onRefresh, loading, activeMode, setActiveMode, onTriggerEmergency, onReturnHome }) {
   const [utcClock, setUtcClock] = useState('00:00:00 UTC');
 
   useEffect(() => {

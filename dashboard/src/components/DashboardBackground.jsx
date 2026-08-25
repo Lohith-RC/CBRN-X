@@ -13,10 +13,16 @@ export default function DashboardBackground() {
     camera.position.set(0, 5, 20);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    mount.appendChild(renderer.domElement);
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      mount.appendChild(renderer.domElement);
+    } catch (e) {
+      console.warn('WebGL renderer unavailable:', e);
+      return;
+    }
 
     // ── Grid Mesh ──
     const gridHelper = new THREE.GridHelper(60, 40, 0x10b981, 0x1e293b);
