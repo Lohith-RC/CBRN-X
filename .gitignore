@@ -105,6 +105,8 @@ docs/*.html
 # 9. Markdown & Documentation
 *.md
 !README.md
+!CBRS_X_MASTER_ARCHITECTURE_AUDIT.md
+!CBRS_X_STRATEGIC_PRODUCTION_ROADMAP.md
 !docs/**/*.md
 
 # 10. Process Logs
