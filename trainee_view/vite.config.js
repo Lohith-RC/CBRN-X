@@ -7,7 +7,6 @@ const apiProxy = {
   '/api': {
     target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
     changeOrigin: true,
-    // Inject API key header on proxied requests
     ...(apiKey ? {
       configure: (proxy) => {
         proxy.on('proxyReq', (proxyReq) => {
@@ -15,6 +14,16 @@ const apiProxy = {
         });
       },
     } : {}),
+  },
+  '/ws-cbrsx': {
+    target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
+    ws: true,
+    changeOrigin: true,
+  },
+  '/ws-telemetry': {
+    target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
+    ws: true,
+    changeOrigin: true,
   },
 };
 
@@ -32,5 +41,17 @@ export default defineConfig({
     strictPort: true,
     host: true,
     proxy: apiProxy,
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          three: ['three'],
+          lucide: ['lucide-react'],
+        },
+      },
+    },
   },
 });

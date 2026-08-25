@@ -45,7 +45,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${protocol}://${window.location.host}/ws-telemetry`);
+      ws = new WebSocket(`${protocol}://${window.location.host}/ws-cbrsx`);
 
       ws.onopen = () => {
         if (disposed) return;
@@ -55,6 +55,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
         ws.send('CONNECT\naccept-version:1.2,1.1\nheart-beat:10000,10000\n\n\0');
         ws.send('SUBSCRIBE\nid:sub-0\ndestination:/topic/events\n\n\0');
         ws.send('SUBSCRIBE\nid:sub-1\ndestination:/topic/telemetry\n\n\0');
+        ws.send('SUBSCRIBE\nid:sub-2\ndestination:/topic/dashboard/live\n\n\0');
       };
 
       ws.onmessage = (evt) => {

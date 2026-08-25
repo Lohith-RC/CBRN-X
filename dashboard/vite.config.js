@@ -15,6 +15,11 @@ const apiProxy = {
       },
     } : {}),
   },
+  '/ws-cbrsx': {
+    target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
+    ws: true,
+    changeOrigin: true,
+  },
   '/ws-telemetry': {
     target: process.env.VITE_BACKEND_URL || 'http://localhost:8080',
     ws: true,
@@ -33,5 +38,18 @@ export default defineConfig({
     strictPort: true,
     host: true,
     proxy: apiProxy,
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          recharts: ['recharts'],
+          three: ['three'],
+          lucide: ['lucide-react'],
+        },
+      },
+    },
   },
 });
