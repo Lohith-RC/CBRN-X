@@ -288,6 +288,12 @@ public class SessionService {
             voidPayload.put("reason", reason.trim());
         }
 
+        // Capture initiating operator username for audit traceability
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        String operator = (auth != null && auth.getName() != null) ? auth.getName() : "system";
+        voidPayload.put("voidedBy", operator);
+
         SessionEvent voidEvent = SessionEvent.builder()
                 .eventId("evt-" + UUID.randomUUID())
                 .sessionId(sessionId)
@@ -303,7 +309,7 @@ public class SessionService {
             log.warn("WebSocket broadcast failed for session void {}: {}", sessionId, e.getMessage());
         }
 
-        log.info("Session {} voided. Reason: {}", sessionId, (reason == null || reason.isBlank()) ? "not specified" : reason);
+        log.info("Session {} voided by '{}'. Reason: {}", sessionId, operator, (reason == null || reason.isBlank()) ? "not specified" : reason);
         return saved;
     }
 
