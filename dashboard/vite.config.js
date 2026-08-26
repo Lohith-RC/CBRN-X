@@ -22,11 +22,6 @@ export default defineConfig({
       },
     },
   },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.js',
-  },
   server: {
     port: 3000,
     proxy: {
