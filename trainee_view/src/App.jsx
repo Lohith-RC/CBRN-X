@@ -200,7 +200,9 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: sid, eventType, eventData })
       });
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[CBRS-X] Event log failed:', err?.message || err);
+    }
   }, [sessionId]);
 
   // ══════════════════════════════════════════════════════════════
@@ -212,8 +214,8 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          traineeName: 'NDRF Inspector Lohith R C',
-          batchUnit: '10th NDRF Battalion',
+          traineeName: 'NDRF Inspector',
+          batchUnit: 'NDRF Battalion',
           scenarioCode: selectedScenario,
         })
       });
@@ -221,13 +223,14 @@ export default function App() {
       const data = await res.json();
       setSessionId(data.sessionId);
       stateRef.current.sessionId = data.sessionId;
-    } catch (_) {
+    } catch (err) {
+      console.error('[CBRS-X] Session start failed:', err?.message || err);
       setSessionId(null);
       stateRef.current.sessionId = null;
     }
     setIsActive(true);
     transitionToBeat(0);
-    logEvent('scenario_started', JSON.stringify({ trainee_id: 'TRN-4089', scenario_id: selectedScenario }));
+        logEvent('scenario_started', JSON.stringify({ trainee_id: 'TRN-0001', scenario_id: selectedScenario }));
   };
 
   // ══════════════════════════════════════════════════════════════
@@ -237,7 +240,7 @@ export default function App() {
     switch (action) {
       // ── Beat 1 ──
       case 'VALIDATE_ID':
-        logEvent('trainee_validated', '{"trainee_id":"TRN-4089"}');
+        logEvent('trainee_validated', '{"trainee_id":"TRN-0001"}');
         break;
       case 'BEGIN_SCENARIO':
         logEvent('scenario_started', '{}');
@@ -380,7 +383,13 @@ export default function App() {
   // ══════════════════════════════════════════════════════════════
   const finishMission = async () => {
     const sid = stateRef.current.sessionId || sessionId;
-    if (sid) { try { await fetch(`/api/sessions/${sid}/complete`, { method: 'POST' }); } catch (_) {} }
+    if (sid) {
+      try {
+        await fetch(`/api/sessions/${sid}/complete`, { method: 'POST' });
+      } catch (err) {
+        console.warn('[CBRS-X] Session complete failed:', err?.message || err);
+      }
+    }
     setIsActive(false);
     setBeatIndex(-1);
   };

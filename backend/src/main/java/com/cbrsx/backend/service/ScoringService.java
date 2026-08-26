@@ -434,7 +434,9 @@ public class ScoringService {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+            log.debug("Fallback string extraction failed for eventData: {}", ignored.getMessage());
+        }
 
         return 1;
     }

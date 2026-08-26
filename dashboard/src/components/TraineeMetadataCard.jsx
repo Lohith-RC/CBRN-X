@@ -2,10 +2,10 @@ import React from 'react';
 import { User, Shield, Compass, Activity, Hash, Layers } from 'lucide-react';
 
 export default function TraineeMetadataCard({
-  traineeName = 'Inspector Lohith R C',
+  traineeName = 'Inspector NDRF',
   sessionId = 'SESS-CBRN-2026-088',
   missionStage = 'Stage 2: Donning Level-A Suit & Hot-Zone Recon',
-  unit = '10th NDRF Battalion',
+  unit = 'NDRF Battalion',
   status = 'IN MISSION',
   onOpenReplay,
 }) {

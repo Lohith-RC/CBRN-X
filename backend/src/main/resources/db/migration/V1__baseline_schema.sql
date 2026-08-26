@@ -1,0 +1,74 @@
+-- CBRS-X Database Schema Baseline V1
+-- This migration captures the existing schema as the baseline for Flyway.
+-- All future changes must be added as V2__*.sql, V3__*.sql, etc.
+
+-- 1. Trainees Table
+CREATE TABLE IF NOT EXISTS trainees (
+    trainee_id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    batch_unit VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Scenarios Table
+CREATE TABLE IF NOT EXISTS scenarios (
+    scenario_id VARCHAR(64) PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    max_score INT DEFAULT 100
+);
+
+-- 3. Training Sessions Table
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id VARCHAR(64) PRIMARY KEY,
+    trainee_id VARCHAR(64) REFERENCES trainees(trainee_id) ON DELETE CASCADE,
+    scenario_id VARCHAR(64) REFERENCES scenarios(scenario_id) ON DELETE RESTRICT,
+    squad_id VARCHAR(64),
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    final_score INT,
+    pass_status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Session Events Table
+CREATE TABLE IF NOT EXISTS events (
+    event_id VARCHAR(64) PRIMARY KEY,
+    session_id VARCHAR(64) REFERENCES sessions(session_id) ON DELETE CASCADE,
+    event_type VARCHAR(100) NOT NULL,
+    event_data TEXT,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- 5. Instructor / Admin interactive accounts
+CREATE TABLE IF NOT EXISTS instructor_users (
+    username VARCHAR(64) PRIMARY KEY,
+    password_hash VARCHAR(100) NOT NULL,
+    display_name VARCHAR(120) NOT NULL,
+    unit VARCHAR(120),
+    role VARCHAR(20) NOT NULL DEFAULT 'INSTRUCTOR',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_session_timestamp ON events(session_id, timestamp ASC);
+CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
+CREATE INDEX IF NOT EXISTS idx_sessions_trainee_id ON sessions(trainee_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_pass_status ON sessions(pass_status);
+CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
+
+-- Initial Seed Data
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-chem-01');
+
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-rad-02', 'CBRN-RAD-02', 'Radiological Dirty Bomb Response', 'Radiological dispersion device (RDD) detonation near isotope storage vault. Deploy lead shielding, geiger dosimetry, and zone isolation.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-rad-02');
+
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-bio-03', 'CBRN-BIO-03', 'Biological Pathogen Laboratory Breach', 'BSL-4 laboratory containment failure with airborne pathogen release. Engage PAPR respirators, negative pressure isolation, and autoclave decontamination.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-bio-03');

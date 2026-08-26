@@ -149,8 +149,8 @@ export default function Login({ onSuccess }) {
             fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
             textAlign: 'center'
           }}>
-            <div><strong>Dev Sandbox Credentials:</strong></div>
-            <div style={{ marginTop: '3px', color: '#60a5fa' }}>User: <code>admin</code> &bull; Pass: <code>ndrf-admin-123</code></div>
+            <div><strong>Dev Sandbox Mode</strong></div>
+            <div style={{ marginTop: '3px', color: '#60a5fa' }}>Check .env for CBRSX_ADMIN_PASSWORD</div>
           </div>
         )}
 

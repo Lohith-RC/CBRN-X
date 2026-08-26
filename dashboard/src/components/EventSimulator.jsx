@@ -20,7 +20,7 @@ export default function EventSimulator({ onSessionCreated }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           traineeName: 'Constable Rahul Kumar',
-          batchUnit: '10th NDRF Battalion',
+          batchUnit: 'NDRF Battalion',
           scenarioCode: selectedScenario,
         }),
       });
@@ -71,7 +71,7 @@ export default function EventSimulator({ onSessionCreated }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           traineeName: isPerfect ? 'Inspector Vikram Singh' : 'Constable Amit Patel',
-          batchUnit: '10th NDRF Battalion',
+          batchUnit: 'NDRF Battalion',
           scenarioCode: selectedScenario,
         }),
       });

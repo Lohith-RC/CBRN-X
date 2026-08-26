@@ -158,11 +158,11 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
     <div class="subtitle">MINISTRY OF HOME AFFAIRS • CBRN TACTICAL SIMULATION WING</div>
     <h2>Certificate of Operational CBRN Readiness</h2>
     <div class="details">
-      This is to officially certify that responder <strong>${activeSession.traineeName || 'Inspector Lohith R C'}</strong> of unit <strong>${activeSession.batchUnit || '10th NDRF Battalion'}</strong> has successfully completed tactical CBRN disaster evaluation in scenario <strong>${activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN-CHEM-01'}</strong>.
+      This is to officially certify that responder <strong>${activeSession.traineeName || 'Inspector NDRF'}</strong> of unit <strong>${activeSession.batchUnit || 'NDRF Battalion'}</strong> has successfully completed tactical CBRN disaster evaluation in scenario <strong>${activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN-CHEM-01'}</strong>.
     </div>
     <div class="score-badge">SCORE: ${finalScore} / 100 — CERTIFIED SPECIALIST</div>
     <div class="signatures">
-      <div><strong>Cmdt. R. K. Varma</strong><br>Commandant, 10th NDRF Battalion</div>
+      <div><strong>Commandant NDRF</strong><br>Commandant, NDRF Battalion</div>
       <div><strong>Dr. S. N. Mukherjee</strong><br>Chief Technical Evaluator, CBRN</div>
     </div>
   </div>
@@ -250,7 +250,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             Responder: <strong style={{ color: '#fff' }}>{activeSession.traineeName || 'Responder'}</strong>{' '}
-            ({activeSession.batchUnit || '10th NDRF Battalion'}) • Scenario: {activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN Tactical Incident'}
+            ({activeSession.batchUnit || 'NDRF Battalion'}) • Scenario: {activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN Tactical Incident'}
           </p>
         </div>
 
@@ -598,9 +598,9 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
               <p style={{ fontSize: '0.9rem', color: '#cbd5e1', maxWidth: '620px', margin: '0 auto 24px', lineHeight: 1.7 }}>
                 This is to officially certify that responder{' '}
                 <strong style={{ color: '#eab308', fontSize: '1.05rem', textDecoration: 'underline' }}>
-                  {activeSession.traineeName || 'Inspector Lohith R C'}
+                  {activeSession.traineeName || 'Inspector NDRF'}
                 </strong>{' '}
-                of unit <strong style={{ color: '#fff' }}>{activeSession.batchUnit || '10th NDRF Battalion'}</strong> has successfully undergone rigorous CBRN disaster evaluation in scenario{' '}
+                of unit <strong style={{ color: '#fff' }}>{activeSession.batchUnit || 'NDRF Battalion'}</strong> has successfully undergone rigorous CBRN disaster evaluation in scenario{' '}
                 <strong style={{ color: '#38bdf8' }}>{activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN-CHEM-01: Hot-Zone Leak Response'}</strong>.
               </p>
 
@@ -665,7 +665,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
                     Cmdt. R. K. Varma
                   </div>
                   <div style={{ borderTop: '1px dashed rgba(255,255,255,0.3)', paddingTop: '4px', fontSize: '0.7rem', color: '#94a3b8' }}>
-                    Commandant, 10th NDRF Battalion
+                    Commandant, NDRF Battalion
                   </div>
                 </div>
 

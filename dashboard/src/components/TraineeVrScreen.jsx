@@ -66,8 +66,8 @@ export default function TraineeVrScreen({ onSessionComplete }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          traineeName: user?.displayName || user?.username || 'Inspector Lohith R C',
-          batchUnit: user?.unit || '10th NDRF Battalion',
+          traineeName: user?.displayName || user?.username || 'Inspector NDRF',
+          batchUnit: user?.unit || 'NDRF Battalion',
           scenarioCode: 'CBRN-CHEM-01',
         }),
       });
@@ -94,7 +94,9 @@ export default function TraineeVrScreen({ onSessionComplete }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: activeSess, eventType, eventData }),
         });
-      } catch (ignored) {}
+      } catch (err) {
+        console.warn('[CBRS-X] Dashboard event log failed:', err?.message || err);
+      }
     },
     [sessionId]
   );
@@ -165,14 +167,16 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     if (activeSess && !activeSess.startsWith('sess-local')) {
       try {
         await fetch(`/api/sessions/${activeSess}/complete`, { method: 'POST' });
-      } catch (ignored) {}
+      } catch (err) {
+        console.warn('[CBRS-X] Dashboard session complete failed:', err?.message || err);
+      }
     }
     setIsPlaying(false);
     setIsLocked(false);
     const completedSummary = {
       sessionId: activeSess || `sess-demo-${Date.now().toString().slice(-4)}`,
-      traineeName: 'Inspector Lohith R C',
-      batchUnit: '10th NDRF Battalion',
+      traineeName: user?.displayName || user?.username || 'Inspector NDRF',
+      batchUnit: user?.unit || 'NDRF Battalion',
       scenarioTitle: 'Chlorine Gas Leak Response',
       scenarioCode: 'CBRN-CHEM-01',
       finalScore: contained ? 94 : 88,

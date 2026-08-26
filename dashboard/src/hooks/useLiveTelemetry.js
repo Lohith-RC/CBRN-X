@@ -68,7 +68,9 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
             if (parsed?.eventType === 'scenario_completed') {
               callbacksRef.current.onScenarioCompleted?.(parsed);
             }
-          } catch (ignored) {}
+          } catch (err) {
+            console.warn('[CBRS-X] WebSocket message parse error:', err?.message || err);
+          }
         }
       };
 
@@ -108,7 +110,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
       clearInterval(simInterval);
       setConnected(false);
       if (ws) {
-        try { ws.close(); } catch (ignored) {}
+        try { ws.close(); } catch (_) { /* ignore close errors during cleanup */ }
       }
     };
   }, [addEvent]);

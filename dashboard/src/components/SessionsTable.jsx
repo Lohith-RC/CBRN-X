@@ -154,10 +154,10 @@ export default function SessionsTable({ sessions, onSelectSession }) {
                   <tr key={session.sessionId || idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ fontWeight: '700', color: '#ffffff', fontSize: '0.88rem' }}>
-                        {session.traineeName || 'Inspector Lohith R C'}
+                        {session.traineeName || 'Inspector NDRF'}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                        {session.batchUnit || '10th NDRF Battalion'}
+                        {session.batchUnit || 'NDRF Battalion'}
                       </div>
                     </td>
 

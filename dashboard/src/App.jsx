@@ -25,8 +25,8 @@ const FALLBACK_STATS = {
   recentSessions: [
     {
       sessionId: 'sess-demo-01',
-      traineeName: 'Inspector Lohith R C',
-      batchUnit: '10th NDRF Battalion',
+      traineeName: 'Inspector NDRF',
+      batchUnit: 'NDRF Battalion',
       scenarioTitle: 'Chlorine Gas Leak Response',
       scenarioCode: 'CBRN-CHEM-01',
       finalScore: 92,
@@ -144,10 +144,10 @@ function CommandDashboard({ onReturnHome }) {
           <main>
             {/* Trainee Metadata Console Cards (Task 1: Name, Session ID, Active Mission Stage) */}
             <TraineeMetadataCard
-              traineeName={stats?.recentSessions?.[0]?.traineeName || 'Inspector Lohith R C'}
+              traineeName={stats?.recentSessions?.[0]?.traineeName || 'Inspector NDRF'}
               sessionId={stats?.recentSessions?.[0]?.sessionId || 'SESS-CBRN-2026-088'}
               missionStage="Stage 2: Donning Level-A Suit & Hot-Zone Recon"
-              unit={stats?.recentSessions?.[0]?.batchUnit || '10th NDRF Battalion'}
+              unit={stats?.recentSessions?.[0]?.batchUnit || 'NDRF Battalion'}
               status="IN MISSION"
               onOpenReplay={() => setSelectedSession(stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0])}
             />
@@ -215,7 +215,7 @@ function CommandDashboard({ onReturnHome }) {
                 ⚠ CRITICAL EMERGENCY DRILL
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
-                Emergency drill protocol activated across all 10th NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
+                Emergency drill protocol activated across all NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
               </p>
               <button className="btn-glow" style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', borderColor: 'rgba(239, 68, 68, 0.6)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }} onClick={() => setShowDrillModal(false)}>
                 ACKNOWLEDGE &amp; DISMISS DRILL

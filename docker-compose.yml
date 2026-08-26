@@ -134,8 +134,37 @@ services:
     networks:
       - cbrsx-net
 
+  # Automated PostgreSQL Backup Service
+  cbrsx-backup:
+    image: postgres:15-alpine
+    container_name: cbrsx-backup
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    entrypoint: >
+      sh -c '
+        echo "Starting automated backup cron job..."
+        echo "0 2 * * * pg_dump -h cbrsx-db -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cbrsx_db} --format=custom --compress=9 | gzip > /backups/cbrsx_$$(date +\%Y\%m\%d_\%H\%M\%S).sql.gz" > /etc/crontabs/root
+        echo "0 3 * * * find /backups -name \"cbrsx_*.sql.gz\" -mtime +7 -delete" >> /etc/crontabs/root
+        crond -f -l 2
+      '
+    volumes:
+      - cbrsx-backups:/backups
+    depends_on:
+      cbrsx-db:
+        condition: service_healthy
+    networks:
+      - cbrsx-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
 volumes:
   cbrsx-pgdata:
+  cbrsx-backups:
 
 networks:
   cbrsx-net:
