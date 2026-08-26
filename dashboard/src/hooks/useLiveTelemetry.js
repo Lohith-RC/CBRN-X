@@ -45,7 +45,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${protocol}://${window.location.host}/ws-cbrsx`);
+      ws = new WebSocket(`${protocol}://${window.location.host}/ws-telemetry`);
 
       ws.onopen = () => {
         if (disposed) return;

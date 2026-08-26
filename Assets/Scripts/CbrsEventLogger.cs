@@ -46,6 +46,8 @@ namespace CBRSX.Unity
 
         [Header("Backend REST API Architecture")]
         public string backendBaseUrl = "http://localhost:8080/api";
+        [Tooltip("Simulation API key (CBRSX_SIMULATION_KEY). Configure per-deployment via runtime config; never hard-code production keys in builds.")]
+        public string simulationApiKey = "";
         public string currentSessionId = "";
         public string traineeName = "Inspector NDRF Responder";
         public string batchUnit = "10th NDRF Battalion";
@@ -140,6 +142,10 @@ namespace CBRSX.Unity
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(simulationApiKey))
+                {
+                    request.SetRequestHeader("X-API-Key", simulationApiKey);
+                }
 
                 yield return request.SendWebRequest();
 
@@ -173,6 +179,10 @@ namespace CBRSX.Unity
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(simulationApiKey))
+                {
+                    request.SetRequestHeader("X-API-Key", simulationApiKey);
+                }
 
                 yield return request.SendWebRequest();
 

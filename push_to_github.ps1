@@ -75,5 +75,5 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "===============================================" -ForegroundColor Green
 Write-Host " Successfully pushed CBRS-X to GitHub!" -ForegroundColor Green
-Write-Host " Repository: $remoteUrl ($branch)" -ForegroundColor Green
+Write-Host " Repository: $currentRemote ($branch)" -ForegroundColor Green
 Write-Host "===============================================" -ForegroundColor Green
