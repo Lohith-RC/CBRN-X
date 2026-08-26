@@ -1,22 +1,23 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import DashboardBackground from './components/DashboardBackground.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
-import PersonnelSafetyMatrix from './components/PersonnelSafetyMatrix.jsx';
 import EmergencyCommandBar from './components/EmergencyCommandBar.jsx';
-import MultiplayerCoopManager from './components/MultiplayerCoopManager.jsx';
 import TraineeMetadataCard from './components/TraineeMetadataCard.jsx';
-import LandingPage from './components/LandingPage.jsx';
-import Login from './components/Login.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { WifiOff, AlertTriangle } from 'lucide-react';
 
+const DashboardBackground = lazy(() => import('./components/DashboardBackground.jsx'));
+const LandingPage = lazy(() => import('./components/LandingPage.jsx'));
+const Login = lazy(() => import('./components/Login.jsx'));
+const PersonnelSafetyMatrix = lazy(() => import('./components/PersonnelSafetyMatrix.jsx'));
+const MultiplayerCoopManager = lazy(() => import('./components/MultiplayerCoopManager.jsx'));
 const SessionDetailModal = lazy(() => import('./components/SessionDetailModal.jsx'));
 const EventSimulator = lazy(() => import('./components/EventSimulator.jsx'));
 const TraineeVrScreen = lazy(() => import('./components/TraineeVrScreen.jsx'));
 const TacticalCommandCenter = lazy(() => import('./components/TacticalCommandCenter.jsx'));
+const StorageBayGhostReplay = lazy(() => import('./components/StorageBayGhostReplay.jsx'));
 
 const ComponentLoaderFallback = () => (
   <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
@@ -119,7 +120,9 @@ function CommandDashboard({ onReturnHome }) {
   return (
     <>
       {/* Full-page animated 3D background layer */}
-      <DashboardBackground />
+      <Suspense fallback={null}>
+        <DashboardBackground />
+      </Suspense>
 
       {/* Main Content Container (Task 4: High-density 1080p and 4K presentation layout scaling) */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1920px', width: '100%', margin: '0 auto', padding: '24px 32px' }}>
@@ -154,10 +157,14 @@ function CommandDashboard({ onReturnHome }) {
 
             {/* Operational Split View: 7-col Interactive Viewport & Radar | 5-col Trainee & Safety Console */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px', alignItems: 'start' }}>
-              {/* Left Column: Interactive VR Viewport & Radar */}
+              {/* Left Column: Interactive VR Viewport, Ghost Twin & Radar */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <Suspense fallback={<ComponentLoaderFallback />}>
                   <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={handleMissionCompleted} />
+                </Suspense>
+
+                <Suspense fallback={<ComponentLoaderFallback />}>
+                  <StorageBayGhostReplay currentTimeSec={145} />
                 </Suspense>
 
                 <Suspense fallback={<ComponentLoaderFallback />}>
@@ -180,9 +187,13 @@ function CommandDashboard({ onReturnHome }) {
                   onOpenReplay={() => setSelectedSession(stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0])}
                 />
 
-                <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
+                <Suspense fallback={<ComponentLoaderFallback />}>
+                  <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
+                </Suspense>
 
-                <PersonnelSafetyMatrix />
+                <Suspense fallback={<ComponentLoaderFallback />}>
+                  <PersonnelSafetyMatrix />
+                </Suspense>
               </div>
             </div>
 
@@ -265,10 +276,12 @@ function MainView() {
   // 1. Landing Page Flow
   if (view === 'landing') {
     return (
-      <LandingPage
-        onEnterDashboard={() => setView('login')}
-        onLaunchSim={() => window.open('/unity-sim/index.html', '_blank')}
-      />
+      <Suspense fallback={<ComponentLoaderFallback />}>
+        <LandingPage
+          onEnterDashboard={() => setView('login')}
+          onLaunchSim={() => window.open('/unity-sim/index.html', '_blank')}
+        />
+      </Suspense>
     );
   }
 
@@ -280,7 +293,9 @@ function MainView() {
           <button onClick={() => setView('landing')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'transparent', border: 'none', color: '#93c5fd', fontSize: '0.85rem', fontFamily: 'monospace', cursor: 'pointer', marginBottom: '16px' }}>
             &larr; Back to Landing Page
           </button>
-          <Login onSuccess={() => setView('dashboard')} />
+          <Suspense fallback={<ComponentLoaderFallback />}>
+            <Login onSuccess={() => setView('dashboard')} />
+          </Suspense>
         </div>
       </div>
     );
