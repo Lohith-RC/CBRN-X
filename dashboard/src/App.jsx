@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import DashboardBackground from './components/DashboardBackground.jsx';
 import Header from './components/Header.jsx';
 import MetricCards from './components/MetricCards.jsx';
 import SessionsTable from './components/SessionsTable.jsx';
-import SessionDetailModal from './components/SessionDetailModal.jsx';
-import EventSimulator from './components/EventSimulator.jsx';
-import TraineeVrScreen from './components/TraineeVrScreen.jsx';
-import TacticalCommandCenter from './components/TacticalCommandCenter.jsx';
 import PersonnelSafetyMatrix from './components/PersonnelSafetyMatrix.jsx';
 import EmergencyCommandBar from './components/EmergencyCommandBar.jsx';
 import MultiplayerCoopManager from './components/MultiplayerCoopManager.jsx';
@@ -16,6 +12,17 @@ import Login from './components/Login.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import useLiveTelemetry from './hooks/useLiveTelemetry.js';
 import { WifiOff, AlertTriangle } from 'lucide-react';
+
+const SessionDetailModal = lazy(() => import('./components/SessionDetailModal.jsx'));
+const EventSimulator = lazy(() => import('./components/EventSimulator.jsx'));
+const TraineeVrScreen = lazy(() => import('./components/TraineeVrScreen.jsx'));
+const TacticalCommandCenter = lazy(() => import('./components/TacticalCommandCenter.jsx'));
+
+const ComponentLoaderFallback = () => (
+  <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+    Loading tactical component module…
+  </div>
+);
 
 const FALLBACK_STATS = {
   totalTrainees: 12,
@@ -141,36 +148,42 @@ function CommandDashboard({ onReturnHome }) {
 
         {/* SINGLE-PANE CONSOLE (DEFAULT): Zero-Click Battalion View */}
         {(activeMode === 'singlepane' || activeMode === 'all') && (
-          <main>
-            {/* Trainee Metadata Console Cards (Task 1: Name, Session ID, Active Mission Stage) */}
-            <TraineeMetadataCard
-              traineeName={stats?.recentSessions?.[0]?.traineeName || 'Inspector Lohith R C'}
-              sessionId={stats?.recentSessions?.[0]?.sessionId || 'SESS-CBRN-2026-088'}
-              missionStage="Stage 2: Donning Level-A Suit & Hot-Zone Recon"
-              unit={stats?.recentSessions?.[0]?.batchUnit || '10th NDRF Battalion'}
-              status="IN MISSION"
-              onOpenReplay={() => setSelectedSession(stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0])}
-            />
-
-            {/* Multi-Responder Co-Op Live Telemetry Stream */}
-            <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
-
-            {/* Environmental & Mission Metrics (Telemetry KPI Cards: Score, Time, Incident Status) */}
+          <main style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            {/* Top KPI Metrics Bar */}
             <MetricCards stats={stats} />
 
-            {/* Personnel Safety & SCBA Readiness Matrix */}
-            <PersonnelSafetyMatrix />
+            {/* Operational Split View: 7-col Interactive Viewport & Radar | 5-col Trainee & Safety Console */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px', alignItems: 'start' }}>
+              {/* Left Column: Interactive VR Viewport & Radar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Suspense fallback={<ComponentLoaderFallback />}>
+                  <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={handleMissionCompleted} />
+                </Suspense>
 
-            {/* Tactical Operations Radar + Incident Feed */}
-            <TacticalCommandCenter
-              onTriggerEmergency={() => setShowDrillModal(true)}
-              onRefresh={fetchDashboardStats}
-              liveEvents={liveEvents}
-            />
+                <Suspense fallback={<ComponentLoaderFallback />}>
+                  <TacticalCommandCenter
+                    onTriggerEmergency={() => setShowDrillModal(true)}
+                    onRefresh={fetchDashboardStats}
+                    liveEvents={liveEvents}
+                  />
+                </Suspense>
+              </div>
 
-            {/* Interactive VR Viewport Launcher */}
-            <div style={{ marginBottom: '24px' }}>
-              <TraineeVrScreen activeTeamId={activeTeamId} onSessionComplete={handleMissionCompleted} />
+              {/* Right Column: Trainee Operator Card, Co-Op Telemetry & SCBA Matrix */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <TraineeMetadataCard
+                  traineeName={stats?.recentSessions?.[0]?.traineeName || 'Inspector Lohith R C'}
+                  sessionId={stats?.recentSessions?.[0]?.sessionId || 'SESS-CBRN-2026-088'}
+                  missionStage="Stage 2: Donning Level-A Suit & Hot-Zone Recon"
+                  unit={stats?.recentSessions?.[0]?.batchUnit || '10th NDRF Battalion'}
+                  status="IN MISSION"
+                  onOpenReplay={() => setSelectedSession(stats?.recentSessions?.[0] || FALLBACK_STATS.recentSessions[0])}
+                />
+
+                <MultiplayerCoopManager activeTeamId={activeTeamId} onSelectActiveTeam={setActiveTeamId} />
+
+                <PersonnelSafetyMatrix />
+              </div>
             </div>
 
             {/* Sessions Telemetry Data Table */}
@@ -183,26 +196,32 @@ function CommandDashboard({ onReturnHome }) {
 
         {/* VIEW MODE: Dedicated Radar Focus */}
         {activeMode === 'tactical' && (
-          <TacticalCommandCenter
-            onTriggerEmergency={() => setShowDrillModal(true)}
-            onRefresh={fetchDashboardStats}
-            liveEvents={liveEvents}
-          />
+          <Suspense fallback={<ComponentLoaderFallback />}>
+            <TacticalCommandCenter
+              onTriggerEmergency={() => setShowDrillModal(true)}
+              onRefresh={fetchDashboardStats}
+              liveEvents={liveEvents}
+            />
+          </Suspense>
         )}
 
         {/* VIEW MODE: Dev Telemetry Simulator */}
         {activeMode === 'test' && (
           <div>
-            <EventSimulator onSessionCreated={fetchDashboardStats} />
+            <Suspense fallback={<ComponentLoaderFallback />}>
+              <EventSimulator onSessionCreated={fetchDashboardStats} />
+            </Suspense>
           </div>
         )}
 
         {/* Mission Evaluation Detail Modal */}
-        <SessionDetailModal
-          sessionSummary={selectedSession}
-          session={selectedSession}
-          onClose={() => setSelectedSession(null)}
-        />
+        <Suspense fallback={null}>
+          <SessionDetailModal
+            sessionSummary={selectedSession}
+            session={selectedSession}
+            onClose={() => setSelectedSession(null)}
+          />
+        </Suspense>
 
         {/* Emergency Drill Overlay Modal */}
         {showDrillModal && (

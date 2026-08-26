@@ -21,7 +21,6 @@ export default function TraineeMetadataCard({
       className="glass-card-deep animate-fade-in glow-ring"
       style={{
         padding: '20px 24px',
-        marginBottom: '24px',
         border: '1px solid rgba(139, 92, 246, 0.3)',
         borderRadius: '16px',
         position: 'relative',

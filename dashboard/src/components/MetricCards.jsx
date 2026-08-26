@@ -51,7 +51,7 @@ export default function MetricCards({ stats }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
       {cards.map(([title, isCounter, valueNode, subtext, trend, Icon, color], idx) => (
         <div key={idx} className="glass-card-deep animate-fade-in glow-ring" style={{ padding: '22px 24px', animationDelay: `${idx * 0.1}s`, border: `1px solid ${color}25` }}>
           {/* Background glow orb */}

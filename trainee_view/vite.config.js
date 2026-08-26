@@ -22,6 +22,11 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
   assetsInclude: ['**/*.mp4'],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+  },
   server: {
     port: 5000,
     strictPort: true,

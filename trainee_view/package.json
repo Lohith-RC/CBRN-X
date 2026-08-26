@@ -4,17 +4,36 @@
   "version": "1.0.0",
   "type": "module",
   "contributors": [
-    { "name": "Lohith R C", "role": "Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager" },
-    { "name": "Monica K S", "role": "Backend Developer & Database Administrator" },
-    { "name": "Chandana M P", "role": "Admin Dashboard Developer (Frontend and Backend) & Workflow Manager" },
-    { "name": "Chandana M N", "role": "Frontend Developer, Designer & Unity Physics Developer" },
-    { "name": "Harshini R B", "role": "Unity Environment Artist & 3D Asset Developer" },
-    { "name": "Pavitra J H", "role": "UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker" }
+    {
+      "name": "Lohith R C",
+      "role": "Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager"
+    },
+    {
+      "name": "Monica K S",
+      "role": "Backend Developer & Database Administrator"
+    },
+    {
+      "name": "Chandana M P",
+      "role": "Admin Dashboard Developer (Frontend and Backend) & Workflow Manager"
+    },
+    {
+      "name": "Chandana M N",
+      "role": "Frontend Developer, Designer & Unity Physics Developer"
+    },
+    {
+      "name": "Harshini R B",
+      "role": "Unity Environment Artist & 3D Asset Developer"
+    },
+    {
+      "name": "Pavitra J H",
+      "role": "UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker"
+    }
   ],
   "scripts": {
     "dev": "vite --port 5000",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
@@ -23,9 +42,14 @@
     "three": "^0.162.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.1.6"
+    "jsdom": "^29.1.1",
+    "vite": "^5.1.6",
+    "vitest": "^4.1.11"
   }
 }

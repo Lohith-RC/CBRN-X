@@ -39,7 +39,7 @@ export default function MultiplayerCoopManager({ onSelectActiveTeam, activeTeamI
   }, []);
 
   return (
-    <div className="glass-card-deep animate-fade-in" style={{ padding: '20px', marginBottom: '24px' }}>
+    <div className="glass-card-deep animate-fade-in" style={{ padding: '20px' }}>
       <div className="section-header-tactical" style={{ marginBottom: '14px' }}>
         <h2 className="section-title-glow">
           <Users size={18} color="var(--accent-purple)" />
