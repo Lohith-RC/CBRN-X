@@ -93,6 +93,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             handleSubscribe(accessor);
         }
+        // 3. [SEC-07] Handle STOMP SEND (client → server app destinations)
+        else if (StompCommand.SEND.equals(accessor.getCommand())) {
+            handleSend(accessor);
+        }
 
         return message;
     }
@@ -145,6 +149,36 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     }
 
     @SuppressWarnings("unchecked")
+    private List<String> rolesFor(StompHeaderAccessor accessor) {
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        return sessionAttributes != null
+                ? (List<String>) sessionAttributes.getOrDefault(ROLES_SESSION_KEY, Collections.emptyList())
+                : Collections.emptyList();
+    }
+
+    /**
+     * [SEC-07] Publishing to co-op telemetry application destinations is
+     * restricted to elevated roles (SIMULATION/ADMIN/INSTRUCTOR). Without this,
+     * any trainee-level client could inject forged responder positions into the
+     * instructor tactical picture.
+     */
+    private void handleSend(StompHeaderAccessor accessor) {
+        if (!authEnabled) {
+            return;
+        }
+        String destination = accessor.getDestination();
+        if (destination != null && destination.startsWith("/app/coop/")) {
+            List<String> roles = rolesFor(accessor);
+            if (!roles.contains("ROLE_ADMIN") && !roles.contains("ROLE_INSTRUCTOR")
+                    && !roles.contains("ROLE_SIMULATION")) {
+                log.warn("WebSocket SEND to {} denied for session {} without simulation privileges",
+                        destination, accessor.getSessionId());
+                throw new AccessDeniedException(
+                        "Access Denied: Simulation, Instructor or Admin role required to publish to " + destination);
+            }
+        }
+    }
+
     private void handleSubscribe(StompHeaderAccessor accessor) {
         if (!authEnabled) {
             return;
@@ -155,10 +189,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             return;
         }
 
-        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-        List<String> roles = sessionAttributes != null
-                ? (List<String>) sessionAttributes.getOrDefault(ROLES_SESSION_KEY, Collections.emptyList())
-                : Collections.emptyList();
+        List<String> roles = rolesFor(accessor);
 
         // Broadcast topics (global event and session streams) require INSTRUCTOR or ADMIN roles
         if (destination.equals("/topic/events") || destination.equals("/topic/sessions")) {
@@ -173,6 +204,16 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             if (!roles.contains("ROLE_ADMIN") && !roles.contains("ROLE_INSTRUCTOR") && !roles.contains("ROLE_TRAINEE")) {
                 log.warn("WebSocket SUBSCRIBE to {} denied for session {}", destination, accessor.getSessionId());
                 throw new AccessDeniedException("Access Denied: Insufficient permissions to subscribe to " + destination);
+            }
+        }
+        // [SEC-07] Co-op position streams expose live responder locations and
+        // are restricted to instructor consoles and command staff only.
+        else if (destination.startsWith("/topic/coop/")) {
+            if (!roles.contains("ROLE_ADMIN") && !roles.contains("ROLE_INSTRUCTOR")) {
+                log.warn("WebSocket SUBSCRIBE to {} denied for session {} without instructor privileges",
+                        destination, accessor.getSessionId());
+                throw new AccessDeniedException(
+                        "Access Denied: Instructor or Admin role required to subscribe to " + destination);
             }
         }
     }

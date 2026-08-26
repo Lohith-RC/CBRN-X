@@ -27,7 +27,7 @@ public class MultiplayerTelemetryController {
         log.debug("Co-Op Telemetry sync received for responder: {}", positionPayload.get("teamId"));
         return Map.of(
             "teamId", positionPayload.getOrDefault("teamId", "alpha"),
-            "responderName", positionPayload.getOrDefault("responderName", "Inspector Lohith R C"),
+            "responderName", positionPayload.getOrDefault("responderName", "Inspector NDRF"),
             "x", positionPayload.getOrDefault("x", 0.0),
             "y", positionPayload.getOrDefault("y", 1.7),
             "z", positionPayload.getOrDefault("z", 0.0),

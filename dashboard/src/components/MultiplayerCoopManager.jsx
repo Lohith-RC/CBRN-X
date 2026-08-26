@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Users, Radio, Compass, Shield, Activity } from 'lucide-react';
 
 const COOP_TEAMS = [
-  { id: 'alpha', name: 'Alpha Team', responder: 'Inspector Lohith R C', unit: '10th NDRF Bn', color: '#10b981', initialPos: { x: 1.5, y: 1.7, z: 7.4 } },
-  { id: 'bravo', name: 'Bravo Team', responder: 'Sub-Inspector Rajesh Kumar', unit: '10th NDRF Bn', color: '#8b5cf6', initialPos: { x: -1.8, y: 1.7, z: 7.4 } },
-  { id: 'charlie', name: 'Charlie Team', responder: 'Constable Vikram Singh', unit: '10th NDRF Bn', color: '#06b6d4', initialPos: { x: 0.0, y: 1.7, z: 3.2 } },
+  { id: 'alpha', name: 'Alpha Team', responder: 'Inspector Alpha', unit: 'NDRF Bn', color: '#10b981', initialPos: { x: 1.5, y: 1.7, z: 7.4 } },
+  { id: 'bravo', name: 'Bravo Team', responder: 'Inspector Bravo', unit: 'NDRF Bn', color: '#8b5cf6', initialPos: { x: -1.8, y: 1.7, z: 7.4 } },
+  { id: 'charlie', name: 'Charlie Team', responder: 'Inspector Charlie', unit: 'NDRF Bn', color: '#06b6d4', initialPos: { x: 0.0, y: 1.7, z: 3.2 } },
 ];
 
 export default function MultiplayerCoopManager({ onSelectActiveTeam, activeTeamId }) {

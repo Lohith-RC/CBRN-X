@@ -44,11 +44,15 @@ namespace CBRSX.Unity
     {
         public static CbrsEventLogger Instance { get; private set; }
 
-        [Header("Backend REST API Architecture")]
-        public string backendBaseUrl = "http://localhost:8080/api";
-        public string currentSessionId = "";
-        public string traineeName = "Inspector NDRF Responder";
-        public string batchUnit = "10th NDRF Battalion";
+    [Header("Backend REST API Architecture")]
+    public string backendBaseUrl = "http://localhost:8080/api";
+    [Tooltip("Simulation API key (CBRSX_SIMULATION_KEY). Configure per-deployment via runtime config; never hard-code production keys in builds.")]
+    public string simulationApiKey = "";
+    public string currentSessionId = "";
+    public string traineeName = "Inspector NDRF Responder";
+    public string batchUnit = "10th NDRF Battalion";
+    [Tooltip("Scenario code to use for this session. Defaults to CBRN-CHEM-01 if not set.")]
+    public string scenarioCode = "CBRN-CHEM-01";
         public int maxRetryAttempts = 3;
         public float baseRetryDelaySeconds = 1.5f;
 
@@ -140,6 +144,10 @@ namespace CBRSX.Unity
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(simulationApiKey))
+                {
+                    request.SetRequestHeader("X-API-Key", simulationApiKey);
+                }
 
                 yield return request.SendWebRequest();
 
@@ -163,7 +171,7 @@ namespace CBRSX.Unity
             {
                 traineeName = this.traineeName,
                 batchUnit = this.batchUnit,
-                scenarioCode = "CBRN-CHEM-01"
+                scenarioCode = this.scenarioCode
             };
 
             string json = JsonUtility.ToJson(payload);
@@ -173,6 +181,10 @@ namespace CBRSX.Unity
                 request.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(simulationApiKey))
+                {
+                    request.SetRequestHeader("X-API-Key", simulationApiKey);
+                }
 
                 yield return request.SendWebRequest();
 

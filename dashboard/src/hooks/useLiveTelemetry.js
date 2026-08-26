@@ -55,6 +55,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
         ws.send('CONNECT\naccept-version:1.2,1.1\nheart-beat:10000,10000\n\n\0');
         ws.send('SUBSCRIBE\nid:sub-0\ndestination:/topic/events\n\n\0');
         ws.send('SUBSCRIBE\nid:sub-1\ndestination:/topic/telemetry\n\n\0');
+        ws.send('SUBSCRIBE\nid:sub-2\ndestination:/topic/dashboard/live\n\n\0');
       };
 
       ws.onmessage = (evt) => {
@@ -67,7 +68,9 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
             if (parsed?.eventType === 'scenario_completed') {
               callbacksRef.current.onScenarioCompleted?.(parsed);
             }
-          } catch (ignored) {}
+          } catch (err) {
+            console.warn('[CBRS-X] WebSocket message parse error:', err?.message || err);
+          }
         }
       };
 
@@ -107,7 +110,7 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
       clearInterval(simInterval);
       setConnected(false);
       if (ws) {
-        try { ws.close(); } catch (ignored) {}
+        try { ws.close(); } catch (_) { /* ignore close errors during cleanup */ }
       }
     };
   }, [addEvent]);

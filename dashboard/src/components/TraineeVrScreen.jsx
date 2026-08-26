@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { Shield, AlertTriangle, CheckCircle, Crosshair, Radio, Play, MousePointer2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const LEAKING_DRUM_INDEX = 2; // Drum #3
 const HAZARD_ZONE_RADIUS = 4;
@@ -22,6 +23,7 @@ const hudBox = {
 const ACTION_BTN = { padding: '5px 12px', fontSize: '0.75rem' };
 
 export default function TraineeVrScreen({ onSessionComplete }) {
+  const { user } = useAuth();
   const mountRef = useRef(null);
   const controlsRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -64,8 +66,8 @@ export default function TraineeVrScreen({ onSessionComplete }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          traineeName: 'Inspector Lohith R C',
-          batchUnit: '10th NDRF Battalion',
+          traineeName: user?.displayName || user?.username || 'Inspector NDRF',
+          batchUnit: user?.unit || 'NDRF Battalion',
           scenarioCode: 'CBRN-CHEM-01',
         }),
       });
@@ -92,7 +94,9 @@ export default function TraineeVrScreen({ onSessionComplete }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: activeSess, eventType, eventData }),
         });
-      } catch (ignored) {}
+      } catch (err) {
+        console.warn('[CBRS-X] Dashboard event log failed:', err?.message || err);
+      }
     },
     [sessionId]
   );
@@ -163,14 +167,16 @@ export default function TraineeVrScreen({ onSessionComplete }) {
     if (activeSess && !activeSess.startsWith('sess-local')) {
       try {
         await fetch(`/api/sessions/${activeSess}/complete`, { method: 'POST' });
-      } catch (ignored) {}
+      } catch (err) {
+        console.warn('[CBRS-X] Dashboard session complete failed:', err?.message || err);
+      }
     }
     setIsPlaying(false);
     setIsLocked(false);
     const completedSummary = {
       sessionId: activeSess || `sess-demo-${Date.now().toString().slice(-4)}`,
-      traineeName: 'Inspector Lohith R C',
-      batchUnit: '10th NDRF Battalion',
+      traineeName: user?.displayName || user?.username || 'Inspector NDRF',
+      batchUnit: user?.unit || 'NDRF Battalion',
       scenarioTitle: 'Chlorine Gas Leak Response',
       scenarioCode: 'CBRN-CHEM-01',
       finalScore: contained ? 94 : 88,

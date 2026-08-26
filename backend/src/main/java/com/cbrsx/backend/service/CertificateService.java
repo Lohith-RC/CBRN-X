@@ -9,6 +9,7 @@ import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,12 +31,14 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class CertificateService {
 
-    private static final String CRYPTO_SALT = "CBRSX_TAMPER_EVIDENT_SALT_NDRF_2026";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm:ss 'UTC'")
             .withZone(ZoneId.of("UTC"));
 
     private final ScoringService scoringService;
     private final SessionRepository sessionRepository;
+
+    @Value("${cbrsx.crypto.salt:CBRSX_TAMPER_EVIDENT_SALT_NDRF_2026}")
+    private String cryptoSalt;
 
     /**
      * Generates a tamper-evident PDF certificate for a passed simulation session.
@@ -210,7 +213,7 @@ public class CertificateService {
                 report.getScenarioCode(),
                 report.getFinalScore(),
                 report.getCompletedAt() != null ? report.getCompletedAt().toString() : "COMPLETED",
-                CRYPTO_SALT
+                cryptoSalt
         );
 
         try {

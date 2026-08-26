@@ -139,4 +139,26 @@ class TraineeAnalyticsServiceTest {
                 traineeAnalyticsService.getTraineeProgression("unknown")
         );
     }
+
+    @Test
+    void getBattalionLeaderboard_AggregatesAndRanksTrainees() {
+        Trainee t1 = Trainee.builder().traineeId("trn-1").name("Alpha Responder").batchUnit("10th NDRF Battalion").build();
+        Trainee t2 = Trainee.builder().traineeId("trn-2").name("Beta Responder").batchUnit("10th NDRF Battalion").build();
+
+        when(traineeRepository.findAll()).thenReturn(Arrays.asList(t1, t2));
+
+        TrainingSession s1 = TrainingSession.builder().sessionId("s1").traineeId("trn-1").finalScore(95).passStatus("PASSED").startedAt(Instant.now()).build();
+        TrainingSession s2 = TrainingSession.builder().sessionId("s2").traineeId("trn-2").finalScore(75).passStatus("PASSED").startedAt(Instant.now()).build();
+
+        when(sessionRepository.findByTraineeIdOrderByStartedAtAsc("trn-1")).thenReturn(Collections.singletonList(s1));
+        when(sessionRepository.findByTraineeIdOrderByStartedAtAsc("trn-2")).thenReturn(Collections.singletonList(s2));
+
+        var leaderboard = traineeAnalyticsService.getBattalionLeaderboard(null);
+
+        assertEquals(2, leaderboard.size());
+        assertEquals("trn-1", leaderboard.get(0).getTraineeId());
+        assertEquals(95, leaderboard.get(0).getBestScore());
+        assertEquals("trn-2", leaderboard.get(1).getTraineeId());
+        assertEquals(75, leaderboard.get(1).getBestScore());
+    }
 }

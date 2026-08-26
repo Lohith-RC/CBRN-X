@@ -1,4 +1,4 @@
--- CBRS-X Database Schema DDL for PostgreSQL / Supabase / H2(PostgreSQL mode)
+-- CBRS-X Database Schema DDL for PostgreSQL / Supabase / H2
 
 -- 1. Trainees Table
 CREATE TABLE IF NOT EXISTS trainees (
@@ -59,15 +59,17 @@ CREATE INDEX IF NOT EXISTS idx_sessions_trainee_id ON sessions(trainee_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_pass_status ON sessions(pass_status);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
 
--- Initial Seed Data using MERGE (H2 + PostgreSQL compatible upsert)
-MERGE INTO scenarios (scenario_id, code, title, description, max_score)
-KEY (scenario_id)
-VALUES ('scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100);
+-- Initial Seed Data.
+-- Uses INSERT ... SELECT ... WHERE NOT EXISTS because it is the only idempotent
+-- form accepted by BOTH PostgreSQL/Supabase and every H2 compatibility mode.
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-chem-01', 'CBRN-CHEM-01', 'Chemical Spill Emergency Response', 'Industrial Chemical Leak Incident at Storage Bay 3. Respond with full CBRN protocol: PPE, Hazard Detection, Civilian Evacuation, Containment, Decontamination.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-chem-01');
 
-MERGE INTO scenarios (scenario_id, code, title, description, max_score)
-KEY (scenario_id)
-VALUES ('scen-rad-02', 'CBRN-RAD-02', 'Radiological Dirty Bomb & Isotope Containment', 'High-Risk Cesium-137 Isotope Dispersion at Reactor Sub-Vault. Equip dosimeter, deploy lead shielding blanket, extract technicians, and secure hot cell perimeter.', 100);
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-rad-02', 'CBRN-RAD-02', 'Radiological Dirty Bomb & Isotope Containment', 'High-Risk Cesium-137 Isotope Dispersion at Reactor Sub-Vault. Equip dosimeter, deploy lead shielding blanket, extract technicians, and secure hot cell perimeter.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-rad-02');
 
-MERGE INTO scenarios (scenario_id, code, title, description, max_score)
-KEY (scenario_id)
-VALUES ('scen-bio-03', 'CBRN-BIO-03', 'Biological Pathogen Laboratory Breach', 'Level-4 Biosafety Facility Airborne Pathogen Spill. Don PAPR positive-pressure respirator, establish negative pressure airlock, neutralize bio-aerosol, and decontaminate.', 100);
+INSERT INTO scenarios (scenario_id, code, title, description, max_score)
+SELECT 'scen-bio-03', 'CBRN-BIO-03', 'Biological Pathogen Laboratory Breach', 'Level-4 Biosafety Facility Airborne Pathogen Spill. Don PAPR positive-pressure respirator, establish negative pressure airlock, neutralize bio-aerosol, and decontaminate.', 100
+WHERE NOT EXISTS (SELECT 1 FROM scenarios WHERE scenario_id = 'scen-bio-03');

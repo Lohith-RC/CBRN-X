@@ -9,7 +9,7 @@ const STAGE_HOTSPOTS = {
   /* Beat 1: CCTV Surveillance — click to begin scenario */
   BEAT_1_BRIEFING: [
     { id: 'begin-btn', x: 38, y: 70, w: 24, h: 12, label: 'BEGIN SCENARIO', icon: '▶️', action: 'BEGIN_SCENARIO' },
-    { id: 'trainee-input', x: 35, y: 50, w: 30, h: 10, label: 'ID VALIDATED: TRN-4089', icon: '📋', action: 'VALIDATE_ID' },
+    { id: 'trainee-input', x: 35, y: 50, w: 30, h: 10, label: 'ID VALIDATED', icon: '📋', action: 'VALIDATE_ID' },
   ],
   /* Beat 2: FPS Init — survey environment, find PPE station */
   BEAT_2_FPS_INIT: [

@@ -9,11 +9,24 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+server:
+  servlet:
+    session:
+      cookie:
+        # Sessions ride TLS behind the gateway in production
+        secure: true
 
 management:
   endpoint:
     health:
       show-details: never
+
+# [SEC-08] Do not expose API documentation surface publicly in production
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 logging:
   level:

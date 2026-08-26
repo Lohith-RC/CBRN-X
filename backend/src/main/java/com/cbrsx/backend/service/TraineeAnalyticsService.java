@@ -184,4 +184,58 @@ public class TraineeAnalyticsService {
                 .attemptHistory(attempts)
                 .build();
     }
+
+    /**
+     * Aggregates and ranks trainees across battalion units based on best score,
+     * average performance, total drills completed, and certification status.
+     */
+    @Transactional(readOnly = true)
+    public List<com.cbrsx.backend.dto.TraineeLeaderboardDTO> getBattalionLeaderboard(String batchUnit) {
+        List<Trainee> trainees = (batchUnit != null && !batchUnit.isBlank())
+                ? traineeRepository.findTop500ByNameContainingIgnoreCaseOrBatchUnitContainingIgnoreCase("", batchUnit.trim())
+                : traineeRepository.findAll();
+
+        List<com.cbrsx.backend.dto.TraineeLeaderboardDTO> leaderboard = new ArrayList<>();
+
+        for (Trainee trainee : trainees) {
+            List<TrainingSession> sessions = sessionRepository.findByTraineeIdOrderByStartedAtAsc(trainee.getTraineeId()).stream()
+                    .filter(s -> !"VOIDED".equalsIgnoreCase(s.getPassStatus()) && !"IN_PROGRESS".equalsIgnoreCase(s.getPassStatus()))
+                    .toList();
+
+            if (sessions.isEmpty()) {
+                continue;
+            }
+
+            int totalDrills = sessions.size();
+            long passedDrills = sessions.stream().filter(s -> "PASSED".equalsIgnoreCase(s.getPassStatus()) || (s.getFinalScore() != null && s.getFinalScore() >= ScoringService.PASS_THRESHOLD)).count();
+            double passRate = Math.round(((double) passedDrills / totalDrills * 100.0) * 10.0) / 10.0;
+            double avgScore = Math.round((sessions.stream().mapToInt(s -> s.getFinalScore() != null ? s.getFinalScore() : 0).average().orElse(0.0)) * 10.0) / 10.0;
+            int bestScore = sessions.stream().mapToInt(s -> s.getFinalScore() != null ? s.getFinalScore() : 0).max().orElse(0);
+            boolean certified = passedDrills > 0;
+            Instant lastActive = sessions.get(sessions.size() - 1).getCompletedAt() != null
+                    ? sessions.get(sessions.size() - 1).getCompletedAt()
+                    : sessions.get(sessions.size() - 1).getStartedAt();
+
+            leaderboard.add(new com.cbrsx.backend.dto.TraineeLeaderboardDTO(
+                    trainee.getTraineeId(),
+                    trainee.getName(),
+                    trainee.getBatchUnit(),
+                    totalDrills,
+                    (int) passedDrills,
+                    passRate,
+                    avgScore,
+                    bestScore,
+                    certified,
+                    lastActive
+            ));
+        }
+
+        leaderboard.sort((a, b) -> {
+            int cmp = Integer.compare(b.getBestScore(), a.getBestScore());
+            if (cmp != 0) return cmp;
+            return Double.compare(b.getAverageScore(), a.getAverageScore());
+        });
+
+        return leaderboard;
+    }
 }

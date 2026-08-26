@@ -1,4 +1,9 @@
 spring:
+  sql:
+    init:
+      # Load demo seed rows only for local development. Production keeps
+      # schema.sql initialization but never receives demo data.
+      data-locations: classpath:data-demo.sql
   jpa:
     hibernate:
       ddl-auto: update

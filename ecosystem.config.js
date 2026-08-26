@@ -4,7 +4,7 @@ module.exports = {
       name: 'cbrsx-backend-8080',
       cwd: './backend',
       script: 'java',
-      args: '-jar target/cbrsx-backend-1.0.0-SNAPSHOT.jar',
+      args: '-jar target/app.jar',
       env: {
         SPRING_PROFILES_ACTIVE: 'prod',
         SERVER_PORT: 8080,

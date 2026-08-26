@@ -4,8 +4,8 @@ import { Shield, Clock, Activity, Gauge, AlertTriangle, CheckCircle2 } from 'luc
 const RESPONDERS = [
   {
     id: 'tr-001',
-    name: 'Inspector Lohith R C',
-    unit: '10th NDRF Bn (Alpha Team)',
+    name: 'Inspector Alpha',
+    unit: 'NDRF Bn (Alpha Team)',
     scbaPsi: 2450,
     maxPsi: 3000,
     ppeStatus: { mask: true, suit: true, gloves: true },
@@ -18,7 +18,7 @@ const RESPONDERS = [
   {
     id: 'tr-002',
     name: 'Sub-Inspector Rajesh Kumar',
-    unit: '10th NDRF Bn (Bravo Team)',
+    unit: 'NDRF Bn (Bravo Team)',
     scbaPsi: 1820,
     maxPsi: 3000,
     ppeStatus: { mask: true, suit: true, gloves: true },
@@ -31,7 +31,7 @@ const RESPONDERS = [
   {
     id: 'tr-003',
     name: 'Constable Vikram Singh',
-    unit: '10th NDRF Bn (Charlie Team)',
+    unit: 'NDRF Bn (Charlie Team)',
     scbaPsi: 850,
     maxPsi: 3000,
     ppeStatus: { mask: true, suit: true, gloves: false },

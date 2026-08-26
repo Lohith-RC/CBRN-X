@@ -32,8 +32,8 @@ const FALLBACK_STATS = {
   recentSessions: [
     {
       sessionId: 'sess-demo-01',
-      traineeName: 'Inspector Lohith R C',
-      batchUnit: '10th NDRF Battalion',
+      traineeName: 'Inspector NDRF',
+      batchUnit: 'NDRF Battalion',
       scenarioTitle: 'Chlorine Gas Leak Response',
       scenarioCode: 'CBRN-CHEM-01',
       finalScore: 92,
@@ -234,7 +234,7 @@ function CommandDashboard({ onReturnHome }) {
                 ⚠ CRITICAL EMERGENCY DRILL
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5 }}>
-                Emergency drill protocol activated across all 10th NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
+                Emergency drill protocol activated across all NDRF Battalion trainee terminals. Sector Delta radiation &amp; chemical simulation locked to level-4 high hazard parameters.
               </p>
               <button className="btn-glow" style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', borderColor: 'rgba(239, 68, 68, 0.6)', boxShadow: '0 4px 20px rgba(239, 68, 68, 0.4)' }} onClick={() => setShowDrillModal(false)}>
                 ACKNOWLEDGE &amp; DISMISS DRILL

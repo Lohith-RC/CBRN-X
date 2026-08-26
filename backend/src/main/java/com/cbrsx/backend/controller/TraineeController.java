@@ -31,13 +31,9 @@ public class TraineeController {
         return ResponseEntity.ok(progression);
     }
 
-    @GetMapping("/{traineeId}/analytics")
-    public ResponseEntity<TraineeProgressionDTO> getTraineeAnalytics(
-            @PathVariable @Size(min = 3, max = 64) @Pattern(
-                    regexp = "^[a-zA-Z0-9_-]+$",
-                    message = "traineeId may only contain letters, digits, dashes and underscores"
-            ) String traineeId) {
-        TraineeProgressionDTO progression = traineeAnalyticsService.getTraineeProgression(traineeId);
-        return ResponseEntity.ok(progression);
+    @GetMapping("/leaderboard")
+    public ResponseEntity<java.util.List<com.cbrsx.backend.dto.TraineeLeaderboardDTO>> getLeaderboard(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String batchUnit) {
+        return ResponseEntity.ok(traineeAnalyticsService.getBattalionLeaderboard(batchUnit));
     }
 }

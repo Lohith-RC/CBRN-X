@@ -168,6 +168,21 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.getEventTimeline(sessionId));
     }
 
+    @GetMapping("/{sessionId}/events/paged")
+    public ResponseEntity<org.springframework.data.domain.Page<com.cbrsx.backend.entity.SessionEvent>> getPagedSessionEvents(
+            @PathVariable @Size(min = 5, max = 64) @Pattern(
+                    regexp = "^[a-zA-Z0-9_-]+$",
+                    message = "sessionId may only contain letters, digits, dashes and underscores"
+            ) String sessionId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) java.time.Instant startTime,
+            @RequestParam(required = false) java.time.Instant endTime) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(Math.max(0, page), Math.min(200, Math.max(1, size)));
+        return ResponseEntity.ok(sessionService.getPagedEvents(sessionId, startTime, endTime, pageable));
+    }
+
     @GetMapping("/{sessionId}/certificate")
     public ResponseEntity<byte[]> getSessionCertificate(
             @PathVariable @Size(min = 5, max = 64) @Pattern(

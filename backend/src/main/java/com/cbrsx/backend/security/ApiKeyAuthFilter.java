@@ -135,6 +135,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/swagger-ui.html")
                 || path.startsWith("/ws-telemetry")
+                || path.startsWith("/ws-cbrsx")
                 || path.startsWith("/error")
                 // Interactive login/logout/session endpoints authenticate via credentials,
                 // not API keys (rate limiting for logins lives in AuthController)
