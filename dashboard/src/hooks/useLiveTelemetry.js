@@ -88,8 +88,11 @@ export default function useLiveTelemetry({ onScenarioCompleted } = {}) {
         }
       };
     } catch (err) {
-      setConnected(true);
-      setConnectionState('CONNECTED');
+      console.warn('[CBRS-X] WebSocket initialization failed:', err?.message || err);
+      if (!disposed) {
+        setConnected(false);
+        setConnectionState('DISCONNECTED');
+      }
     }
 
     // Real-time background simulation stream for standalone/dev mode

@@ -24,6 +24,9 @@ public class HomeController {
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
+    @Value("${cbrsx.api-key:}")
+    private String apiKey;
+
     @GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
     public String getTacticalPortalView() {
         long uptimeSeconds = ManagementFactory.getRuntimeMXBean().getUptime() / 1000;
@@ -497,7 +500,7 @@ public class HomeController {
                         stompClient = new StompJs.Client({
                             brokerURL: (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws-telemetry',
                             connectHeaders: {
-                                'X-API-Key': 'ndrf-master-dev-key'
+                                'X-API-Key': '{{WS_API_KEY}}'
                             },
                             debug: function (str) {
                                 // console.log(str);
@@ -590,7 +593,8 @@ public class HomeController {
                 .replace("{{USED_MEM}}", String.valueOf(usedMemory))
                 .replace("{{TOTAL_MEM}}", String.valueOf(totalMemory))
                 .replace("{{CORES}}", String.valueOf(availableProcessors))
-                .replace("{{THREADS}}", String.valueOf(activeThreads));
+                .replace("{{THREADS}}", String.valueOf(activeThreads))
+                .replace("{{WS_API_KEY}}", apiKey != null ? apiKey : "");
     }
 
     @GetMapping(value = "/", produces = MediaType.APPLICATION_JSON_VALUE)

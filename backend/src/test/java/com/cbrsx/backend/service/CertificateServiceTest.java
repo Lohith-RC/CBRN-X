@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -41,6 +42,8 @@ class CertificateServiceTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(certificateService, "cryptoSalt", "TEST_SALT_FOR_UNIT_TESTS");
+
         passedSession = TrainingSession.builder()
                 .sessionId(passedSessionId)
                 .traineeId("trn-01")

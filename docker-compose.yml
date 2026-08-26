@@ -74,6 +74,12 @@ services:
       - cbrsx-net
     depends_on:
       - cbrsx-backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     deploy:
       resources:
@@ -94,6 +100,12 @@ services:
       - cbrsx-net
     depends_on:
       - cbrsx-backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     deploy:
       resources:
@@ -114,11 +126,11 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       cbrsx-admin-dashboard:
-        condition: service_started
+        condition: service_healthy
       cbrsx-trainee-view:
-        condition: service_started
+        condition: service_healthy
       cbrsx-backend:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
       interval: 30s
