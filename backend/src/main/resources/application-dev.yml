@@ -20,3 +20,10 @@ management:
 logging:
   level:
     com.cbrsx: DEBUG
+
+# Dev-only defaults — NEVER use these in production
+cbrsx:
+  admin:
+    password: ${CBRSX_ADMIN_PASSWORD:ndrf-admin-123}
+  crypto:
+    salt: ${CBRSX_CRYPTO_SALT:CBRSX_DEV_SALT_NOT_FOR_PRODUCTION}

@@ -9,6 +9,16 @@ import {
 } from 'recharts';
 import MissionReplayControls from './MissionReplayControls.jsx';
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const FONT = 'Inter, sans-serif';
 const STAGES = [
   ['PPE Donning', 'ppeScore', 10, '🛡️'],
@@ -140,7 +150,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
 <html>
 <head>
   <meta charset="utf-8">
-  <title>NDRF Certificate - ${activeSession.sessionId}</title>
+  <title>NDRF Certificate - ${escapeHtml(activeSession.sessionId)}</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #060b18; color: #fff; text-align: center; padding: 40px; }
     .cert-card { border: 4px double #eab308; border-radius: 16px; padding: 40px; max-width: 680px; margin: 0 auto; background: #0b1329; box-shadow: 0 0 35px rgba(234, 179, 8, 0.2); }
@@ -158,7 +168,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
     <div class="subtitle">MINISTRY OF HOME AFFAIRS • CBRN TACTICAL SIMULATION WING</div>
     <h2>Certificate of Operational CBRN Readiness</h2>
     <div class="details">
-      This is to officially certify that responder <strong>${activeSession.traineeName || 'Inspector NDRF'}</strong> of unit <strong>${activeSession.batchUnit || 'NDRF Battalion'}</strong> has successfully completed tactical CBRN disaster evaluation in scenario <strong>${activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN-CHEM-01'}</strong>.
+      This is to officially certify that responder <strong>${escapeHtml(activeSession.traineeName || 'Inspector NDRF')}</strong> of unit <strong>${escapeHtml(activeSession.batchUnit || 'NDRF Battalion')}</strong> has successfully completed tactical CBRN disaster evaluation in scenario <strong>${escapeHtml(activeSession.scenarioTitle || activeSession.scenarioCode || 'CBRN-CHEM-01')}</strong>.
     </div>
     <div class="score-badge">SCORE: ${finalScore} / 100 — CERTIFIED SPECIALIST</div>
     <div class="signatures">
@@ -173,7 +183,7 @@ export default function SessionDetailModal({ sessionSummary, session, onClose })
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `NDRF-Certificate-${activeSession.sessionId}.html`;
+      a.download = `NDRF-Certificate-${escapeHtml(activeSession.sessionId)}.html`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

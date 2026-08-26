@@ -51,11 +51,23 @@ const STAGE_HOTSPOTS = {
   ],
 };
 
-function playTacticalSound(type = 'click') {
+let sharedAudioCtx = null;
+function getAudioContext() {
+  if (sharedAudioCtx && sharedAudioCtx.state !== 'closed') return sharedAudioCtx;
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    sharedAudioCtx = new Ctx();
+    return sharedAudioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function playTacticalSound(type = 'click') {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);

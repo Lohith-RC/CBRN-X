@@ -117,6 +117,14 @@ public class AuthController {
 
         failedAttempts.remove(clientIp);
 
+        // [SEC-09] Prevent session fixation: invalidate existing session before login
+        var oldSession = httpRequest.getSession(false);
+        if (oldSession != null) {
+            oldSession.invalidate();
+        }
+        // Create a fresh session to carry the authentication
+        var newSession = httpRequest.getSession(true);
+
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole()));
         if (InstructorUser.ROLE_INSTRUCTOR.equals(user.getRole())) {

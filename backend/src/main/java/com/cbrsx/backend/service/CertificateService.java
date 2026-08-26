@@ -16,10 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Dynamic, tamper-evident PDF Certificate Generation Engine.
@@ -173,7 +176,7 @@ public class CertificateService {
             leftFooter.setBorder(Rectangle.NO_BORDER);
             leftFooter.addElement(new Paragraph("CERTIFICATE ID: " + certificateId, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, primaryNavy)));
             leftFooter.addElement(new Paragraph("ISSUED AT: " + (report.getCompletedAt() != null ? DATE_FORMATTER.format(report.getCompletedAt()) : "N/A"), FontFactory.getFont(FontFactory.HELVETICA, 7, textMuted)));
-            leftFooter.addElement(new Paragraph("SHA-256 VERIFICATION: " + verificationHash, hashFont));
+            leftFooter.addElement(new Paragraph("HMAC-SHA256 VERIFICATION: " + verificationHash, hashFont));
 
             PdfPCell rightFooter = new PdfPCell();
             rightFooter.setBorder(Rectangle.NO_BORDER);
@@ -203,22 +206,25 @@ public class CertificateService {
     }
 
     /**
-     * Computes a deterministic SHA-256 cryptographic verification digest
+     * Computes a deterministic HMAC-SHA256 cryptographic verification digest
      * across key session outcome parameters to guarantee tamper resistance.
+     * Uses the salt as the HMAC key for proper keyed hashing.
      */
     public String computeVerificationHash(ScoreReportDTO report) {
-        String payload = String.format("%s:%s:%s:%d:%s:%s",
+        String payload = String.format("%s:%s:%s:%d:%s",
                 report.getSessionId(),
                 report.getTraineeId(),
                 report.getScenarioCode(),
                 report.getFinalScore(),
-                report.getCompletedAt() != null ? report.getCompletedAt().toString() : "COMPLETED",
-                cryptoSalt
+                report.getCompletedAt() != null ? report.getCompletedAt().toString() : "COMPLETED"
         );
 
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(payload.getBytes(StandardCharsets.UTF_8));
+            SecretKeySpec keySpec = new SecretKeySpec(
+                    cryptoSalt.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(keySpec);
+            byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
@@ -226,8 +232,8 @@ public class CertificateService {
                 hexString.append(hex);
             }
             return hexString.toString().toUpperCase();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("HMAC-SHA256 algorithm not available", e);
         }
     }
 

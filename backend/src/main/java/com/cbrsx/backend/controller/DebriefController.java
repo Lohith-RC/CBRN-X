@@ -2,6 +2,7 @@ package com.cbrsx.backend.controller;
 
 import com.cbrsx.backend.dto.DebriefReportDTO;
 import com.cbrsx.backend.service.DebriefService;
+import com.cbrsx.backend.service.SessionService;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class DebriefController {
 
     private final DebriefService debriefService;
+    private final SessionService sessionService;
 
     @GetMapping("/{sessionId}/debrief")
     public ResponseEntity<DebriefReportDTO> getSessionDebrief(
@@ -27,6 +29,7 @@ public class DebriefController {
                     regexp = "^[a-zA-Z0-9_-]+$",
                     message = "sessionId may only contain letters, digits, dashes and underscores"
             ) String sessionId) {
+        sessionService.validateSessionAccess(sessionId);
         DebriefReportDTO debrief = debriefService.generateDebrief(sessionId);
         return ResponseEntity.ok(debrief);
     }

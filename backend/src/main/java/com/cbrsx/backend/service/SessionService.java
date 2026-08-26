@@ -332,8 +332,10 @@ public class SessionService {
     public void validateSessionAccess(String sessionId) {
         org.springframework.security.core.Authentication auth =
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            return;
+        if (auth == null || !auth.isAuthenticated()
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Unauthorized: Authentication required to access session " + sessionId);
         }
 
         boolean hasElevatedRole = auth.getAuthorities().stream().anyMatch(a -> {

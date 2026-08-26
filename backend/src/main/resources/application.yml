@@ -98,9 +98,9 @@ cbrsx:
   security:
     fail-closed: ${CBRSX_FAIL_CLOSED:false}
   # Initial administrator account (seeded only when instructor_users is empty).
-  # ALWAYS override the password via CBRSX_ADMIN_PASSWORD outside local dev.
+  # ALWAYS override via CBRSX_ADMIN_PASSWORD; empty default forces explicit configuration.
   admin:
     username: ${CBRSX_ADMIN_USERNAME:admin}
-    password: ${CBRSX_ADMIN_PASSWORD:ndrf-admin-123}
+    password: ${CBRSX_ADMIN_PASSWORD:}
   crypto:
-    salt: ${CBRSX_CRYPTO_SALT:CBRSX_TAMPER_EVIDENT_SALT_NDRF_2026}
+    salt: ${CBRSX_CRYPTO_SALT:}

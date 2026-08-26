@@ -4,19 +4,37 @@
   "version": "1.0.0",
   "type": "module",
   "contributors": [
-    { "name": "Lohith R C", "role": "Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager" },
-    { "name": "Monica K S", "role": "Backend Developer & Database Administrator" },
-    { "name": "Chandana M P", "role": "Admin Dashboard Developer (Frontend and Backend) & Workflow Manager" },
-    { "name": "Chandana M N", "role": "Frontend Developer, Designer & Unity Physics Developer" },
-    { "name": "Harshini R B", "role": "Unity Environment Artist & 3D Asset Developer" },
-    { "name": "Pavitra J H", "role": "UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker" }
+    {
+      "name": "Lohith R C",
+      "role": "Team Lead, Unity Developer, Designer, Database Administrator, Frontend Verifier, Backend Developer & Version Control Manager"
+    },
+    {
+      "name": "Monica K S",
+      "role": "Backend Developer & Database Administrator"
+    },
+    {
+      "name": "Chandana M P",
+      "role": "Admin Dashboard Developer (Frontend and Backend) & Workflow Manager"
+    },
+    {
+      "name": "Chandana M N",
+      "role": "Frontend Developer, Designer & Unity Physics Developer"
+    },
+    {
+      "name": "Harshini R B",
+      "role": "Unity Environment Artist & 3D Asset Developer"
+    },
+    {
+      "name": "Pavitra J H",
+      "role": "UI/UX Designer, Tester, Documentation Manager & Project Progress Tracker"
+    }
   ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext .js,.jsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .js,.jsx --fix",
+    "lint": "eslint src --max-warnings 0",
+    "lint:fix": "eslint src --fix",
     "format": "prettier --write src/**/*.{js,jsx,json,css}",
     "format:check": "prettier --check src/**/*.{js,jsx,json,css}",
     "test": "vitest run",
@@ -31,6 +49,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/react": "^18.2.66",
