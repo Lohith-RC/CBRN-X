@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'CBRS-X Tactical Dashboards'
+    orgId: 1
+    folder: 'CBRS-X Operations'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
