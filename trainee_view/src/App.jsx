@@ -390,6 +390,7 @@ export default function App() {
   // ══════════════════════════════════════════════════════════════
   const currentBeat = beatIndex >= 0 ? BEATS[beatIndex] : null;
   const allPpeDone = ppeState.suit && ppeState.mask && ppeState.gloves;
+  const currentScenario = SCENARIO_OPTIONS.find((s) => s.code === selectedScenario) || SCENARIO_OPTIONS[0];
 
   // ══════════════════════════════════════════════════════════════
   // RENDER
@@ -423,7 +424,7 @@ export default function App() {
               </span>
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-              Phase 1: Briefing & Equipment // SIH260088 // PORT 5000
+              {currentScenario.icon} {currentScenario.title} // SIH260088 // PORT 5000
             </div>
           </div>
         </div>
@@ -578,7 +579,7 @@ export default function App() {
                     <Compass size={12} color="var(--accent-cyan)" /> N {compassHeading}°
                   </div>
 
-                  {/* PID Detector (visible from Beat 3+) */}
+                  {/* Dynamic Hazard Sensor Readout (visible from Beat 3+) */}
                   {beatIndex >= 2 && (
                     <div style={{
                       background: 'rgba(7, 10, 15, 0.9)',
@@ -587,7 +588,13 @@ export default function App() {
                       color: ppmReading > 200 ? 'var(--accent-red)' : 'var(--accent-cyan)',
                       fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.8rem'
                     }}>
-                      📟 {ppmReading} PPM {ppmReading > 200 && <span className="warning-led">⚠️</span>}
+                      {currentScenario.icon} {
+                        selectedScenario === 'CBRN-RAD-02'
+                          ? `${(ppmReading * 1.8).toFixed(1)} μSv/h`
+                          : selectedScenario === 'CBRN-BIO-03'
+                          ? `${(ppmReading * 0.25).toFixed(1)} Index`
+                          : `${ppmReading} PPM`
+                      } {ppmReading > 200 && <span className="warning-led">⚠️</span>}
                     </div>
                   )}
 
