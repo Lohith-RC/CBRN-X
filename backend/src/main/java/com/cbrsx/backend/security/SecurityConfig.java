@@ -125,7 +125,11 @@ public class SecurityConfig {
 
                         // Trainee & General inquiry endpoints
                         .requestMatchers("/api/scenarios/**").hasAnyRole("TRAINEE", "INSTRUCTOR", "SIMULATION", "ADMIN")
+                        .requestMatchers("/api/trainees/**").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
+                        .requestMatchers("/api/squads/**").hasAnyRole("INSTRUCTOR", "ADMIN", "SIMULATION")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/sessions/*/report").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
+                        .requestMatchers("/api/sessions/*/events/**").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
                         .requestMatchers("/api/sessions/*/events").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
 
                         // Catch-all API security

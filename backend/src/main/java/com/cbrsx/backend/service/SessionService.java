@@ -261,6 +261,16 @@ public class SessionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<SessionEvent> getPagedEvents(
+            String sessionId, java.time.Instant startTime, java.time.Instant endTime, org.springframework.data.domain.Pageable pageable) {
+        validateSessionAccess(sessionId);
+        if (startTime != null && endTime != null) {
+            return eventRepository.findBySessionIdAndTimestampBetweenOrderByTimestampAsc(sessionId, startTime, endTime, pageable);
+        }
+        return eventRepository.findBySessionIdOrderByTimestampAsc(sessionId, pageable);
+    }
+
     /**
      * Voids an invalid session (e.g. simulator test data or aborted runs).
      * Voided sessions are excluded from every analytics computation but the
