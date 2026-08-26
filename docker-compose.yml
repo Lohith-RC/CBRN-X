@@ -174,9 +174,50 @@ services:
         reservations:
           memory: 64M
 
+  # Prometheus Telemetry Collector
+  cbrsx-prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: cbrsx-prometheus
+    profiles: ["observability"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - cbrsx-promdata:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      cbrsx-backend:
+        condition: service_healthy
+    networks:
+      - cbrsx-net
+    restart: unless-stopped
+
+  # Grafana Real-Time Operations Visualizer
+  cbrsx-grafana:
+    image: grafana/grafana:10.0.3
+    container_name: cbrsx-grafana
+    profiles: ["observability"]
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-cbrsx-mission-control}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards/json:ro
+      - cbrsx-grafanadata:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - cbrsx-prometheus
+    networks:
+      - cbrsx-net
+    restart: unless-stopped
+
 volumes:
   cbrsx-pgdata:
   cbrsx-backups:
+  cbrsx-promdata:
+  cbrsx-grafanadata:
 
 networks:
   cbrsx-net:
