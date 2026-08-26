@@ -23,21 +23,31 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
+# Prefer JDK 17 if available
+if (Test-Path "C:\Program Files\Java\jdk-17") {
+    $env:JAVA_HOME = "C:\Program Files\Java\jdk-17"
+    $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+} elseif (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-17*") {
+    $jdkPath = (Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-17*")[0].FullName
+    $env:JAVA_HOME = $jdkPath
+    $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+}
+
 Write-Host "==> Starting CBRS-X Backend on :8080 ..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "Set-Location '$PSScriptRoot\backend'; mvn spring-boot:run"
+$backendCmd = "& { Set-Location '$PSScriptRoot\backend'; if (Test-Path 'C:\Program Files\Java\jdk-17') { `$env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'; `$env:Path = ""`"`$env:JAVA_HOME\bin;`$env:Path`"`" }; mvn spring-boot:run }"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd
 
 Start-Sleep -Seconds 3
 
 Write-Host "==> Starting Instructor Dashboard on :3000 ..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "Set-Location '$PSScriptRoot\dashboard'; npm run dev"
+$dashboardCmd = "& { Set-Location '$PSScriptRoot\dashboard'; npm run dev }"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $dashboardCmd
 
 Start-Sleep -Seconds 2
 
 Write-Host "==> Starting Trainee VR View on :5000 ..." -ForegroundColor Cyan
-Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "Set-Location '$PSScriptRoot\trainee_view'; npm run dev"
+$traineeCmd = "& { Set-Location '$PSScriptRoot\trainee_view'; npm run dev }"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", $traineeCmd
 
 Write-Host ""
 Write-Host "All services launching:" -ForegroundColor Green

@@ -13,7 +13,7 @@
 [![Web Station](https://img.shields.io/badge/Web_Station-React_18_|_Three.js_|_Vite_5-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL_15_|_Supabase-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
 [![Orchestration](https://img.shields.io/badge/Orchestration-Docker_Compose_|_Nginx-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
-[![Build Status](https://img.shields.io/badge/Unit_%26_Integration_Tests-46%2F46_Passed-10B981.svg?style=for-the-badge&logo=checkmarx&logoColor=white)]()
+[![Build Status](https://img.shields.io/badge/Unit_%26_Integration_Tests-56%2F56_Passed-10B981.svg?style=for-the-badge&logo=checkmarx&logoColor=white)]()
 
 </div>
 
@@ -406,6 +406,7 @@ erDiagram
     SCENARIOS ||--o{ SESSIONS : "configures"
     SESSIONS ||--o{ EVENTS : "records_stream"
     INSTRUCTOR_USERS ||--o{ SESSIONS : "audits_and_evaluates"
+    INSTRUCTOR_USERS ||--o{ AUDIT_LOGS : "generates_trail"
 
     TRAINEES {
         string trainee_id PK "UUID Primary Key"
@@ -426,10 +427,11 @@ erDiagram
         string session_id PK "UUID Session Primary Key"
         string trainee_id FK "References TRAINEES(trainee_id)"
         string scenario_id FK "References SCENARIOS(scenario_id)"
+        string squad_id "Squad Designation (alpha, bravo, charlie)"
         timestamp started_at "Session Start Time"
         timestamp completed_at "Session Finalize Time"
         int final_score "Normalized 100-Point Score"
-        string pass_status "IN_PROGRESS | PASSED | FAILED | VOIDED"
+        string pass_status "IN_PROGRESS | PASSED | FAILED | VOIDED | TIMED_OUT"
         timestamp created_at "Audit Creation Timestamp"
     }
 
@@ -449,6 +451,17 @@ erDiagram
         string role "INSTRUCTOR | ADMIN"
         boolean enabled "Account Active Status"
         timestamp created_at "Creation Timestamp"
+    }
+
+    AUDIT_LOGS {
+        string audit_id PK "UUID Audit Entry Key"
+        string action_type "USER_LOGIN | LOGOUT | SESSION_VOIDED | RATE_LIMIT"
+        string actor_username "Operator or System Actor"
+        string target_resource "Accessed Resource Path / Identifier"
+        string ip_address "Remote Client IPv4/IPv6"
+        string status "SUCCESS | FAILED | DENIED"
+        text details "Audit Event Metadata & Diagnostics"
+        timestamp timestamp "UTC Timestamp"
     }
 ```
 
@@ -470,10 +483,11 @@ erDiagram
 | `sessions` | `session_id` | `VARCHAR(64)` | `PRIMARY KEY` | Unique simulation run UUID. |
 | | `trainee_id` | `VARCHAR(64)` | `FOREIGN KEY (trainees)` | Cascading reference to trainee record. |
 | | `scenario_id` | `VARCHAR(64)` | `FOREIGN KEY (scenarios)` | Restrict-delete reference to scenario record. |
+| | `squad_id` | `VARCHAR(64)` | `NULLABLE` | Multi-responder squad identifier (`alpha`, `bravo`, `charlie`). |
 | | `started_at` | `TIMESTAMP WITH TIME ZONE` | `NOT NULL` | Instant session was initialized. |
 | | `completed_at` | `TIMESTAMP WITH TIME ZONE` | `NULLABLE` | Instant session was evaluated. |
 | | `final_score` | `INT` | `CHECK (0-100)` | Normalized 100-point score. |
-| | `pass_status` | `VARCHAR(20)` | `DEFAULT 'PENDING'` | `IN_PROGRESS`, `PASSED`, `FAILED`, `VOIDED`. |
+| | `pass_status` | `VARCHAR(20)` | `DEFAULT 'PENDING'` | `IN_PROGRESS`, `PASSED`, `FAILED`, `VOIDED`, `TIMED_OUT`. |
 | `events` | `event_id` | `VARCHAR(64)` | `PRIMARY KEY` | Unique telemetry record UUID. |
 | | `session_id` | `VARCHAR(64)` | `FOREIGN KEY (sessions)` | Indexed cascading session reference. |
 | | `event_type` | `VARCHAR(100)` | `NOT NULL` | Dispatched event type identifier. |
@@ -483,6 +497,34 @@ erDiagram
 | | `password_hash` | `VARCHAR(100)` | `NOT NULL` | BCrypt encrypted credential hash. |
 | | `display_name` | `VARCHAR(120)` | `NOT NULL` | Instructor full name. |
 | | `role` | `VARCHAR(20)` | `DEFAULT 'INSTRUCTOR'` | `INSTRUCTOR` or `ADMIN`. |
+| `audit_logs` | `audit_id` | `VARCHAR(64)` | `PRIMARY KEY` | Unique administrative audit record UUID. |
+| | `action_type` | `VARCHAR(100)` | `NOT NULL` | Event classification (`USER_LOGIN`, `SESSION_VOIDED`, etc.). |
+| | `actor_username` | `VARCHAR(64)` | `NOT NULL` | Operator or system actor who triggered the action. |
+| | `target_resource` | `VARCHAR(255)` | `NULLABLE` | Resource URI or target identifier. |
+| | `ip_address` | `VARCHAR(45)` | `NULLABLE` | Remote client IP address. |
+| | `status` | `VARCHAR(20)` | `DEFAULT 'SUCCESS'` | `SUCCESS`, `FAILED`, or `DENIED`. |
+| | `details` | `TEXT` | `NULLABLE` | JSON metadata and diagnostic details. |
+| | `timestamp` | `TIMESTAMP WITH TIME ZONE` | `DEFAULT CURRENT_TIMESTAMP` | Exact chronological audit timestamp. |
+
+---
+
+### 5.3 Automated Database Migrations with Flyway
+
+Database schema evolution is strictly versioned and managed using **Flyway Database Migrations**:
+
+- **`V1__baseline_schema.sql`**: Idempotent DDL creating core tables (`trainees`, `scenarios`, `sessions`, `events`, `instructor_users`) and seeding baseline CBRN scenarios.
+- **`V2__audit_logs_and_compound_indexes.sql`**: Creates the `audit_logs` table and provisions high-performance compound indexes.
+
+---
+
+### 5.4 High-Performance Compound Indexing
+
+| Index Name | Target Table | Indexed Columns | Query Acceleration Purpose |
+|---|---|---|---|
+| `idx_events_session_type_time` | `events` | `(session_id, event_type, timestamp ASC)` | Accelerates high-frequency telemetry event slicing and time-window queries. |
+| `idx_sessions_trainee_started` | `sessions` | `(trainee_id, started_at DESC)` | Sub-millisecond longitudinal skill-growth retrieval for trainee progression graphs. |
+| `idx_sessions_squad_pass` | `sessions` | `(squad_id, pass_status)` | Instantaneous multi-responder squad score aggregation. |
+| `idx_audit_logs_actor_time` | `audit_logs` | `(actor_username, timestamp DESC)` | Real-time supervisory audit log queries and compliance inspection. |
 
 ---
 
@@ -631,16 +673,23 @@ flowchart TD
 | Method | Endpoint | Description | Auth & Roles |
 |---|---|---|---|
 | `POST` | `/api/auth/login` | Instructor interactive login with BCrypt credential verification | Public (Rate Limited) |
+| `POST` | `/api/auth/logout` | Terminate session and audit operator logout | Authenticated |
+| `GET` | `/api/auth/me` | Retrieve authenticated operator profile | Authenticated |
 | `POST` | `/api/sessions/start` | Initialize a new simulation training session | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `POST` | `/api/events/log` | Ingest real-time simulation telemetry event | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `POST` | `/api/sessions/{id}/complete` | Finalize session and calculate deterministic score report | `ROLE_SIMULATION`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
-| `POST` | `/api/sessions/{id}/void` | Mark test or aborted training run as voided | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `POST` | `/api/sessions/{id}/void` | Mark test or aborted training run as voided with operator audit | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions` | Paged searchable list of sessions (status, trainee, date range) | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions/export` | Stream sanitized CSV report of filtered session records | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions/{id}/report` | Retrieve comprehensive score report & stage breakdown | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions/{id}/events` | Retrieve full chronological event telemetry timeline | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/sessions/{id}/events/paged` | Paged high-frequency event telemetry slicing with time filters | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions/{id}/debrief` | Generate AI Tactical After-Action Review (AAR) | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/sessions/{id}/certificate` | Stream official tamper-evident PDF certificate | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/trainees/leaderboard` | Retrieve battalion-wide trainee ranking & certification status | `ROLE_TRAINEE`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
+| `GET` | `/api/squads/{id}/summary` | Retrieve aggregate performance & role breakdown for a squad | `ROLE_INSTRUCTOR`, `ROLE_ADMIN`, `ROLE_SIMULATION` |
+| `GET` | `/api/squads/compare` | Retrieve cross-squad comparative metrics & top performing squad | `ROLE_INSTRUCTOR`, `ROLE_ADMIN`, `ROLE_SIMULATION` |
+| `GET` | `/api/admin/audit-logs` | Retrieve persistent administrative & security audit trails | `ROLE_ADMIN` |
 | `GET` | `/api/dashboard/stats` | Retrieve aggregate KPI metrics (pass rate, counts, averages) | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/dashboard/cohort` | Retrieve cohort weakness board, difficulty stats & trends | `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
 | `GET` | `/api/trainees/{id}/progress`| Retrieve longitudinal skill-growth %, radar averages & history | `ROLE_TRAINEE (Owner)`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` |
@@ -648,6 +697,15 @@ flowchart TD
 | `GET` | `/` | State-of-the-Art Interactive Tactical Operations & Telemetry Portal | Public (Browser) |
 | `GET` | `/actuator/health` | Service liveness & readiness health probe | Public |
 | `GET` | `/swagger-ui.html` | Interactive OpenAPI 3 / Swagger API Explorer | Public |
+
+### 10.2 STOMP WebSocket Messaging Channels
+
+| Protocol | Destination | Direction | Payload & Functionality |
+|---|---|---|---|
+| STOMP | `/ws-telemetry` | Handshake | WebSocket connection upgrade (Authenticated via session or `X-API-Key`) |
+| STOMP | `/topic/telemetry` | Server $\to$ Client | Real-time broadcast of live responder event telemetry & KPI updates |
+| STOMP | `/app/coop/position` | Client $\to$ Server | First-person responder coordinate & SCBA PSI synchronization |
+| STOMP | `/topic/coop/positions` | Server $\to$ Client | Broadcasts live tactical spatial positions of multi-responder squad members |
 
 <details>
 <summary><b>🔍 Click to View Sample JSON Telemetry & Scorecard Payloads</b></summary>
@@ -891,7 +949,7 @@ Open `http://localhost:5000` to interact with the 3D chemical bay simulation.
 ## 14. 📜 Compliance & Verification Status
 
 - **NDRF Standard Operating Procedures:** Workflows strictly align with the National Disaster Response Force Standard Operating Procedures for Hazardous Materials (HAZMAT) and Chemical, Biological, Radiological, and Nuclear (CBRN) emergency response.
-- **Automated Test Validation:** Fully verified with **46 automated unit and integration tests** across 7 test suites (`ScoringServiceTest`, `CertificateServiceTest`, `DebriefServiceTest`, `TraineeAnalyticsServiceTest`, `SessionQueryExportTest`, `SessionRolesHandshakeInterceptorTest`, `WebSocketAuthInterceptorTest`) with **0 failures and 0 errors**.
+- **Automated Test Validation:** Fully verified with **56 automated unit and integration tests** across 12 test suites (`ScoringServiceTest`, `CertificateServiceTest`, `DebriefServiceTest`, `TraineeAnalyticsServiceTest`, `AuditAndSquadServiceTest`, `SessionServiceTest`, `DashboardServiceTest`, `CohortAnalyticsServiceTest`, `MultiplayerTelemetryControllerTest`, `SessionQueryExportTest`, `SessionRolesHandshakeInterceptorTest`, `WebSocketAuthInterceptorTest`) with **0 failures and 0 errors**.
 - **Production Build Status:** Both `dashboard` and `trainee_view` frontends build cleanly with zero bundling errors.
 
 ```
