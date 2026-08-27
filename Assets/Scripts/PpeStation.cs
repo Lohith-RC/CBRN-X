@@ -30,38 +30,79 @@ namespace CBRSX.Unity
         {
             string itemKey = itemName.ToLower();
 
-            switch (itemKey)
+            if (itemKey.Contains("mask") || itemKey.Contains("respirator") || itemKey.Contains("gasmask") || itemKey.Contains("cbrn") || itemKey.Contains("filter") || itemKey.Contains("visor"))
             {
-                case "suit":
-                    if (suitEquipped) return;
-                    suitEquipped = true;
-                    PlayEquipAcousticSting(suitZipperClip);
-                    break;
-
-                case "mask":
-                    if (maskEquipped) return;
-                    if (!suitEquipped)
-                    {
-                        LogOrderDeviation("mask", "suit");
-                    }
+                if (maskEquipped) return;
+                maskEquipped = true;
+                itemKey = "mask";
+                PlayEquipAcousticSting(maskSuctionSealClip);
+                ActivateVisorOpticsAndAcoustics();
+                Debug.Log("[CBRS-X] CBRN Gas Mask equipped successfully. Visor optics and respiratory acoustic filters active.");
+            }
+            else if (itemKey.Contains("suit") || itemKey.Contains("hazmat") || itemKey.Contains("vest") || itemKey.Contains("jacket"))
+            {
+                if (suitEquipped) return;
+                suitEquipped = true;
+                itemKey = "suit";
+                PlayEquipAcousticSting(suitZipperClip);
+                Debug.Log("[CBRS-X] Level B Hazmat Suit equipped successfully.");
+            }
+            else if (itemKey.Contains("glove") || itemKey.Contains("gauntlet") || itemKey.Contains("hand"))
+            {
+                if (glovesEquipped) return;
+                glovesEquipped = true;
+                itemKey = "gloves";
+                PlayEquipAcousticSting(glovesSnapClip);
+                Debug.Log("[CBRS-X] Chemical Resistant Gloves equipped successfully.");
+            }
+            else if (itemKey.Contains("hardhat") || itemKey.Contains("helmet") || itemKey.Contains("head"))
+            {
+                if (!maskEquipped)
+                {
                     maskEquipped = true;
+                    itemKey = "mask";
                     PlayEquipAcousticSting(maskSuctionSealClip);
                     ActivateVisorOpticsAndAcoustics();
-                    break;
-
-                case "gloves":
-                    if (glovesEquipped) return;
-                    if (!suitEquipped || !maskEquipped)
-                    {
-                        LogOrderDeviation("gloves", "suit/mask");
-                    }
-                    glovesEquipped = true;
-                    PlayEquipAcousticSting(glovesSnapClip);
-                    break;
-
-                default:
-                    Debug.LogWarning($"[CBRS-X V2.0] Unknown PPE asset identifier: {itemName}");
+                    Debug.Log("[CBRS-X] CBRN Protective Headgear/Mask equipped.");
+                }
+                else if (!suitEquipped)
+                {
+                    suitEquipped = true;
+                    itemKey = "suit";
+                    PlayEquipAcousticSting(suitZipperClip);
+                }
+                else
+                {
+                    PlayEquipAcousticSting(suitZipperClip);
                     return;
+                }
+            }
+            else
+            {
+                // Fallback: equip next required PPE component
+                if (!maskEquipped)
+                {
+                    maskEquipped = true;
+                    itemKey = "mask";
+                    PlayEquipAcousticSting(maskSuctionSealClip);
+                    ActivateVisorOpticsAndAcoustics();
+                }
+                else if (!suitEquipped)
+                {
+                    suitEquipped = true;
+                    itemKey = "suit";
+                    PlayEquipAcousticSting(suitZipperClip);
+                }
+                else if (!glovesEquipped)
+                {
+                    glovesEquipped = true;
+                    itemKey = "gloves";
+                    PlayEquipAcousticSting(glovesSnapClip);
+                }
+                else
+                {
+                    return;
+                }
             }
 
             equipOrderIndex++;
@@ -91,8 +132,8 @@ namespace CBRSX.Unity
 
         private void ActivateVisorOpticsAndAcoustics()
         {
-            FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
-            if (responder != null)
+            FirstPersonResponderController[] responders = FindObjectsOfType<FirstPersonResponderController>();
+            foreach (var responder in responders)
             {
                 responder.UpdateAcousticEnvironment(true);
             }
@@ -118,8 +159,8 @@ namespace CBRSX.Unity
             {
                 PlayEquipAcousticSting(fullPpeAuthorizedChimeClip);
 
-                FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
-                if (responder != null)
+                FirstPersonResponderController[] responders = FindObjectsOfType<FirstPersonResponderController>();
+                foreach (var responder in responders)
                 {
                     responder.hasFullPpe = true;
                 }
