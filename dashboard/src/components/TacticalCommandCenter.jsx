@@ -7,14 +7,14 @@ import TacticalPerformanceBar from './TacticalPerformanceBar.jsx';
 
 export default function TacticalCommandCenter({ onTriggerEmergency, onRefresh, liveEvents }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '28px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Top 3-Column Grid */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '260px 1fr 300px',
-          gap: '20px',
-          height: '520px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '16px',
+          minHeight: '480px',
         }}
       >
         {/* Left: Unit Readiness Sidebar */}

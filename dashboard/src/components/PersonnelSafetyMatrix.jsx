@@ -45,7 +45,7 @@ const RESPONDERS = [
 
 export default function PersonnelSafetyMatrix() {
   return (
-    <div className="glass-card-deep animate-fade-in" style={{ padding: '22px', marginBottom: '24px' }}>
+    <div className="glass-card-deep animate-fade-in" style={{ padding: '22px' }}>
       <div className="section-header-tactical" style={{ marginBottom: '16px' }}>
         <h2 className="section-title-glow">
           <Shield size={20} color="var(--accent-green)" />

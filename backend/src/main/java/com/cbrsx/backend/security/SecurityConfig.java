@@ -129,6 +129,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/squads/**").hasAnyRole("INSTRUCTOR", "ADMIN", "SIMULATION")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/sessions/*/report").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
+                        .requestMatchers("/api/sessions/*/certificate").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
                         .requestMatchers("/api/sessions/*/events/**").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
                         .requestMatchers("/api/sessions/*/events").hasAnyRole("TRAINEE", "INSTRUCTOR", "ADMIN")
 

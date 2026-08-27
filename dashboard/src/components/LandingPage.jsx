@@ -453,53 +453,6 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
           </a>
         </div>
       </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          CREDITS & TEAM ROSTER FOOTER (OUTSIDE MAIN CARD)
-      ───────────────────────────────────────────────────────────── */}
-      <footer
-        style={{
-          position: 'absolute',
-          bottom: '18px',
-          left: '20px',
-          right: '20px',
-          textAlign: 'center',
-          zIndex: 10,
-          pointerEvents: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '6px',
-        }}
-      >
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: '11px',
-            color: 'rgba(148, 163, 184, 0.65)',
-            letterSpacing: '0.04em',
-            margin: 0,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong style={{ color: 'rgba(56, 189, 248, 0.8)' }}>SIH260088</strong> &bull; Department of Computer Science & Engineering, Kalpataru Institute of Technology
-        </p>
-
-        {/* Team Members Roster */}
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: '10.5px',
-            color: 'rgba(148, 163, 184, 0.65)',
-            letterSpacing: '0.02em',
-            margin: 0,
-            lineHeight: 1.6,
-            maxWidth: '1200px',
-          }}
-        >
-          {teamMembers.map((m) => `${m.name} [${m.role}]`).join('  •  ')}
-        </p>
-      </footer>
     </div>
   );
 }
