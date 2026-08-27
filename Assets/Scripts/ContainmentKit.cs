@@ -47,6 +47,18 @@ namespace CBRSX.Unity
 
         public void EquipKit()
         {
+            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            if (responder != null && transform.root != responder.transform)
+            {
+                ContainmentKit playerKit = responder.GetComponentInChildren<ContainmentKit>(true);
+                if (playerKit != null && playerKit != this)
+                {
+                    playerKit.EquipKit();
+                    gameObject.SetActive(false);
+                    return;
+                }
+            }
+
             if (isEquipped) return;
 
             isEquipped = true;
@@ -57,7 +69,15 @@ namespace CBRSX.Unity
             if (col != null) col.enabled = false;
 
             if (firstPersonHeldTool != null)
+            {
+                Collider[] colliders = firstPersonHeldTool.GetComponentsInChildren<Collider>(true);
+                foreach (var c in colliders)
+                {
+                    c.enabled = false;
+                    if (Application.isPlaying) Destroy(c);
+                }
                 firstPersonHeldTool.SetActive(true);
+            }
 
             if (GameManager.Instance != null)
                 GameManager.Instance.RegisterContainmentKitEquipped();

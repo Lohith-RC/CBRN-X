@@ -311,6 +311,14 @@ namespace CBRSX.Unity
             isCctvActive = false;
         }
 
+        public void SetVisorFogIntensity(float intensity)
+        {
+            if (vignette != null && isVisorActive)
+            {
+                targetVisorVignette = Mathf.Clamp(0.65f + intensity * 0.2f, 0.4f, 0.95f);
+            }
+        }
+
         public void SetCctvModeActive(bool active)
         {
             isCctvActive = active;

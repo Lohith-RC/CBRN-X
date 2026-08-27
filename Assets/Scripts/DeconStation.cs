@@ -43,7 +43,7 @@ namespace CBRSX.Unity
 
         private void OnTriggerEnter(Collider other)
         {
-            if (other.CompareTag("Player") && !isDeconCompleted)
+            if ((other.CompareTag("Player") || other.GetComponentInParent<FirstPersonResponderController>() != null) && !isDeconCompleted)
             {
                 InitiateDecontaminationCycle();
             }

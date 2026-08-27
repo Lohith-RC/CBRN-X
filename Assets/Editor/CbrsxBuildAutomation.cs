@@ -7,26 +7,6 @@ public static class CbrsxBuildAutomation
 {
     private static readonly string[] Scenes = new[] { "Assets/Scenes/StorageBay03_Training.unity" };
 
-    [MenuItem("CBRS-X/Build/Windows Standalone (Live)")]
-    public static void BuildWindows()
-    {
-        string buildPath = "Builds/Windows/CBRS-X_Simulation.exe";
-        string dir = Path.GetDirectoryName(buildPath);
-        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
-        BuildPlayerOptions options = new BuildPlayerOptions
-        {
-            scenes = Scenes,
-            locationPathName = buildPath,
-            target = BuildTarget.StandaloneWindows64,
-            targetGroup = BuildTargetGroup.Standalone,
-            options = BuildOptions.None
-        };
-
-        BuildReport report = BuildPipeline.BuildPlayer(options);
-        Debug.Log($"[CBRS-X] Windows Standalone build finished with result: {report.summary.result} (Total size: {report.summary.totalSize} bytes)");
-    }
-
     [MenuItem("CBRS-X/Build/WebGL (Live Web Dashboard)")]
     public static void BuildWebGL()
     {
@@ -48,5 +28,39 @@ public static class CbrsxBuildAutomation
 
         BuildReport report = BuildPipeline.BuildPlayer(options);
         Debug.Log($"[CBRS-X] WebGL build finished with result: {report.summary.result} (Total size: {report.summary.totalSize} bytes)");
+
+        if (report.summary.result == BuildResult.Succeeded)
+        {
+            SyncToPublicFolders(buildPath);
+        }
+    }
+
+    public static void SyncToPublicFolders(string sourceDir = "Builds/WebGL")
+    {
+        string[] targets = new[] {
+            "dashboard/public/unity-sim",
+            "trainee_view/public/unity-sim"
+        };
+
+        foreach (var target in targets)
+        {
+            string absTarget = Path.GetFullPath(target);
+            if (!Directory.Exists(absTarget)) Directory.CreateDirectory(absTarget);
+            CopyDirectory(Path.GetFullPath(sourceDir), absTarget);
+            Debug.Log($"[CBRS-X] Synchronized WebGL build to: {absTarget}");
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string targetDir)
+    {
+        foreach (string dirPath in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(dirPath.Replace(sourceDir, targetDir));
+        }
+
+        foreach (string newPath in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
+        {
+            File.Copy(newPath, newPath.Replace(sourceDir, targetDir), true);
+        }
     }
 }

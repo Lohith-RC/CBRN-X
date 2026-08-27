@@ -4,13 +4,8 @@ using TMPro;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// GasDetector V2.0 — High-Fidelity Handheld PID Analytical Spectrometer.
-    /// Features:
-    /// - 3D Volumetric Gaussian Plume Diffusion Model (turbulent decay, wind vector, proximity dispersion)
-    /// - Second-Order Mass-Spring-Damper Gauge Needle Physics (realistic inertia, damping, and micro-jitter)
-    /// - OLED Digital Matrix Rendering: Live PPM, Peak Hold, STEL, TWA, Battery telemetry
-    /// - Multi-Tone Acoustic Geiger Audio Frequency Modulation (0.8 Hz to 14 Hz pitch escalation)
-    /// - Aim-Down-Sights (ADS) Precision Probe Inspection Zoom Mode (Right Mouse Button)
+    /// GasDetector V3.0 — Robust Handheld Analytical PID Spectrometer.
+    /// Engineered with zero-freeze kinematics, safe ADS zoom, and fail-safe null guards.
     /// </summary>
     public class GasDetector : MonoBehaviour
     {
@@ -18,7 +13,7 @@ namespace CBRSX.Unity
         public bool isEquipped = false;
         public float baselinePpm = 12.4f;
         public float maxPpm = 200.0f;
-        public float detectionRadius = 8.5f;
+        public float detectionRadius = 12.0f;
         public float dispersionDiffusionCoeff = 2.2f;
 
         [Header("Atmospheric Plume Vector")]
@@ -41,8 +36,8 @@ namespace CBRSX.Unity
         [Header("Aim-Down-Sights (ADS) Tool Zoom")]
         public GameObject firstPersonHeldModel;
         public Vector3 hipPosition = new Vector3(0.28f, -0.22f, 0.45f);
-        public Vector3 adsPosition = new Vector3(0.0f, -0.12f, 0.32f);
-        public float zoomFov = 48.0f;
+        public Vector3 adsPosition = new Vector3(0.0f, -0.12f, 0.35f);
+        public float zoomFov = 50.0f;
         public float defaultFov = 75.0f;
         public float adsTransitionSpeed = 9.0f;
 
@@ -61,26 +56,34 @@ namespace CBRSX.Unity
         private Camera playerCamera;
         private bool isAimingDownSights = false;
 
+        private void Awake()
+        {
+            EnsurePlayerCameraReference();
+            StripChildColliders(firstPersonHeldModel);
+        }
+
         private void Start()
         {
             currentCalculatedPpm = baselinePpm;
             peakRecordedPpm = baselinePpm;
             EnsurePlayerCameraReference();
-
             LocateLeakingDrumInScene();
 
             if (detectorHudPanel != null)
                 detectorHudPanel.SetActive(false);
 
             if (firstPersonHeldModel != null)
+            {
+                StripChildColliders(firstPersonHeldModel);
                 firstPersonHeldModel.SetActive(false);
+            }
         }
 
         private void EnsurePlayerCameraReference()
         {
             if (playerCamera == null)
             {
-                FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
+                FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
                 if (responder != null)
                 {
                     playerCamera = responder.GetComponentInChildren<Camera>();
@@ -92,9 +95,29 @@ namespace CBRSX.Unity
             }
         }
 
+        private void StripChildColliders(GameObject root)
+        {
+            if (root == null) return;
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            foreach (var c in colliders)
+            {
+                c.enabled = false;
+                if (Application.isPlaying)
+                {
+                    Destroy(c);
+                }
+            }
+            Rigidbody[] rbs = root.GetComponentsInChildren<Rigidbody>(true);
+            foreach (var rb in rbs)
+            {
+                rb.isKinematic = true;
+                rb.detectCollisions = false;
+            }
+        }
+
         private void LocateLeakingDrumInScene()
         {
-            LeakDrum[] drums = FindObjectsOfType<LeakDrum>();
+            LeakDrum[] drums = FindObjectsByType<LeakDrum>(FindObjectsSortMode.None);
             foreach (var d in drums)
             {
                 if (d.isLeaking)
@@ -109,12 +132,19 @@ namespace CBRSX.Unity
         {
             if (!isEquipped) return;
 
-            EnsurePlayerCameraReference();
-            HandleAimDownSights();
-            CalculateAtmosphericDiffusionModel();
-            SimulateNeedleSpringDamperPhysics();
-            UpdateOledTelemetryMatrix();
-            UpdateAcousticModulation();
+            try
+            {
+                EnsurePlayerCameraReference();
+                HandleAimDownSights();
+                CalculateAtmosphericDiffusionModel();
+                SimulateNeedleSpringDamperPhysics();
+                UpdateOledTelemetryMatrix();
+                UpdateAcousticModulation();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[GasDetector Update Warning]: {ex.Message}");
+            }
         }
 
         public void ToggleEquip()
@@ -131,11 +161,10 @@ namespace CBRSX.Unity
 
         public void EquipDetector()
         {
-            // If this component is on a world dock/pickup rather than the active player, forward to player
-            FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
+            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
             if (responder != null && transform.root != responder.transform)
             {
-                GasDetector playerDet = responder.GetComponentInChildren<GasDetector>();
+                GasDetector playerDet = responder.GetComponentInChildren<GasDetector>(true);
                 if (playerDet != null && playerDet != this)
                 {
                     playerDet.EquipDetector();
@@ -156,12 +185,9 @@ namespace CBRSX.Unity
 
             if (firstPersonHeldModel != null)
             {
+                StripChildColliders(firstPersonHeldModel);
                 firstPersonHeldModel.SetActive(true);
-                Collider[] colliders = firstPersonHeldModel.GetComponentsInChildren<Collider>(true);
-                foreach (var c in colliders)
-                {
-                    Destroy(c);
-                }
+                firstPersonHeldModel.transform.localPosition = hipPosition;
             }
 
             if (detectorHudPanel != null)
@@ -172,6 +198,12 @@ namespace CBRSX.Unity
 
             if (CbrsEventLogger.Instance != null)
                 CbrsEventLogger.Instance.LogEvent("detector_equipped", "{}");
+
+            // Ensure mouse cursor remains locked to first-person view
+            if (responder != null)
+            {
+                responder.SetCursorLock(true);
+            }
 
             Debug.Log("<color=yellow>[CBRS-X] Handheld Gas Detector EQUIPPED — Analytical PID Spectrometer Active.</color>");
         }
@@ -217,11 +249,13 @@ namespace CBRSX.Unity
             }
         }
 
-        /// <summary>
-        /// Volumetric 3D Gaussian Plume Diffusion Model factoring in wind and turbulent decay.
-        /// </summary>
         private void CalculateAtmosphericDiffusionModel()
         {
+            if (leakingDrum == null)
+            {
+                LocateLeakingDrumInScene();
+            }
+
             if (leakingDrum == null || leakingDrum.isContained)
             {
                 float noise = (Mathf.PerlinNoise(Time.time * 1.5f, 0f) - 0.5f) * 0.8f;
@@ -235,10 +269,7 @@ namespace CBRSX.Unity
 
             if (distance <= detectionRadius)
             {
-                // Turbulent diffusion noise
                 float turbulentDistortion = Mathf.PerlinNoise(Time.time * 2.5f, distance * 0.5f) * turbulenceIntensity;
-                
-                // Inverse-Square Gaussian plume equation
                 float normalizedDist = Mathf.Clamp01(distance / detectionRadius);
                 float diffusionFactor = Mathf.Exp(-dispersionDiffusionCoeff * normalizedDist * normalizedDist);
 
@@ -257,19 +288,14 @@ namespace CBRSX.Unity
             }
         }
 
-        /// <summary>
-        /// Solves second-order differential equation: acceleration = -k*(x - target) - c*v
-        /// </summary>
         private void SimulateNeedleSpringDamperPhysics()
         {
             float targetNormalized = Mathf.InverseLerp(baselinePpm, maxPpm, currentCalculatedPpm);
             float targetAngle = Mathf.Lerp(90f, -90f, targetNormalized);
 
-            // Add subtle physical sensor jitter
             float microJitter = (Mathf.PerlinNoise(Time.time * 18f, 0f) - 0.5f) * needleJitterAmplitude;
             targetAngle += microJitter;
 
-            // Spring-damper force calculation
             float displacement = needlePositionAngle - targetAngle;
             float springForce = -springStiffness * displacement;
             float dampingForce = -damperCoefficient * needleVelocity;

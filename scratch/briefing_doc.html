@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CBRS-X // Hackathon Pitch Master Briefing & Team Battle Plan</title>
+  
+  <!-- Modern Web Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #070b14;
+      --bg-surface: #0f172a;
+      --bg-card: #1e293b;
+      --border-cyan: #00e5ff;
+      --border-blue: #0070f3;
+      --accent-amber: #ff6b00;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #0f172a;
+      --text-dark: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      line-height: 1.55;
+      font-size: 13.5px;
+      padding: 24px;
+    }
+
+    /* Cover / Hero Mission Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #070b14 0%, #0f172a 50%, #1e1b4b 100%);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      page-break-inside: avoid;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-amber);
+      background: rgba(255, 107, 0, 0.15);
+      border: 1px solid rgba(255, 107, 0, 0.4);
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .hero-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .hero-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    .hero-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 11.5px;
+    }
+
+    .meta-item strong {
+      color: var(--border-cyan);
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 2px;
+    }
+
+    /* Section Styles */
+    .section-container {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 22px 26px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      page-break-inside: avoid;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+
+    .section-header h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-num {
+      background: #0f172a;
+      color: #00e5ff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    /* Grid Columns */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    /* Cards */
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 12.5px;
+    }
+
+    .card.card-danger {
+      border-left: 4px solid var(--accent-red);
+      background: #fef2f2;
+    }
+
+    .card.card-primary {
+      border-left: 4px solid var(--border-blue);
+      background: #f0f9ff;
+    }
+
+    .card.card-success {
+      border-left: 4px solid var(--accent-green);
+      background: #f0fdf4;
+    }
+
+    .card-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    /* Tables */
+    table.briefing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin: 12px 0;
+    }
+
+    table.briefing-table th {
+      background: #0f172a;
+      color: #ffffff;
+      text-align: left;
+      padding: 8px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    table.briefing-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    table.briefing-table tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    /* Process Flow Ribbon */
+    .process-ribbon {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .process-step {
+      flex: 1;
+      padding: 4px 6px;
+    }
+
+    .process-step.step-1 { color: #f59e0b; }
+    .process-step.step-2 { color: #3b82f6; }
+    .process-step.step-3 { color: #ef4444; }
+    .process-step.step-4 { color: #00e5ff; }
+    .process-step.step-5 { color: #10b981; }
+
+    .process-arrow {
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    /* Scripts Box */
+    .script-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-left: 5px solid #0f172a;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+    }
+
+    .script-role {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .role-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+
+    .role-focus {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--accent-amber);
+      font-weight: 600;
+      background: rgba(255, 107, 0, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .script-text {
+      font-style: italic;
+      color: #1e293b;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    /* Q&A Cards */
+    .qa-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+    }
+
+    .qa-question {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .qa-answer {
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* Badge Pills */
+    .pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .pill-green { background: #dcfce7; color: #166534; }
+    .pill-blue { background: #e0f2fe; color: #075985; }
+    .pill-amber { background: #fef3c7; color: #92400e; }
+
+    /* Footer */
+    .doc-footer {
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 14px;
+      margin-top: 20px;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff;
+      }
+      .section-container {
+        border: 1px solid #e2e8f0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO COVER BANNER -->
+  <div class="hero-banner">
+    <div class="hero-badge">☣️ SMART INDIA HACKATHON 2026 // PS: SIH260088 // DISASTER MANAGEMENT</div>
+    <div class="hero-title">CBRS-X : HACKATHON PITCH MASTER BRIEFING & TEAM BATTLE PLAN</div>
+    <div class="hero-sub">Enterprise Tactical VR & WebGL Chemical, Biological & Radiological Emergency Training with Deterministic Audit Engine</div>
+    
+    <div class="hero-meta-grid">
+      <div class="meta-item">
+        <strong>Team Lead</strong>
+        Lohith R C
+      </div>
+      <div class="meta-item">
+        <strong>Task Force Roster</strong>
+        Monica K S, Chandana M P, Chandana M N, Harshini R B, Pavitra J H
+      </div>
+      <div class="meta-item">
+        <strong>Lead Institution</strong>
+        Kalpataru Institute of Technology (KIT)
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: PROJECT OVERVIEW -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Project Overview & Mission Narrative</h2>
+    </div>
+
+    <div class="grid-2">
+      <div class="card card-danger">
+        <div class="card-title">🚨 The Real-World Life-or-Death Crisis</div>
+        <p style="margin-bottom: 8px;">In real-world CBRN emergencies, a single procedural error (e.g. stepping into a hot zone without positive-pressure SCBA or misreading gas PPM gradients) leads to fatal casualties.</p>
+        <p><strong>Cost Barrier:</strong> Physical drills require single-use Level-A hazmat suits costing ₹50,000–₹1,00,000 each and cannot be repeated safely.</p>
+      </div>
+
+      <div class="card card-success">
+        <div class="card-title">☣️ The CBRS-X Paradigm Shift</div>
+        <p style="margin-bottom: 8px;"><strong>Zero Physical Risk:</strong> Responders navigate an interactive 3D digital twin of <em>Storage Bay 03</em> in VR or browser WebGL on standard laptops.</p>
+        <p><strong>Deterministic Auditing:</strong> Evaluates every timestamp, gas PPM threshold, and suit seal objectively against official NDRF Standard Operating Procedures (SOPs).</p>
+      </div>
+    </div>
+
+    <div class="process-ribbon">
+      <div class="process-step step-1">1. DETECT (PID Gas Sensor)</div>
+      <div class="process-arrow">➔</div>
+      <div class="process-step step-2">2. PROTECT (Level-A PPE & SCBA)</div>
+      <div class="process-arrow">➔</div>
+      <div class="process-step step-3">3. CONTAIN (Magnetic Clamp Seal)</div>
+      <div class="process-arrow">➔</div>
+      <div class="process-step step-4">4. EVACUATE (Casualty Triage)</div>
+      <div class="process-arrow">➔</div>
+      <div class="process-step step-5">5. DECONTAMINATE (Shower Archway)</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: ARCHITECTURE & KNOWLEDGE BASE -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Essential Knowledge Base & Simplified Architecture</h2>
+    </div>
+
+    <table class="briefing-table">
+      <thead>
+        <tr>
+          <th>System Tier</th>
+          <th>Technologies Used</th>
+          <th>Plain English Function</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. Frontline Simulation</strong></td>
+          <td>Unity 2022.3 LTS, WebGL / WASM, OpenXR, Three.js</td>
+          <td>The interactive 3D virtual environment (Bay 03) where trainees move, check gas detectors, patch leaking drums, and take decon showers.</td>
+        </tr>
+        <tr>
+          <td><strong>2. Trainee Web Station</strong></td>
+          <td>React 18, Vite 5</td>
+          <td>The browser portal where trainees log in, launch the simulation window, view live mission objectives, and read HUD metrics.</td>
+        </tr>
+        <tr>
+          <td><strong>3. Backend & Audit Core</strong></td>
+          <td>Java 17, Spring Boot 3.2.5, STOMP WebSockets</td>
+          <td>The central engine that ingests event telemetry, calculates 100-point scores, deducts penalty points, streams live radar data, and generates verified PDF certificates.</td>
+        </tr>
+        <tr>
+          <td><strong>4. Command & Storage</strong></td>
+          <td>React 18 Glassmorphism, PostgreSQL 15</td>
+          <td>The supervisor dashboard with a live 2D/3D radar showing responder position at 60Hz, mission replay controls, and database audit logs.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid-3" style="margin-top: 14px;">
+      <div class="card card-primary">
+        <div class="card-title">📡 Sub-50ms Telemetry</div>
+        <p>STOMP WebSockets stream responder actions and gas levels at 60Hz.</p>
+      </div>
+      <div class="card card-primary">
+        <div class="card-title">🔒 SHA-256 Certificates</div>
+        <p>Tamper-evident cryptographic digest embedded in generated completion PDFs.</p>
+      </div>
+      <div class="card card-primary">
+        <div class="card-title">🛡️ Ingress Rate Limiting</div>
+        <p>Bounded LRU Sliding-Window Rate Limiter tested for 10,000 concurrent IPs.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: PITCH STRATEGY & VALUE PROP -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>The Pitch Strategy & Core Value Proposition</h2>
+    </div>
+
+    <div class="grid-3">
+      <div class="card card-success">
+        <div class="card-title">1. Deterministic Audit Core</div>
+        <p>Not just a game; it is a millisecond-accurate compliance engine evaluating real NDRF protocols without human bias.</p>
+      </div>
+      <div class="card card-success">
+        <div class="card-title">2. Zero Hardware Barrier</div>
+        <p>Runs directly inside Google Chrome or Microsoft Edge on standard budget laptops via WebGL / WebAssembly.</p>
+      </div>
+      <div class="card card-success">
+        <div class="card-title">3. Dual-Screen Command Sync</div>
+        <p>Trainee first-person view is synchronized in real time with the Instructor Tactical Radar HUD.</p>
+      </div>
+    </div>
+
+    <div class="card" style="background: #0f172a; color: #ffffff; margin-top: 10px;">
+      <strong style="color: var(--accent-amber); font-family: 'JetBrains Mono'; font-size: 11px;">⏱️ 5-MINUTE PITCH TIMING ROADMAP:</strong>
+      <p style="font-size: 12px; margin-top: 4px; color: #e2e8f0;">
+        [0:00-0:45] The Hook & Problem  ➔  [0:45-1:30] The Solution (CBRS-X)  ➔  [1:30-3:00] Live Dual-Screen Demo  ➔  [3:00-3:45] Tech Architecture & Test Stats  ➔  [3:45-4:30] ROI & Market  ➔  [4:30-5:00] Closing & Q&A
+      </p>
+    </div>
+  </div>
+
+  <!-- SECTION 4: PRESENTATION SCRIPTS -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>Role-Based Presentation Scripts</h2>
+    </div>
+
+    <div class="script-card">
+      <div class="script-role">
+        <span class="role-title">Speaker 1: Mission Commander / Pitch Lead</span>
+        <span class="role-focus">Hook, Problem Statement & Solution</span>
+      </div>
+      <div class="script-text">
+        "Judges, in a CBRN disaster, there is zero room for error. A single mistake—stepping into a hot zone 5 seconds before your SCBA seals or misreading a gas detector by 10 PPM—is fatal. Yet live physical drills cost over ₹50,000 per suit in consumables and cannot be repeated safely. Our solution is CBRS-X—an enterprise tactical simulation and deterministic auditing platform that brings zero-risk, high-fidelity emergency training directly into standard web browsers."
+      </div>
+    </div>
+
+    <div class="script-card">
+      <div class="script-role">
+        <span class="role-title">Speaker 2: Technical Architect / Demo Driver</span>
+        <span class="role-focus">Live Dual-Screen Demo & Telemetry</span>
+      </div>
+      <div class="script-text">
+        "On the left is our Trainee WebGL Station running in the browser; on the right is the Instructor Tactical Command Center. As our responder navigates Storage Bay 03, every movement is streamed at 60Hz over WebSockets. Watch what happens when our responder approaches the toxic plume without donning Level-A PPE: the backend instantly flags an SOP safety breach, logs a penalty, and alerts the instructor. Once contained and decontaminated, the system dynamically issues a tamper-evident SHA-256 verified PDF certificate."
+      </div>
+    </div>
+
+    <div class="script-card">
+      <div class="script-role">
+        <span class="role-title">Speaker 3: Backend & Security Specialist</span>
+        <span class="role-focus">Tech Architecture, Scoring & Test Coverage</span>
+      </div>
+      <div class="script-text">
+        "Under the hood, CBRS-X is built on an enterprise-grade stack: Unity 2022.3 compiled to WebAssembly with Brotli compression for 65% smaller bundle sizes; Spring Boot 3.2.5 microservices handling deterministic state machines; and a Bounded LRU Rate Limiter handling 10,000 concurrent IPs. Our backend is validated with 46 out of 46 unit and integration tests passed."
+      </div>
+    </div>
+
+    <div class="script-card">
+      <div class="script-role">
+        <span class="role-title">Speaker 4: Product Visionary / Impact Lead</span>
+        <span class="role-focus">Real-World ROI, Field Box & Market Reach</span>
+      </div>
+      <div class="script-text">
+        "The real-world impact is transformative: 100% physical risk elimination and a 90%+ cost reduction for 16 NDRF battalions, state SDRF units, and energy giants like IOCL, ONGC, and GAIL. Through our Docker 'Field Box' architecture, CBRS-X runs completely offline in remote border bases on a single local laptop Wi-Fi hotspot with zero internet required."
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: READINESS & TROUBLESHOOTING -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>Team Readiness, Demo Choreography & Troubleshooting</h2>
+    </div>
+
+    <div class="grid-2">
+      <div class="card card-primary">
+        <div class="card-title">🎬 3-Step Live Demo Choreography</div>
+        <ul style="padding-left: 16px; font-size: 12px; line-height: 1.45;">
+          <li><strong>Step 1 (Movement & Detection):</strong> Move responder $\rightarrow$ show radar blip moving $\rightarrow$ show PID gas detector PPM value rising.</li>
+          <li><strong>Step 2 (Penalty Trigger):</strong> Approach toxic plume without PPE $\rightarrow$ point to instructor feed showing <code>entered_hazard_zone_without_ppe</code> penalty.</li>
+          <li><strong>Step 3 (Containment & Cert):</strong> Don Level-A suit $\rightarrow$ seal leaking drum $\rightarrow$ pass through decon arch $\rightarrow$ download SHA-256 PDF certificate.</li>
+        </ul>
+      </div>
+
+      <div class="card card-danger">
+        <div class="card-title">🔧 Troubleshooting & Fallbacks</div>
+        <ul style="padding-left: 16px; font-size: 12px; line-height: 1.45;">
+          <li><strong>Pre-load WebGL Tab:</strong> Spawn into Bay 03 <em>before</em> walking up to the judges to avoid loading lag.</li>
+          <li><strong>Local Docker Fallback:</strong> Keep <code>docker-compose up</code> running locally on <code>localhost:80</code> in case venue Wi-Fi drops.</li>
+          <li><strong>If WebGL frame drops:</strong> Explain: <em>"This is running on standard integrated graphics without a GPU, proving zero-install accessibility."</em></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: Q&A DEFENSE MATRIX -->
+  <div class="section-container">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Judge Q&A Defense Matrix</h2>
+    </div>
+
+    <div class="qa-box">
+      <div class="qa-question">❓ "How is this different from existing VR games or training simulators?"</div>
+      <div class="qa-answer"><strong>💡 Answer:</strong> "Most VR simulators are graphical walkthroughs with subjective grading. CBRS-X is a <strong>deterministic auditing engine</strong>. Every gas PPM threshold, suit seal duration, and decontamination dwell time is evaluated with millisecond accuracy against official NDRF SOPs, producing tamper-evident SHA-256 verified credentials."</div>
+    </div>
+
+    <div class="qa-box">
+      <div class="qa-question">❓ "Can low-end government computers in remote training camps run this?"</div>
+      <div class="qa-answer"><strong>💡 Answer:</strong> "Yes. By utilizing Unity WebGL with Brotli compression and LOD shaders, it runs inside standard Chrome on basic laptops. Furthermore, our Docker 'Field Box' allows the entire backend and DB to run offline on a single rugged laptop acting as a local Wi-Fi hotspot."</div>
+    </div>
+
+    <div class="qa-box">
+      <div class="qa-question">❓ "How do you ensure certificates cannot be forged or faked?"</div>
+      <div class="qa-answer"><strong>💡 Answer:</strong> "Every certificate embeds an immutable <strong>SHA-256 cryptographic digest</strong> computed from the session ID, trainee ID, final score, and millisecond timestamps. Training academies can verify authenticity offline simply by recomputing the hash."</div>
+    </div>
+
+    <div class="qa-box">
+      <div class="qa-question">❓ "How difficult is it to add new disaster scenarios (e.g., Radiation or Biohazards)?"</div>
+      <div class="qa-answer"><strong>💡 Answer:</strong> "Our backend scoring engine is polymorphic. Hazard thresholds, detector types, and penalty weights are defined in modular JSON state machines. New scenarios (like radiological dirty bombs or bio-containment) plug in without refactoring the core pipeline."</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <span>CBRS-X TACTICAL SIMULATION PLATFORM // SMART INDIA HACKATHON 2026 // KALPATARU INSTITUTE OF TECHNOLOGY</span>
+  </div>
+
+</body>
+</html>

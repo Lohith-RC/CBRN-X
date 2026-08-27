@@ -3,31 +3,27 @@ using UnityEngine;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// FirstPersonResponderController V3.0 — Advanced Kinematic Simulation Controller.
+    /// FirstPersonResponderController V3.1 — Fluid First-Person Locomotion and Tool Controller.
     /// Features:
-    /// - 6-DOF Mass-Spring-Damper Camera Sway and Strafe Roll Tilt (+-2.5 deg)
-    /// - Trauma-based Screen Shake (Trauma^2 power curve with 3D rotational/translational noise)
-    /// - Dynamic Audio Low-Pass Filter & Respirator Breathing Acoustic Loops upon Mask Donning
-    /// - Visor Condensation Cycle Driver tied to simulated responder exertion
-    /// - Landing compression impulse and tactical movement inertia
-    /// - Coyote Time + Jump Buffering + Secondary Ground Raycast
-    /// - Crouch system with smooth height transition
-    /// - Dedicated G-key tool toggle (no camera key conflicts)
+    /// - Always-fluid 60FPS mouse look and kinematics (auto-relock on click)
+    /// - 6-DOF Procedural Camera Kinematics (Sway, Head Bob, Strafe Roll)
+    /// - Full equipment hotkey integration (1/G for Spectrometer, 2 for Containment Kit, E for Interact)
+    /// - Safe CharacterController collision settings to prevent sticking on doorways and floor seams
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public class FirstPersonResponderController : MonoBehaviour
     {
         [Header("Tactical Locomotion Kinematics")]
-        public float walkSpeed = 3.8f;
-        public float sprintSpeed = 6.2f;
-        public float crouchSpeed = 1.8f;
-        public float acceleration = 14.0f;
-        public float deceleration = 18.0f;
-        public float mouseSensitivity = 2.2f;
+        public float walkSpeed = 4.2f;
+        public float sprintSpeed = 6.8f;
+        public float crouchSpeed = 2.2f;
+        public float acceleration = 16.0f;
+        public float deceleration = 20.0f;
+        public float mouseSensitivity = 2.4f;
         public float gravity = -18.5f;
         public float jumpHeight = 1.35f;
-        public float coyoteTime = 0.15f;
-        public float jumpBufferTime = 0.12f;
+        public float coyoteTime = 0.2f;
+        public float jumpBufferTime = 0.15f;
 
         [Header("Crouch Configuration")]
         public float standingHeight = 1.8f;
@@ -37,11 +33,11 @@ namespace CBRSX.Unity
         private float currentHeight;
 
         [Header("Camera Kinematics & Spring Sway")]
-        public float strafeRollAngle = 2.5f;
+        public float strafeRollAngle = 2.0f;
         public float rollSmoothing = 6.0f;
         public float bobFrequency = 2.0f;
-        public float bobHorizontalAmplitude = 0.02f;
-        public float bobVerticalAmplitude = 0.035f;
+        public float bobHorizontalAmplitude = 0.015f;
+        public float bobVerticalAmplitude = 0.025f;
         public float sprintBobMultiplier = 1.35f;
         public float landingCompressionDistance = 0.08f;
         public float springRecoverySpeed = 10.0f;
@@ -69,7 +65,7 @@ namespace CBRSX.Unity
         public float breathingCycleDuration = 4.0f;
 
         [Header("Ground Detection")]
-        public float groundCheckDistance = 0.25f;
+        public float groundCheckDistance = 0.35f;
         public LayerMask groundCheckMask = ~0;
 
         [Header("Protocol State")]
@@ -85,29 +81,32 @@ namespace CBRSX.Unity
         private Vector3 currentMoveVector;
         private float currentRollAngle = 0f;
         private float bobTimer = 0f;
-        private float defaultCameraY;
-        private float crouchCameraY;
+        private float defaultCameraY = 1.65f;
+        private float crouchCameraY = 1.25f;
         private float landingOffset = 0f;
         private bool wasGroundedLastFrame = true;
         private bool cursorLocked = true;
         private float breathingTimer = 0f;
         private float coyoteTimer = 0f;
         private float jumpBufferTimer = 0f;
-        private bool isGroundedRaycast = false;
 
-        private void Start()
+        private void Awake()
         {
             characterController = GetComponent<CharacterController>();
             playerCamera = GetComponentInChildren<Camera>();
 
-            currentHeight = standingHeight;
-
             if (characterController != null)
             {
-                characterController.stepOffset = 0.35f;
-                characterController.slopeLimit = 45f;
+                characterController.stepOffset = 0.45f;
+                characterController.slopeLimit = 50f;
                 characterController.minMoveDistance = 0f;
                 characterController.skinWidth = 0.05f;
+                characterController.radius = 0.35f;
+            }
+
+            if (playerCamera == null)
+            {
+                playerCamera = Camera.main;
             }
 
             if (playerCamera != null)
@@ -116,17 +115,11 @@ namespace CBRSX.Unity
                 if (defaultCameraY < 1.0f) defaultCameraY = 1.65f;
                 crouchCameraY = defaultCameraY - (standingHeight - crouchHeight) * 0.5f;
             }
-            else
-            {
-                defaultCameraY = 1.65f;
-                crouchCameraY = 1.25f;
-            }
+        }
 
-            if (masterAudioLowPass == null && playerCamera != null)
-            {
-                masterAudioLowPass = playerCamera.GetComponent<AudioLowPassFilter>();
-            }
-
+        private void Start()
+        {
+            currentHeight = standingHeight;
             SetCursorLock(true);
             UpdateAcousticEnvironment(false);
         }
@@ -150,7 +143,7 @@ namespace CBRSX.Unity
             {
                 SetCursorLock(false);
             }
-            if (!cursorLocked && Input.GetMouseButtonDown(0))
+            if (!cursorLocked && (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)))
             {
                 SetCursorLock(true);
             }
@@ -171,28 +164,20 @@ namespace CBRSX.Unity
             float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
             verticalRotation -= mouseY;
-            verticalRotation = Mathf.Clamp(verticalRotation, -80f, 80f);
+            verticalRotation = Mathf.Clamp(verticalRotation, -85f, 85f);
 
             transform.Rotate(Vector3.up * mouseX);
         }
 
-        /// <summary>
-        /// Enhanced ground detection using both CharacterController.isGrounded
-        /// and dual Raycast/SphereCast checks to prevent any ground sticking.
-        /// </summary>
         private bool CheckGrounded()
         {
             if (characterController != null && characterController.isGrounded)
                 return true;
 
-            // Start raycast slightly above character bottom
-            Vector3 rayOrigin = transform.position + Vector3.up * 0.2f;
-            float checkDist = 0.35f;
-            isGroundedRaycast = Physics.Raycast(rayOrigin, Vector3.down, checkDist, groundCheckMask, QueryTriggerInteraction.Ignore) ||
-                                Physics.SphereCast(rayOrigin, characterController != null ? characterController.radius * 0.75f : 0.25f,
-                                    Vector3.down, out _, checkDist, groundCheckMask, QueryTriggerInteraction.Ignore);
-
-            return isGroundedRaycast;
+            Vector3 rayOrigin = transform.position + Vector3.up * 0.25f;
+            float checkDist = groundCheckDistance + 0.1f;
+            return Physics.Raycast(rayOrigin, Vector3.down, checkDist, groundCheckMask, QueryTriggerInteraction.Ignore) ||
+                   Physics.SphereCast(rayOrigin, 0.25f, Vector3.down, out _, checkDist, groundCheckMask, QueryTriggerInteraction.Ignore);
         }
 
         private void HandleLocomotion()
@@ -211,33 +196,22 @@ namespace CBRSX.Unity
 
             bool grounded = CheckGrounded();
 
-            // Ground check & Coyote Time
             if (grounded)
             {
                 coyoteTimer = coyoteTime;
                 if (!wasGroundedLastFrame && currentVelocity.y < -3.0f)
                 {
                     landingOffset = -landingCompressionDistance;
-                    // Add landing trauma for immersion
-                    float impactStrength = Mathf.InverseLerp(-3f, -12f, currentVelocity.y);
-                    AddTrauma(impactStrength * 0.25f);
+                    AddTrauma(0.15f);
                 }
                 currentVelocity.y = -2.0f;
             }
             else
             {
                 coyoteTimer -= Time.deltaTime;
-                // Clamp downward velocity to prevent penetration physics locking
-                currentVelocity.y = Mathf.Max(currentVelocity.y + gravity * Time.deltaTime, -12.0f);
+                currentVelocity.y = Mathf.Max(currentVelocity.y + gravity * Time.deltaTime, -15.0f);
             }
 
-            // Head bump detection — if moving up and hit ceiling, stop upward velocity
-            if (characterController != null && (characterController.collisionFlags & CollisionFlags.Above) != 0 && currentVelocity.y > 0f)
-            {
-                currentVelocity.y = 0f;
-            }
-
-            // Jump Input & Jump Buffering
             if (Input.GetButtonDown("Jump") || Input.GetKeyDown(KeyCode.Space))
             {
                 jumpBufferTimer = jumpBufferTime;
@@ -281,14 +255,12 @@ namespace CBRSX.Unity
             }
         }
 
-        /// <summary>
-        /// Dedicated tool toggle on G or 1 key — instant response.
-        /// </summary>
         private void HandleToolToggle()
         {
+            // Key 1 or G -> Gas Detector
             if (Input.GetKeyDown(KeyCode.G) || Input.GetKeyDown(KeyCode.Alpha1))
             {
-                GasDetector detector = GetComponentInChildren<GasDetector>();
+                GasDetector detector = GetComponentInChildren<GasDetector>(true);
                 if (detector == null)
                 {
                     detector = FindFirstObjectByType<GasDetector>();
@@ -298,9 +270,19 @@ namespace CBRSX.Unity
                 {
                     detector.ToggleEquip();
                 }
-                else
+            }
+
+            // Key 2 -> Containment Kit
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                ContainmentKit kit = GetComponentInChildren<ContainmentKit>(true);
+                if (kit == null)
                 {
-                    Debug.Log("[Player] Gas Detector not found in scene.");
+                    kit = FindFirstObjectByType<ContainmentKit>();
+                }
+                if (kit != null)
+                {
+                    kit.EquipKit();
                 }
             }
         }
@@ -309,13 +291,11 @@ namespace CBRSX.Unity
         {
             if (playerCamera == null) return;
 
-            // 1. Strafe Roll Tilt
             float strafeInput = Input.GetAxisRaw("Horizontal");
             float targetRoll = -strafeInput * strafeRollAngle;
             currentRollAngle = Mathf.Lerp(currentRollAngle, targetRoll, Time.deltaTime * rollSmoothing);
 
-            // 2. 6-DOF Procedural Head Bob
-            float horizontalSpeed = new Vector3(characterController.velocity.x, 0, characterController.velocity.z).magnitude;
+            float horizontalSpeed = new Vector3(characterController != null ? characterController.velocity.x : 0, 0, characterController != null ? characterController.velocity.z : 0).magnitude;
             float bobMultiplier = (Input.GetKey(KeyCode.LeftShift)) ? sprintBobMultiplier : 1.0f;
 
             Vector3 bobPositionOffset = Vector3.zero;
@@ -335,11 +315,9 @@ namespace CBRSX.Unity
                 bobPositionOffset.y = landingOffset;
             }
 
-            // Crouch camera height interpolation
             float targetCamY = isCrouching ? crouchCameraY : defaultCameraY;
             float currentCamY = Mathf.Lerp(playerCamera.transform.localPosition.y, targetCamY + bobPositionOffset.y, Time.deltaTime * crouchTransitionSpeed);
 
-            // Direct smooth synchronization to ensure camera never detaches or lags behind player
             playerCamera.transform.localPosition = new Vector3(bobPositionOffset.x, currentCamY, 0f);
             playerCamera.transform.localRotation = Quaternion.Euler(verticalRotation, 0f, currentRollAngle);
         }
@@ -351,43 +329,11 @@ namespace CBRSX.Unity
             bool isSprinting = Input.GetKey(KeyCode.LeftShift) && Input.GetAxisRaw("Vertical") > 0.1f && !isCrouching;
             float targetFov = isSprinting ? sprintFov : defaultFov;
 
-            // Only adjust if GasDetector isn't overriding FOV via ADS
             GasDetector detector = GetComponentInChildren<GasDetector>();
             if (detector != null && detector.isEquipped && Input.GetMouseButton(1))
-                return; // ADS has FOV priority
+                return; // ADS takes FOV priority
 
             playerCamera.fieldOfView = Mathf.Lerp(playerCamera.fieldOfView, targetFov, Time.deltaTime * fovTransitionSpeed);
-        }
-
-        private void HandleTraumaShake()
-        {
-            if (trauma <= 0.001f || playerCamera == null) return;
-
-            float shakeFactor = trauma * trauma; // Non-linear response curve
-
-            float timeVal = Time.time * shakeFrequency;
-            float rotX = (Mathf.PerlinNoise(timeVal, 0f) - 0.5f) * 2f * maxShakeRotation * shakeFactor;
-            float rotY = (Mathf.PerlinNoise(0f, timeVal) - 0.5f) * 2f * maxShakeRotation * shakeFactor;
-            float rotZ = (Mathf.PerlinNoise(timeVal, timeVal) - 0.5f) * 2f * maxShakeRotation * shakeFactor;
-
-            float transX = (Mathf.PerlinNoise(timeVal + 10f, 0f) - 0.5f) * 2f * maxShakeTranslation * shakeFactor;
-            float transY = (Mathf.PerlinNoise(0f, timeVal + 10f) - 0.5f) * 2f * maxShakeTranslation * shakeFactor;
-
-            playerCamera.transform.localRotation *= Quaternion.Euler(rotX, rotY, rotZ);
-            playerCamera.transform.localPosition += new Vector3(transX, transY, 0f);
-
-            trauma = Mathf.Clamp01(trauma - traumaDecayRate * Time.deltaTime);
-        }
-
-        private void HandleVisorCondensation()
-        {
-            if (!hasFullPpe) return;
-
-            breathingTimer += Time.deltaTime;
-            float normalizedCycle = (breathingTimer % breathingCycleDuration) / breathingCycleDuration;
-
-            // Sine cycle: Inhale clears moisture, Exhale produces fog
-            visorFogLevel = Mathf.Sin(normalizedCycle * Mathf.PI * 2f) * 0.5f + 0.5f;
         }
 
         public void AddTrauma(float amount)
@@ -395,8 +341,37 @@ namespace CBRSX.Unity
             trauma = Mathf.Clamp01(trauma + amount);
         }
 
+        private void HandleTraumaShake()
+        {
+            if (trauma <= 0.001f || playerCamera == null) return;
+
+            trauma = Mathf.MoveTowards(trauma, 0f, Time.deltaTime * traumaDecayRate);
+            float shakePower = trauma * trauma;
+
+            float shakeYaw = (Mathf.PerlinNoise(Time.time * shakeFrequency, 0f) - 0.5f) * 2f * maxShakeRotation * shakePower;
+            float shakePitch = (Mathf.PerlinNoise(0f, Time.time * shakeFrequency) - 0.5f) * 2f * maxShakeRotation * shakePower;
+
+            playerCamera.transform.localRotation *= Quaternion.Euler(shakePitch, shakeYaw, 0f);
+        }
+
+        private void HandleVisorCondensation()
+        {
+            if (!hasFullPpe) return;
+
+            breathingTimer += Time.deltaTime;
+            float cycleProgress = (breathingTimer % breathingCycleDuration) / breathingCycleDuration;
+            visorFogLevel = Mathf.Sin(cycleProgress * Mathf.PI * 2f) * 0.5f + 0.5f;
+
+            if (PostProcessingController.Instance != null)
+            {
+                PostProcessingController.Instance.SetVisorFogIntensity(visorFogLevel * 0.35f);
+            }
+        }
+
         public void UpdateAcousticEnvironment(bool ppeActive)
         {
+            hasFullPpe = ppeActive;
+
             if (masterAudioLowPass != null)
             {
                 masterAudioLowPass.cutoffFrequency = ppeActive ? equippedRespiratorCutoff : unequippedCutoff;
@@ -411,58 +386,6 @@ namespace CBRSX.Unity
                 else if (!ppeActive && respiratorBreathingSource.isPlaying)
                 {
                     respiratorBreathingSource.Stop();
-                }
-            }
-
-            if (PostProcessingController.Instance != null)
-            {
-                PostProcessingController.Instance.SetVisorOpticsActive(ppeActive);
-            }
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("HazardZone"))
-            {
-                inHazardZone = true;
-                if (!hasFullPpe)
-                {
-                    Debug.LogWarning("[PROTOCOL VIOLATION] Responder penetrated chemical perimeter without Level B PPE!");
-                    if (CbrsEventLogger.Instance != null)
-                    {
-                        CbrsEventLogger.Instance.LogEvent("entered_hazard_zone_without_ppe",
-                            "{\"warning\":\"Entered chemical cloud without PPE\",\"position\":{\"x\":" +
-                            transform.position.x.ToString("F1") + ",\"z\":" + transform.position.z.ToString("F1") + "}}");
-                    }
-                    if (GameManager.Instance != null)
-                    {
-                        GameManager.Instance.ReportMistake("Contamination Risk — PPE Required Before Entry");
-                    }
-                    if (PostProcessingController.Instance != null)
-                    {
-                        PostProcessingController.Instance.TriggerHazardAlarmPulse(true);
-                    }
-                }
-            }
-
-            if (other.CompareTag("PpeStation"))
-            {
-                if (GameManager.Instance != null &&
-                    GameManager.Instance.currentStage == GameManager.ScenarioStage.PerimeterAssessment)
-                {
-                    GameManager.Instance.SetStage(GameManager.ScenarioStage.LevelBDonning);
-                }
-            }
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (other.CompareTag("HazardZone"))
-            {
-                inHazardZone = false;
-                if (PostProcessingController.Instance != null)
-                {
-                    PostProcessingController.Instance.TriggerHazardAlarmPulse(false);
                 }
             }
         }
