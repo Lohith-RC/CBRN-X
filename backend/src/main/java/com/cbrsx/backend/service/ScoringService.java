@@ -13,7 +13,8 @@ import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class ScoringService {
 
     private static final Logger log = LoggerFactory.getLogger(ScoringService.class);
@@ -35,6 +35,18 @@ public class ScoringService {
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
     private final ObjectMapper objectMapper;
+
+    public ScoringService(EventRepository eventRepository,
+                          SessionRepository sessionRepository,
+                          TraineeRepository traineeRepository,
+                          ScenarioRepository scenarioRepository,
+                          ObjectMapper objectMapper) {
+        this.eventRepository = eventRepository;
+        this.sessionRepository = sessionRepository;
+        this.traineeRepository = traineeRepository;
+        this.scenarioRepository = scenarioRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public static final int PASS_THRESHOLD = 70;
     public static final int MAX_RAW_SCORE = 80;

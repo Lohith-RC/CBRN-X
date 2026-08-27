@@ -7,8 +7,8 @@ import com.cbrsx.backend.entity.Trainee;
 import com.cbrsx.backend.entity.TrainingSession;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +22,20 @@ import java.util.stream.Collectors;
  * percentage skill-growth calculations, and attempt progression histories.
  */
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class TraineeAnalyticsService {
+
+    private static final Logger log = LoggerFactory.getLogger(TraineeAnalyticsService.class);
 
     private final TraineeRepository traineeRepository;
     private final SessionRepository sessionRepository;
+
+    public TraineeAnalyticsService(TraineeRepository traineeRepository,
+                                  SessionRepository sessionRepository,
+                                  ScoringService scoringService) {
+        this.traineeRepository = traineeRepository;
+        this.sessionRepository = sessionRepository;
+        this.scoringService = scoringService;
+    }
     private final ScoringService scoringService;
 
     /**

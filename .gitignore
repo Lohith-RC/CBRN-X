@@ -1,5 +1,6 @@
 # ==========================================
 # CBRS-X (CBRN VR Training) .gitignore
+# Enterprise Security & Clean Repository Policy
 # ==========================================
 
 # 1. Environment & Production Secrets (NEVER COMMIT)
@@ -9,6 +10,12 @@
 **/.env
 **/.env.*
 !**/.env.example
+*.pem
+*.key
+*.jks
+*.p12
+*.pfx
+*.crt
 
 # 2. Java / Maven Backend Build Artifacts
 backend/target/
@@ -20,7 +27,7 @@ backend/target/
 *.log
 .gradle/
 build/
-# Keep the Maven wrapper tracked (scripts + pinned distribution properties)
+# Keep Maven wrapper tracked (distribution properties & scripts)
 !backend/mvnw
 !backend/mvnw.cmd
 !backend/.mvn/
@@ -68,6 +75,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+$RECYCLE.BIN/
 .idea/
 **/.idea/
 .vscode/
@@ -90,15 +98,15 @@ __pycache__/
 htmlcov/
 
 # 7. Large Media Assets / Video Recordings
-#    Trainee-view beat videos are intentionally committable (see
-#    trainee_view/public/videos/README.md); everything else stays ignored.
+#    Trainee-view beat videos are intentionally committable;
+#    everything else stays ignored.
 *.mp4
 *.mov
 *.avi
 *.mkv
 !trainee_view/public/videos/*.mp4
 
-# 8. Local Reports & Generated Output (Keep docs/ tracking)
+# 8. Local Reports & Generated Binary Artifacts
 reports/
 /reports/
 reports/*
@@ -106,14 +114,14 @@ Bay03_Cinematic_Screenshots/
 /Bay03_Cinematic_Screenshots/
 reports/*.pdf
 reports/*.html
-docs/*.pdf
-docs/*.html
 
-# 9. Markdown & Documentation (root *.md ignored to keep the repo tidy;
-#    README and everything under docs/ is always tracked)
+# 9. Markdown & Documentation Governance
+#    README, root docs, and subproject READMEs are always tracked.
 *.md
 !README.md
+!docs/*.md
 !docs/**/*.md
+!trainee_view/public/videos/README.md
 
 # 10. Process Logs
 logs/

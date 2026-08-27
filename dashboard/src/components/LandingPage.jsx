@@ -216,86 +216,33 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
             justifyContent: 'center',
           }}
         >
-          {/* Ambient Glow behind SVG */}
+          {/* Ambient Glow behind Logo */}
           <div
             style={{
               position: 'absolute',
-              width: '80px',
-              height: '80px',
+              width: '120px',
+              height: '120px',
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(6,182,212,0.3) 0%, rgba(16,185,129,0.1) 50%, transparent 80%)',
-              filter: 'blur(12px)',
+              background: 'radial-gradient(circle, rgba(245,130,32,0.4) 0%, rgba(6,182,212,0.2) 50%, transparent 80%)',
+              filter: 'blur(16px)',
               pointerEvents: 'none',
             }}
           />
 
-          <svg
-            width="72"
-            height="72"
-            viewBox="0 0 100 100"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <img
+            src="/cbrn_x_logo.jpg"
+            alt="CBRN-X Project Logo"
             style={{
-              filter: 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.5))',
+              width: '120px',
+              height: '120px',
+              borderRadius: '24px',
+              border: '1px solid rgba(245, 130, 32, 0.6)',
+              boxShadow: '0 0 30px rgba(245, 130, 32, 0.4), 0 0 10px rgba(6, 182, 212, 0.3)',
+              objectFit: 'cover',
+              position: 'relative',
+              zIndex: 1,
             }}
-          >
-            {/* Outer Cybernetic Ring */}
-            <circle
-              cx="50"
-              cy="50"
-              r="44"
-              stroke="url(#outerGrad)"
-              strokeWidth="1.8"
-              strokeDasharray="4 6"
-              opacity="0.75"
-              className="animate-logo-spin"
-              style={{ transformOrigin: '50px 50px' }}
-            />
-
-            {/* Mid Hexagonal Nodes */}
-            <circle
-              cx="50"
-              cy="50"
-              r="34"
-              stroke="url(#midGrad)"
-              strokeWidth="1.2"
-              opacity="0.85"
-            />
-
-            {/* Inner Stylized CBRS-X Tactical Cross / Core */}
-            <path
-              d="M32 32L68 68M68 32L32 68"
-              stroke="url(#coreGrad)"
-              strokeWidth="4.2"
-              strokeLinecap="round"
-            />
-
-            {/* Micro Node Dots on Ring Vertices */}
-            <circle cx="50" cy="6" r="3" fill="#38bdf8" />
-            <circle cx="50" cy="94" r="3" fill="#34d399" />
-            <circle cx="6" cy="50" r="3" fill="#38bdf8" />
-            <circle cx="94" cy="50" r="3" fill="#34d399" />
-
-            {/* Central Bio-Hazard Core Point */}
-            <circle cx="50" cy="50" r="4.5" fill="#ffffff" />
-
-            <defs>
-              <linearGradient id="outerGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#38bdf8" />
-                <stop offset="0.5" stopColor="#34d399" />
-                <stop offset="1" stopColor="#2563eb" />
-              </linearGradient>
-              <linearGradient id="midGrad" x1="100" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#06b6d4" />
-                <stop offset="1" stopColor="#10b981" />
-              </linearGradient>
-              <linearGradient id="coreGrad" x1="32" y1="32" x2="68" y2="68" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#ffffff" />
-                <stop offset="0.45" stopColor="#38bdf8" />
-                <stop offset="1" stopColor="#34d399" />
-              </linearGradient>
-            </defs>
-          </svg>
+          />
         </div>
 
         {/* Security Classification Pill */}

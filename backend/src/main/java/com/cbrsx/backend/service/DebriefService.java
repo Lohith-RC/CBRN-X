@@ -7,8 +7,8 @@ import com.cbrsx.backend.entity.SessionEvent;
 import com.cbrsx.backend.entity.TrainingSession;
 import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.SessionRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +23,19 @@ import java.util.List;
  * and compiles comprehensive tactical NDRF operational guidance.
  */
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class DebriefService {
+
+    private static final Logger log = LoggerFactory.getLogger(DebriefService.class);
 
     private final ScoringService scoringService;
     private final EventRepository eventRepository;
     private final SessionRepository sessionRepository;
+
+    public DebriefService(ScoringService scoringService, EventRepository eventRepository, SessionRepository sessionRepository) {
+        this.scoringService = scoringService;
+        this.eventRepository = eventRepository;
+        this.sessionRepository = sessionRepository;
+    }
 
     @Transactional(readOnly = true)
     public DebriefReportDTO generateDebrief(String sessionId) {

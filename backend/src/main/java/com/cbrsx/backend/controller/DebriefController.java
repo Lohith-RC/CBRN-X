@@ -5,7 +5,6 @@ import com.cbrsx.backend.service.DebriefService;
 import com.cbrsx.backend.service.SessionService;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,11 +16,15 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/sessions")
-@RequiredArgsConstructor
 public class DebriefController {
 
     private final DebriefService debriefService;
     private final SessionService sessionService;
+
+    public DebriefController(DebriefService debriefService, SessionService sessionService) {
+        this.debriefService = debriefService;
+        this.sessionService = sessionService;
+    }
 
     @GetMapping("/{sessionId}/debrief")
     public ResponseEntity<DebriefReportDTO> getSessionDebrief(
