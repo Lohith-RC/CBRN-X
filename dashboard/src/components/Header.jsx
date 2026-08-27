@@ -40,26 +40,30 @@ export default function Header({ onRefresh, loading, activeMode, setActiveMode, 
         <div
           className="animate-float"
           style={{
-            width: '50px',
-            height: '50px',
+            width: '52px',
+            height: '52px',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(245,130,32,0.3) 0%, rgba(255,82,0,0.45) 100%)',
+            overflow: 'hidden',
             border: '1px solid rgba(245,130,32,0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'var(--accent-ndrf-orange)',
-            boxShadow: '0 0 25px rgba(245, 130, 32, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 0 25px rgba(245, 130, 32, 0.4)',
             position: 'relative',
+            background: '#000',
           }}
         >
-          <Shield size={28} />
+          <img
+            src="/cbrn_x_logo.jpg"
+            alt="CBRN-X Logo"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
           <div
             style={{
               position: 'absolute',
               inset: '-1px',
               borderRadius: '12px',
-              border: '1px solid rgba(245, 130, 32, 0.25)',
+              border: '1px solid rgba(245, 130, 32, 0.35)',
               animation: 'border-glow-pulse 3s ease-in-out infinite',
               pointerEvents: 'none',
             }}

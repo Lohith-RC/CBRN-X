@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="Assets/cbrn_x_logo.jpg" alt="CBRN-X Project Logo" width="220" style="border-radius: 16px; box-shadow: 0 0 25px rgba(245, 130, 32, 0.4);" />
+
+</div>
+
 # ☣️ CBRS-X // CBRN HAZMAT PROTOCOL & RESPONSE SIMULATOR
 ### *Enterprise Tactical VR & WebGL Chemical, Biological & Radiological Emergency Training Platform*
 

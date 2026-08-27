@@ -5,7 +5,8 @@ import com.cbrsx.backend.dto.SquadSummaryDTO;
 import com.cbrsx.backend.service.SquadAnalyticsService;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,10 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/squads")
-@RequiredArgsConstructor
 public class SquadController {
 
     private final SquadAnalyticsService squadAnalyticsService;
+
+    public SquadController(SquadAnalyticsService squadAnalyticsService) {
+        this.squadAnalyticsService = squadAnalyticsService;
+    }
 
     @GetMapping("/{squadId}/summary")
     public ResponseEntity<SquadSummaryDTO> getSquadSummary(

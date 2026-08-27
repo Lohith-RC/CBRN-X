@@ -34,15 +34,17 @@ export default function Login({ onSuccess }) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              border: '1px solid rgba(245, 130, 32, 0.4)',
-              boxShadow: '0 0 24px rgba(245, 130, 32, 0.2)',
+              width: '80px',
+              height: '80px',
+              borderRadius: '18px',
+              overflow: 'hidden',
+              border: '1px solid rgba(245, 130, 32, 0.5)',
+              boxShadow: '0 0 30px rgba(245, 130, 32, 0.35)',
               marginBottom: '16px',
+              background: '#000',
             }}
           >
-            <ShieldCheck size={30} color="var(--accent-ndrf-orange)" />
+            <img src="/cbrn_x_logo.jpg" alt="CBRN-X Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', letterSpacing: '0.02em' }}>
             CBRS-X Command Access

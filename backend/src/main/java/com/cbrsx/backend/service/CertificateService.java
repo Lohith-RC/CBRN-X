@@ -7,8 +7,8 @@ import com.lowagie.text.*;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +30,20 @@ import javax.crypto.spec.SecretKeySpec;
  * for passing CBRN disaster response simulation sessions (score >= 70%).
  */
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class CertificateService {
+
+    private static final Logger log = LoggerFactory.getLogger(CertificateService.class);
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm:ss 'UTC'")
             .withZone(ZoneId.of("UTC"));
 
     private final ScoringService scoringService;
     private final SessionRepository sessionRepository;
+
+    public CertificateService(ScoringService scoringService, SessionRepository sessionRepository) {
+        this.scoringService = scoringService;
+        this.sessionRepository = sessionRepository;
+    }
 
     @Value("${cbrsx.crypto.salt:CBRSX_TAMPER_EVIDENT_SALT_NDRF_2026}")
     private String cryptoSalt;
@@ -102,7 +107,19 @@ public class CertificateService {
             boxCell.setPadding(20);
             boxCell.setBackgroundColor(new Color(248, 250, 252));
 
-            // Header Section
+            // Header Section Logo
+            try {
+                java.net.URL logoUrl = getClass().getResource("/static/cbrn_x_logo.jpg");
+                if (logoUrl != null) {
+                    Image logoImg = Image.getInstance(logoUrl);
+                    logoImg.scaleToFit(50, 50);
+                    logoImg.setAlignment(Element.ALIGN_CENTER);
+                    boxCell.addElement(logoImg);
+                }
+            } catch (Exception ex) {
+                log.debug("Certificate logo load skipped: {}", ex.getMessage());
+            }
+
             Paragraph orgHeader = new Paragraph("NATIONAL DISASTER RESPONSE FORCE (NDRF)", headerOrgFont);
             orgHeader.setAlignment(Element.ALIGN_CENTER);
             boxCell.addElement(orgHeader);

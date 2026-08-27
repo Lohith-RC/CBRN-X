@@ -9,7 +9,6 @@ import com.cbrsx.backend.repository.EventRepository;
 import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +32,6 @@ import java.util.stream.Collectors;
  * and a 14-day score trend. Voided sessions are excluded everywhere.
  */
 @Service
-@RequiredArgsConstructor
 public class CohortAnalyticsService {
 
     static final String STATUS_VOIDED = "VOIDED";
@@ -42,6 +40,16 @@ public class CohortAnalyticsService {
     private final EventRepository eventRepository;
     private final ScenarioRepository scenarioRepository;
     private final TraineeRepository traineeRepository;
+
+    public CohortAnalyticsService(SessionRepository sessionRepository,
+                                  EventRepository eventRepository,
+                                  ScenarioRepository scenarioRepository,
+                                  TraineeRepository traineeRepository) {
+        this.sessionRepository = sessionRepository;
+        this.eventRepository = eventRepository;
+        this.scenarioRepository = scenarioRepository;
+        this.traineeRepository = traineeRepository;
+    }
 
     @Transactional(readOnly = true)
     public CohortAnalyticsDTO getCohortAnalytics() {
