@@ -101,16 +101,11 @@ export default function SessionsTable({ sessions, onSelectSession }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               aria-label="Search sessions"
+              className="input-field input-with-icon"
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                padding: '7px 12px 7px 36px',
-                color: '#fff',
-                fontSize: '0.82rem',
-                outline: 'none',
                 width: '210px',
-                transition: 'all 0.2s ease',
+                padding: '7px 12px 7px 36px',
+                fontSize: '0.82rem',
               }}
             />
           </div>

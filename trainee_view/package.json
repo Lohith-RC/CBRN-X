@@ -33,6 +33,9 @@
     "dev": "vite --port 5000",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css}\"",
+    "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

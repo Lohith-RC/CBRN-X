@@ -1,6 +1,6 @@
 :root {
-  --font-sans: 'Lora', Georgia, 'Times New Roman', serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* Premium Dark Theme Palette */
   --bg-dark: #080c14;
@@ -28,6 +28,10 @@
   --glass-border: rgba(139, 92, 246, 0.2);
   --glass-blur: 20px;
   --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* Shared Transition Timing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -47,6 +51,8 @@ body {
     radial-gradient(circle at 50% 50%, rgba(8, 12, 20, 0.8) 0%, transparent 100%);
   background-attachment: fixed;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── Dark Glassmorphism Panel ── */
@@ -57,8 +63,9 @@ body {
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   box-shadow: var(--glass-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s var(--ease-smooth);
   position: relative;
+  will-change: transform;
 }
 
 .glass-panel::before {
@@ -82,7 +89,7 @@ body {
     0 0 30px rgba(16, 185, 129, 0.12),
     0 0 30px rgba(139, 92, 246, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateZ(0);
 }
 
 /* ── Dark Glass Card with Deep Glow ── */
@@ -98,9 +105,10 @@ body {
     0 10px 35px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s var(--ease-smooth);
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .glass-card-deep::after {
@@ -130,7 +138,7 @@ body {
     0 0 35px rgba(16, 185, 129, 0.1),
     0 0 35px rgba(139, 92, 246, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+  transform: translateY(-2px) translateZ(0);
 }
 
 /* ── Glow Ring System (Emerald / Purple Dual Neon Gradient) ── */
@@ -179,7 +187,8 @@ body {
   letter-spacing: 0.05em;
 }
 
-.badge-passed {
+.badge-passed,
+.badge-success {
   background: rgba(16, 185, 129, 0.15);
   color: var(--accent-green);
   border: 1px solid rgba(16, 185, 129, 0.35);
@@ -200,29 +209,61 @@ body {
   box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
 }
 
-/* ── Dark Capsule Buttons System (Lora Regular Typography) ── */
-button,
-.btn-primary,
-.btn-secondary,
-.btn-glow,
-.btn-tactical,
-.btn-outline {
-  border-radius: 9999px !important;
-  font-family: var(--font-sans) !important;
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-ndrf-orange);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
 }
 
+/* ── Shared Input Field Base ── */
+.input-field {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+.input-field:focus {
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15), 0 0 16px rgba(6, 182, 212, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.input-field:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Input with left icon padding */
+.input-field.input-with-icon {
+  padding-left: 38px;
+}
+
+/* ── Pill Button System (Primary & Glow only) ── */
 .btn-primary {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
   padding: 10px 24px;
-  border-radius: 9999px !important;
+  border-radius: 9999px;
   font-weight: 700;
+  font-family: var(--font-sans);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
@@ -236,15 +277,23 @@ button,
   pointer-events: none;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 24px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.btn-primary:active {
+.btn-primary:active:not(:disabled) {
   transform: translateY(0);
 }
 
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Secondary Button (Rounded Rect) ── */
 .btn-secondary {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
@@ -252,6 +301,7 @@ button,
   padding: 10px 18px;
   border-radius: 10px;
   font-weight: 600;
+  font-family: var(--font-sans);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -260,15 +310,20 @@ button,
   backdrop-filter: blur(8px);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(139, 92, 246, 0.4);
   color: #ffffff;
   box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2);
 }
 
-.btn-secondary:active {
+.btn-secondary:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Animations ── */
@@ -342,6 +397,11 @@ button,
   }
 }
 
+@keyframes logo-rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -367,6 +427,18 @@ button,
   animation: border-glow-pulse 3s ease-in-out infinite;
 }
 
+.animate-logo-spin {
+  animation: logo-rotate-slow 20s linear infinite;
+}
+
+/* Stagger entrance delays */
+.animate-stagger-1 { animation-delay: 0.05s; }
+.animate-stagger-2 { animation-delay: 0.1s; }
+.animate-stagger-3 { animation-delay: 0.15s; }
+.animate-stagger-4 { animation-delay: 0.2s; }
+.animate-stagger-5 { animation-delay: 0.25s; }
+.animate-stagger-6 { animation-delay: 0.3s; }
+
 /* ── Score Ring Animation ── */
 @keyframes score-ring-fill {
   from {
@@ -375,7 +447,7 @@ button,
 }
 
 .score-ring {
-  animation: score-ring-fill 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: score-ring-fill 1.5s var(--ease-smooth) forwards;
 }
 
 /* ── Dark Scan Line Effect ── */
@@ -441,11 +513,13 @@ button,
 .data-table tbody tr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   transition: all 0.2s ease;
+  border-left: 3px solid transparent;
 }
 
 .data-table tbody tr:hover {
   background: rgba(16, 185, 129, 0.05);
   border-bottom-color: rgba(16, 185, 129, 0.2);
+  border-left-color: var(--accent-green);
 }
 
 .data-table tbody td {
@@ -460,28 +534,36 @@ button,
   color: #ffffff;
   border: 1px solid rgba(52, 211, 153, 0.4);
   padding: 10px 22px;
-  border-radius: 10px;
+  border-radius: 9999px;
   font-weight: 800;
   font-size: 0.85rem;
+  font-family: var(--font-sans);
   letter-spacing: 0.02em;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 20px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s var(--ease-smooth);
   position: relative;
   overflow: hidden;
 }
 
-.btn-glow:hover {
+.btn-glow:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 8px 30px rgba(16, 185, 129, 0.55), 0 0 15px rgba(52, 211, 153, 0.4);
   border-color: rgba(52, 211, 153, 0.8);
 }
 
-.btn-glow:active {
+.btn-glow:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
+}
+
+.btn-glow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-tactical {
@@ -502,12 +584,19 @@ button,
   transition: all 0.2s ease;
 }
 
-.btn-tactical:hover {
+.btn-tactical:hover:not(:disabled) {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.5) 100%);
   border-color: #f59e0b;
   color: #ffffff;
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
   transform: translateY(-1px);
+}
+
+.btn-tactical:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-outline {
@@ -518,6 +607,7 @@ button,
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.82rem;
+  font-family: var(--font-sans);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -526,12 +616,38 @@ button,
   backdrop-filter: blur(8px);
 }
 
-.btn-outline:hover {
+.btn-outline:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--accent-cyan);
   color: #ffffff;
   box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
   transform: translateY(-1px);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Focus-Visible Ring for Keyboard Navigation ── */
+:focus-visible {
+  outline: 2px solid rgba(6, 182, 212, 0.7);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+.btn-primary:focus-visible,
+.btn-glow:focus-visible,
+.btn-tactical:focus-visible,
+.btn-outline:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid rgba(6, 182, 212, 0.7);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.15);
+}
+
+.input-field:focus-visible {
+  outline: none; /* Input already has custom focus ring via box-shadow */
 }
 
 /* ── Section Title & Indicator Elements ── */
@@ -597,6 +713,42 @@ button,
   }
 }
 
+/* ── Dark Tooltip Utility ── */
+.tooltip-dark {
+  position: relative;
+}
+
+.tooltip-dark::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+}
+
+.tooltip-dark:hover::after {
+  opacity: 1;
+}
+
+/* ── Value Separator Line (Metric Cards) ── */
+.metric-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  margin: 10px 0;
+}
+
 /* ── Responsive Polish & Breakpoints ── */
 @media (max-width: 768px) {
   .glass-panel {
@@ -610,6 +762,43 @@ button,
 
   .radar-chart-container {
     height: 220px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .glass-panel {
+    border-radius: 10px;
+    padding: 12px !important;
+  }
+
+  .section-title-glow {
+    font-size: 0.95rem;
+  }
+
+  .badge {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
+  .data-table thead th {
+    font-size: 0.7rem;
+    padding: 10px 10px;
+  }
+
+  .data-table tbody td {
+    padding: 10px 10px;
+    font-size: 0.82rem;
+  }
+
+  .btn-glow,
+  .btn-primary {
+    padding: 8px 16px;
+    font-size: 0.78rem;
+  }
+
+  .btn-tactical {
+    padding: 6px 12px;
+    font-size: 0.72rem;
   }
 }
 
