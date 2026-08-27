@@ -35,19 +35,21 @@ TELEMETRY & SCORING STATUS      : SPRING BOOT 3.2.5 DETERMINISTIC AUDIT ENGINE [
 ## 📑 Master Table of Contents
 
 - [1. 🛡️ Executive Summary & Problem Statement Lore](#1-️-executive-summary--problem-statement-lore)
-- [2. 🚀 Quickstart Guide (New User Perspective)](#2--quickstart-guide-new-user-perspective)
+- [2. 🚀 3-Minute Quickstart Guide (New User Perspective)](#2--3-minute-quickstart-guide-new-user-perspective)
 - [3. 🏛️ Master System Architecture & Multi-Tier Topology](#3-️-master-system-architecture--multi-tier-topology)
-- [4. 🥽 Frontline Simulation Clients (VR & WebGL 3D)](#4--frontline-simulation-clients-vr--webgl-3d)
-- [5. 🎯 Multi-Hazard Protocol Matrix & Scoring Model](#5--multi-hazard-protocol-matrix--scoring-model)
-- [6. 📊 Instructor Tactical Command Center & Analytics](#6--instructor-tactical-command-center--analytics)
-- [7. 🔒 Enterprise Security & Threat Model Hardening (Admin Perspective)](#7--enterprise-security--threat-model-hardening-admin-perspective)
-- [8. 📡 REST API & STOMP WebSocket Specifications](#8--rest-api--stomp-websocket-specifications)
-- [9. 🗄️ Database Architecture & Flyway Migrations](#9-️-database-architecture--flyway-migrations)
-- [10. 📈 Observability & Monitoring (Prometheus & Grafana)](#10--observability--monitoring-prometheus--grafana)
-- [11. 🛠️ Standard Operating Procedures (Installation & Setup)](#11-️-standard-operating-procedures-installation--setup)
-- [12. 🔄 Disaster Recovery, Backups & E2E Validation](#12--disaster-recovery-backups--e2e-validation)
-- [13. 👥 Engineering Task Force (SIH260088)](#13--engineering-task-force-sih260088)
-- [14. 📜 Compliance & Verification Status](#14--compliance--verification-status)
+- [4. 🔄 Real-Time Telemetry & Scoring Lifecycle (Sequence Flow)](#4--real-time-telemetry--scoring-lifecycle-sequence-flow)
+- [5. ⚡ Multi-Hazard Polymorphic Scenario State Machine](#5--multi-hazard-polymorphic-scenario-state-machine)
+- [6. 👥 Multiplayer Squad Co-Op Telemetry Sync Flow](#6--multiplayer-squad-co-op-telemetry-sync-flow)
+- [7. 🥽 Frontline Simulation Clients (9-Beat Narrative Journey)](#7--frontline-simulation-clients-9-beat-narrative-journey)
+- [8. 🎯 Multi-Hazard Protocol Matrix & Scoring Model](#8--multi-hazard-protocol-matrix--scoring-model)
+- [9. 🔒 Defense-in-Depth Security & Hardening Architecture](#9--defense-in-depth-security--hardening-architecture)
+- [10. 🗄️ Database Architecture & Entity-Relationship Model (ERD)](#10-️-database-architecture--entity-relationship-model-erd)
+- [11. 📡 REST API & STOMP WebSocket Specifications](#11--rest-api--stomp-websocket-specifications)
+- [12. 📈 Observability & Monitoring (Prometheus & Grafana)](#12--observability--monitoring-prometheus--grafana)
+- [13. 🛠️ Standard Operating Procedures (Installation & Setup)](#13-️-standard-operating-procedures-installation--setup)
+- [14. 🔄 Disaster Recovery, Backups & E2E Validation](#14--disaster-recovery-backups--e2e-validation)
+- [15. 👥 Engineering Task Force (SIH260088)](#15--engineering-task-force-sih260088)
+- [16. 📜 Compliance & Verification Status](#16--compliance--verification-status)
 
 ---
 
@@ -86,7 +88,7 @@ mindmap
 
 ---
 
-## 2. 🚀 Quickstart Guide (New User Perspective)
+## 2. 🚀 3-Minute Quickstart Guide (New User Perspective)
 
 ### 2.1 Prerequisites
 - **Node.js**: v18.0.0+ (`node -v`)
@@ -167,33 +169,136 @@ flowchart TD
 
 ---
 
-## 4. 🥽 Frontline Simulation Clients (VR & WebGL 3D)
+## 4. 🔄 Real-Time Telemetry & Scoring Lifecycle (Sequence Flow)
 
-### 4.1 Trainee 3D Web Station (9-Beat Narrative Engine)
-The web-based trainee station (`trainee_view` on port 5000) delivers an interactive 9-beat disaster response progression mapped directly to NDRF SOPs:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Trainee as 🥽 Trainee (VR / WebGL)
+    participant Nginx as 🌐 Nginx Proxy
+    participant Auth as 🔒 ApiKeyAuthFilter
+    participant SessionSvc as ⚙️ SessionService
+    participant EventRepo as 🗄️ EventRepository
+    participant ScoringSvc as 🎯 ScoringService
+    participant WsBroker as 📡 STOMP Broker
+    actor Instructor as 📊 Instructor Dashboard
 
+    Trainee->>Nginx: POST /api/sessions/start
+    Nginx->>Auth: Validate X-API-Key & Rate Limit
+    Auth->>SessionSvc: Initialize Session (CBRN-CHEM-01)
+    SessionSvc->>EventRepo: Persist Session Record (STATUS: IN_PROGRESS)
+    SessionSvc-->>Trainee: Return sessionId ("SESS-2026-088")
+
+    loop Active Disaster Response Drill
+        Trainee->>Nginx: POST /api/events/log (PID Sensor, PPE Donning, Containment)
+        Nginx->>Auth: Verify Token & Sanitize DDE
+        Auth->>SessionSvc: Process Telemetry Event
+        SessionSvc->>EventRepo: Save Event with Precise Nanosecond Timestamp
+        SessionSvc->>WsBroker: Broadcast Event to /topic/telemetry/{sessionId}
+        WsBroker-->>Instructor: Update Real-time HUD, SCBA PSI & Trajectory Map
+    end
+
+    Trainee->>Nginx: POST /api/sessions/{sessionId}/complete
+    Nginx->>SessionSvc: Trigger Session Completion
+    SessionSvc->>ScoringSvc: Calculate Deterministic 100-Point Score
+    ScoringSvc->>ScoringSvc: Apply Multi-Hazard Rubric & Safety Deductions
+    ScoringSvc->>EventRepo: Persist Final Score, Pass Status & AAR Report
+    SessionSvc->>WsBroker: Broadcast Finalized Scorecard
+    WsBroker-->>Instructor: Display Automated Scorecard, Radar Chart & PDF Download
 ```
-[0:00] BEAT 1: CCTV Surveillance & Catastrophic Toxic Breach Notice
-[0:07] BEAT 2: First-Person Safety Orientation & Airlock Approach
-[0:14] BEAT 3: Environmental Sensor Raycast & IDLH Hazard Scan
-[0:21] BEAT 4: Level-A/B Chemical PPE Donning Station Lock-On
-[0:28] BEAT 5: Torso Suit Hermetic Zipping & Positive Pressure Check
-[0:35] BEAT 6: CBRN Full-Face Respirator Seal & Visor Activation
-[0:42] BEAT 7: Chemical-Resistant Glove Snapping & Barrier Clearance
-[0:49] BEAT 8: Tactical Advance into Storage Bay 03 Perimeter
-[0:56] BEAT 9: Photoionization Detector (PID) Deployment & Drum Cluster Scan
-```
-
-### 4.2 Unity 2022.3 Tactical VR Client (OpenXR / URP)
-- **Engine**: Unity 2022.3 LTS using Universal Render Pipeline (URP).
-- **Physics**: Real-time rigid-body collision for gas cylinder patch kits and inflatable pipe pluggers.
-- **Visuals**: Volumetric smoke shaders modeling Gaussian plume dispersion and real-time gas density raycasting.
 
 ---
 
-## 5. 🎯 Multi-Hazard Protocol Matrix & Scoring Model
+## 5. ⚡ Multi-Hazard Polymorphic Scenario State Machine
 
-### 5.1 Normalized 100-Point Scoring Formula
+```mermaid
+stateDiagram-v2
+    [*] --> INITIALIZED: Start Scenario Session
+
+    INITIALIZED --> BRIEFING_REVIEWED: Read Emergency Incident Alert
+    BRIEFING_REVIEWED --> PPE_DONNING_IN_PROGRESS: Approach Equipment Station
+
+    state PPE_DONNING_IN_PROGRESS {
+        [*] --> SUIT_ZIPPED: Don Level-A / B Torso Suit
+        SUIT_ZIPPED --> MASK_SEALED: Seal CBRN Full-Face Respirator
+        MASK_SEALED --> GLOVES_SNAPPED: Snap Chemical-Resistant Gloves
+    }
+
+    PPE_DONNING_IN_PROGRESS --> HOTZONE_AUTHORIZED: PPE Check Verified (3/3)
+    PPE_DONNING_IN_PROGRESS --> CRITICAL_SAFETY_VIOLATION: Enter Hotzone without PPE (-50 pts)
+
+    HOTZONE_AUTHORIZED --> PERIMETER_BREACHED: Enter Storage Bay 03
+    PERIMETER_BREACHED --> SOURCE_LOCALIZATION: Deploy PID Sensor / Geiger / Bio-Sampler
+
+    state SOURCE_LOCALIZATION {
+        [*] --> SCANNING_GRADIENTS: Ambient Raycast Reading
+        SCANNING_GRADIENTS --> SOURCE_CONFIRMED: Correct Hotspot Identified (+20 pts)
+        SCANNING_GRADIENTS --> FALSE_POSITIVE: False Positive Scan (-5 pts)
+    }
+
+    SOURCE_LOCALIZATION --> CONTAINMENT_ACTION: Apply Seal Patch / Foam / Lead Shield
+    CONTAINMENT_ACTION --> EVACUATION_PROTOCOL: Escort Trapped Civilian Personnel
+    EVACUATION_PROTOCOL --> DECONTAMINATION_STATION: Multi-Stage Chemical Washdown
+    DECONTAMINATION_STATION --> EVALUATION_FINALIZED: Final Scoring & Debriefing
+
+    CRITICAL_SAFETY_VIOLATION --> EVALUATION_FINALIZED: Mission Failed
+    EVALUATION_FINALIZED --> [*]
+```
+
+---
+
+## 6. 👥 Multiplayer Squad Co-Op Telemetry Sync Flow
+
+```mermaid
+flowchart LR
+    subgraph SquadAlpha ["🎖️ NDRF Alpha Squad (Hot-Zone)"]
+        Operator1["Responder Alpha-1<br/>(Lead Recon)"]
+        Operator2["Responder Alpha-2<br/>(Containment Specialist)"]
+    end
+
+    subgraph SquadBravo ["🛡️ NDRF Bravo Squad (Backup / Decon)"]
+        Operator3["Responder Bravo-1<br/>(SCBA Backup)"]
+    end
+
+    subgraph WsHub ["📡 WebSocket Mesh Sync (:8080)"]
+        WsEngine["STOMP Broker Channel<br/>/topic/squad/alpha<br/>/topic/squad/bravo"]
+    end
+
+    subgraph InstructorView ["🖥️ Instructor Command HUD"]
+        SafetyMatrix["Personnel Safety & SCBA Matrix<br/>(Real-Time PSI, Exposure Timer, BPM)"]
+        RadarComparison["Multiplayer Squad Radar Comparison<br/>(Alpha vs Bravo Benchmark)"]
+    end
+
+    Operator1 -->|Stream Telemetry| WsEngine
+    Operator2 -->|Stream Telemetry| WsEngine
+    Operator3 -->|Stream Telemetry| WsEngine
+    WsEngine -->|Live Telemetry Broadcast| SafetyMatrix
+    WsEngine -->|Aggregated Cohort Metrics| RadarComparison
+```
+
+---
+
+## 7. 🥽 Frontline Simulation Clients (9-Beat Narrative Journey)
+
+```mermaid
+timeline
+    title 9-Beat CBRN First-Person Simulation Progression
+    Beat 1 (0:00 - 0:07) : CCTV Surveillance Notice : Catastrophic Storage Bay 03 Chlorine Leak Alert
+    Beat 2 (0:07 - 0:14) : Safety Orientation : First-Person Viewport Boot & Airlock Approach
+    Beat 3 (0:14 - 0:21) : Hazard Telemetry Scan : IDLH Atmospheric Toxicity Exceeded (>400 PPM)
+    Beat 4 (0:21 - 0:28) : PPE Donning Lock-On : Equipment Station Identification
+    Beat 5 (0:28 - 0:35) : Chemical Torso Suit : Hermetic Seal Zipping & Positive Pressure Check
+    Beat 6 (0:35 - 0:42) : CBRN Gas Mask : Full-Face Visor Hermetic Seal & HUD Overlay
+    Beat 7 (0:42 - 0:49) : Protective Gloves : Barrier Snap & Full Hotzone Clearance
+    Beat 8 (0:49 - 0:56) : Tactical Advance : Sprint through Gate to Hazard Perimeter
+    Beat 9 (0:56 - 1:03) : Multi-Gas Detector : Photoionization Detector Deployment & Drum Scan
+```
+
+---
+
+## 8. 🎯 Multi-Hazard Protocol Matrix & Scoring Model
+
+### 8.1 Normalized 100-Point Scoring Formula
 
 $$\text{Final Score} = S_{\text{PPE}} + S_{\text{Detection}} + S_{\text{Containment}} + S_{\text{Evacuation}} + S_{\text{Decon}} + S_{\text{Velocity}} - \sum P_{\text{SafetyViolations}}$$
 
@@ -209,31 +314,105 @@ $$\text{Final Score} = S_{\text{PPE}} + S_{\text{Detection}} + S_{\text{Containm
 
 ---
 
-## 6. 📊 Instructor Tactical Command Center & Analytics
+## 9. 🔒 Defense-in-Depth Security & Hardening Architecture
 
-The Command Dashboard (`dashboard` on port 3000) provides real-time oversight for NDRF battalion instructors:
-- **Judges Evaluation Console**: Comprehensive multi-tab overview with animated SVG score rings and radar charts.
-- **Mission DVR Replay**: Time-travel scrub bar allowing full replay of trainee spatial trajectory and event logs.
-- **Dynamic Certificate Generator**: Automated PDF generation sealed with SHA-256 cryptographic digest and QR verification.
-- **AI Debrief (After-Action Review)**: Automated tactical critique highlighting response strengths and procedural remediation.
+```mermaid
+flowchart TD
+    subgraph Perimeter ["🛡️ Layer 1: Perimeter Gateway (Nginx)"]
+        TLS["TLS 1.3 / SSL Termination"]
+        Headers["HSTS, CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff"]
+    end
+
+    subgraph IngressSecurity ["🔒 Layer 2: Ingress & Rate Limiting"]
+        RateLimit["Bounded LRU Rate Limiter (10k IP Capacity, 120 req/min)"]
+        CorsGuard["CORS Strict Origin Allowlist (Unified Config)"]
+    end
+
+    subgraph AuthSecurity ["🔑 Layer 3: Authentication & RBAC"]
+        BCrypt["BCrypt (Cost Factor 12) Instructor Password Hash"]
+        ApiKeyAuth["Role-Scoped API Keys (ADMIN, INSTRUCTOR, SIMULATION, TRAINEE)"]
+        CsrfGuard["Double-Submit CBRSX-XSRF Cookie (SameSite=Lax)"]
+    end
+
+    subgraph AppSecurity ["🛡️ Layer 4: Application & Data Sanitization"]
+        DdeSanitize["CSV / DDE Formula Injection Sanitization (=, +, -, @)"]
+        SqlParam["Parameterized JPA Repositories (SQL Injection Immune)"]
+        CertDigest["iText7 PDF Certificates Sealed with SHA-256 Cryptographic Salt"]
+    end
+
+    Perimeter --> IngressSecurity
+    IngressSecurity --> AuthSecurity
+    AuthSecurity --> AppSecurity
+```
 
 ---
 
-## 7. 🔒 Enterprise Security & Threat Model Hardening (Admin Perspective)
+## 10. 🗄️ Database Architecture & Entity-Relationship Model (ERD)
 
-| Security Vector | Mitigation Strategy & Implementation |
-| :--- | :--- |
-| **Authentication & RBAC** | BCrypt (cost 12) for instructor accounts; role-scoped API keys (`X-API-Key`) for machines |
-| **CSRF Defense** | Double-submit `CBRSX-XSRF` cookie with `SameSite=Lax` and explicit API-key exemption |
-| **Rate Limiting & Anti-DDoS** | Bounded LRU sliding-window filter (10,000 IP capacity; 120 req/min threshold) |
-| **Injection Defense** | Parameterized JPA repositories; CSV/DDE formula sanitization against spreadsheet injection |
-| **Fail-Closed Architecture** | Production profile (`application-prod.yml`) enforces strict token validation and disables Swagger |
+```mermaid
+erDiagram
+    INSTRUCTOR_USERS {
+        bigint id PK
+        varchar username UK
+        varchar password_hash
+        varchar role
+        timestamp created_at
+    }
+
+    TRAINEES {
+        varchar trainee_id PK
+        varchar name
+        varchar batch_unit
+        timestamp registered_at
+    }
+
+    SCENARIOS {
+        varchar scenario_id PK
+        varchar scenario_code UK
+        varchar title
+        varchar hazard_type
+        integer baseline_time_seconds
+    }
+
+    TRAINING_SESSIONS {
+        varchar session_id PK
+        varchar trainee_id FK
+        varchar scenario_id FK
+        varchar squad_id
+        integer final_score
+        varchar pass_status
+        timestamp started_at
+        timestamp completed_at
+    }
+
+    SESSION_EVENTS {
+        bigint event_id PK
+        varchar session_id FK
+        varchar event_type
+        text event_data
+        timestamp timestamp
+    }
+
+    AUDIT_LOGS {
+        bigint audit_id PK
+        varchar principal
+        varchar action
+        varchar resource
+        varchar ip_address
+        timestamp timestamp
+    }
+
+    TRAINEES ||--o{ TRAINING_SESSIONS : "undertakes"
+    SCENARIOS ||--o{ TRAINING_SESSIONS : "defines"
+    TRAINING_SESSIONS ||--o{ SESSION_EVENTS : "streams"
+    INSTRUCTOR_USERS ||--o{ AUDIT_LOGS : "generates"
+```
 
 ---
 
-## 8. 📡 REST API & STOMP WebSocket Specifications
+## 11. 📡 REST API & STOMP WebSocket Specifications
 
-### 8.1 Key REST Endpoints
+### 11.1 Key REST Endpoints
 
 ```http
 POST   /api/auth/login                  # Instructor session authentication
@@ -247,22 +426,14 @@ GET    /api/dashboard/stats             # Aggregated battalion performance metri
 GET    /actuator/prometheus             # Prometheus metric scrape endpoint
 ```
 
-### 8.2 WebSocket STOMP Channels
+### 11.2 WebSocket STOMP Channels
 - **Broker Endpoint**: `/ws` (with fallback to SockJS)
 - **Telemetry Broadcast**: `/topic/telemetry/{sessionId}`
 - **Instructor Command Channel**: `/topic/commands/{teamId}`
 
 ---
 
-## 9. 🗄️ Database Architecture & Flyway Migrations
-
-Database migrations are managed deterministically via **Flyway**:
-- `V1__init.sql`: Core schema defining `trainees`, `training_sessions`, `session_events`, `scenarios`, and `instructor_users`.
-- `V2__audit_logs_and_compound_indexes.sql`: Immutable security audit log table and compound performance indexes (`session_id + timestamp`).
-
----
-
-## 10. 📈 Observability & Monitoring (Prometheus & Grafana)
+## 12. 📈 Observability & Monitoring (Prometheus & Grafana)
 
 The integrated monitoring stack tracks operational system health:
 - **Telemetry Ingestion Rate**: Real-time throughput of `/api/events/log`.
@@ -271,9 +442,9 @@ The integrated monitoring stack tracks operational system health:
 
 ---
 
-## 11. 🛠️ Standard Operating Procedures (Installation & Setup)
+## 13. 🛠️ Standard Operating Procedures (Installation & Setup)
 
-### 11.1 Manual Setup for Development
+### 13.1 Manual Setup for Development
 
 #### Backend (Spring Boot 3.2.5)
 ```bash
@@ -300,7 +471,7 @@ npm run dev
 
 ---
 
-## 12. 🔄 Disaster Recovery, Backups & E2E Validation
+## 14. 🔄 Disaster Recovery, Backups & E2E Validation
 
 Automated operations and testing scripts in `scripts/`:
 - **Database Backup**: `scripts/backup.bat` / `scripts/backup.sh` (automated pg_dump with 14-day retention).
@@ -309,7 +480,7 @@ Automated operations and testing scripts in `scripts/`:
 
 ---
 
-## 13. 👥 Engineering Task Force (SIH260088)
+## 15. 👥 Engineering Task Force (SIH260088)
 
 <div align="center">
 
@@ -326,7 +497,7 @@ Automated operations and testing scripts in `scripts/`:
 
 ---
 
-## 14. 📜 Compliance & Verification Status
+## 16. 📜 Compliance & Verification Status
 
 ```
 ========================================================================================================================
