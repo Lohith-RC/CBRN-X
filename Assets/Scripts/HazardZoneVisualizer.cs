@@ -50,7 +50,7 @@ namespace CBRSX.Unity
             if (perimeterCenter == null)
             {
                 // Try to find the leaking drum as center
-                LeakDrum[] drums = FindObjectsByType<LeakDrum>(FindObjectsSortMode.None);
+                LeakDrum[] drums = FindObjectsByType<LeakDrum>();
                 foreach (var d in drums)
                 {
                     if (d.isLeaking)

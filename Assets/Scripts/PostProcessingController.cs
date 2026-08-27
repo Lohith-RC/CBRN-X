@@ -117,7 +117,7 @@ namespace CBRSX.Unity
             Camera cam = Camera.main;
             if (cam == null) return;
 
-            LeakDrum[] drums = FindObjectsByType<LeakDrum>(FindObjectsSortMode.None);
+            LeakDrum[] drums = FindObjectsByType<LeakDrum>();
             float nearestDist = float.MaxValue;
             bool anyActive = false;
 

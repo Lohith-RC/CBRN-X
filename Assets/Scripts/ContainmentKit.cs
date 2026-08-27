@@ -47,7 +47,9 @@ namespace CBRSX.Unity
 
         public void EquipKit()
         {
-            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+            if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
+
             if (responder != null && transform.root != responder.transform)
             {
                 ContainmentKit playerKit = responder.GetComponentInChildren<ContainmentKit>(true);
@@ -74,9 +76,24 @@ namespace CBRSX.Unity
                 foreach (var c in colliders)
                 {
                     c.enabled = false;
+                    c.isTrigger = true;
                     if (Application.isPlaying) Destroy(c);
                 }
+
+                Rigidbody[] rbs = firstPersonHeldTool.GetComponentsInChildren<Rigidbody>(true);
+                foreach (var rb in rbs)
+                {
+                    rb.isKinematic = true;
+                    rb.detectCollisions = false;
+                    if (Application.isPlaying) Destroy(rb);
+                }
+
                 firstPersonHeldTool.SetActive(true);
+            }
+
+            if (responder != null)
+            {
+                responder.StripAllChildColliders();
             }
 
             if (GameManager.Instance != null)
@@ -131,7 +148,7 @@ namespace CBRSX.Unity
         {
             if (!isInjectingSealant) return;
 
-            if (Input.GetMouseButton(0) || Input.GetKey(KeyCode.E))
+            if (Input.GetMouseButton(0))
             {
                 currentHoldProgress += Time.deltaTime;
                 float normalizedProgress = Mathf.Clamp01(currentHoldProgress / containmentHoldDuration);

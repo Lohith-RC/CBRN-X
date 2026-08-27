@@ -1,12 +1,21 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// MultiCameraController V2.0 — Tactical Multi-Angle CCTV & First-Person Camera Switcher.
-    /// Allows switching between First-Person Responder, Facility CCTV, Hazard Closeup, and Decon Monitor cameras.
-    /// Hotkeys: [F1] Responder FPS, [F2] CCTV Bay Overview, [F3] Hazard Closeup, [F4] Decon Station Cam, [F5] High Bay Cam.
-    /// No longer conflicts with tool equip keys (1/2/G).
+    /// MultiCameraController V3.0 — Multi-Angle Facility CCTV & Responder Camera Rig.
+    /// Features:
+    /// - [F1] Responder First-Person Helmet Cam (FPS)
+    /// - [F2] CCTV-01: Storage Bay Overview (High Angle)
+    /// - [F3] CCTV-02: Chemical Hazard & Spill Breach (Closeup)
+    /// - [F4] CCTV-03: Decontamination Shower & Washdown Station
+    /// - [F5] CCTV-04: High-Bay Ceiling Crane (Bird's-Eye View)
+    /// - [F6] CCTV-05: Level-B PPE Staging Area (Safety Depot)
+    /// - [V] / [C] / [Numpad]: Quick Next/Prev Camera Cycle
+    /// - Real-time on-screen tactical CCTV telemetry overlay
     /// </summary>
     public class MultiCameraController : MonoBehaviour
     {
@@ -18,104 +27,188 @@ namespace CBRSX.Unity
         public Camera cctvHazardCloseupCamera;
         public Camera cctvDeconCamera;
         public Camera cctvHighBayCamera;
+        public Camera cctvStagingCamera;
 
         [Header("Current Active Camera")]
-        public int activeCameraIndex = 0; // 0 = Player, 1 = Overview, 2 = Hazard, 3 = Decon, 4 = HighBay
+        public int activeCameraIndex = 0;
 
-        [Header("Transition")]
-        public float transitionFadeDuration = 0.3f;
+        [Header("CCTV Visual Overlay")]
+        public bool showCctvOverlay = true;
 
-        private Camera[] allCameras;
-        private float fadeTimer = 0f;
-        private bool isFading = false;
-        private int pendingCameraIndex = -1;
+        private List<Camera> allCameras = new List<Camera>();
+        private GUIStyle overlayStyle;
+        private GUIStyle recDotStyle;
+        private float sessionTimer = 0f;
 
         private void Awake()
         {
             if (Instance == null) Instance = this;
-            else Destroy(gameObject);
+            else { Destroy(gameObject); return; }
         }
 
         private void Start()
         {
-            allCameras = new Camera[] {
-                playerFpsCamera,
-                cctvOverviewCamera,
-                cctvHazardCloseupCamera,
-                cctvDeconCamera,
-                cctvHighBayCamera
-            };
-
+            RefreshCameraList();
             SelectCamera(0);
+        }
+
+        public void RefreshCameraList()
+        {
+            allCameras.Clear();
+            if (playerFpsCamera != null) allCameras.Add(playerFpsCamera);
+            if (cctvOverviewCamera != null) allCameras.Add(cctvOverviewCamera);
+            if (cctvHazardCloseupCamera != null) allCameras.Add(cctvHazardCloseupCamera);
+            if (cctvDeconCamera != null) allCameras.Add(cctvDeconCamera);
+            if (cctvHighBayCamera != null) allCameras.Add(cctvHighBayCamera);
+            if (cctvStagingCamera != null) allCameras.Add(cctvStagingCamera);
         }
 
         private void Update()
         {
-            // Rebind to Function keys to avoid conflict with tool equip (1/2/G/Tab)
+            sessionTimer += Time.deltaTime;
+
+            // Direct Function Key Hotkeys (F1 - F6)
             if (Input.GetKeyDown(KeyCode.F1)) SelectCamera(0);
             else if (Input.GetKeyDown(KeyCode.F2)) SelectCamera(1);
             else if (Input.GetKeyDown(KeyCode.F3)) SelectCamera(2);
             else if (Input.GetKeyDown(KeyCode.F4)) SelectCamera(3);
             else if (Input.GetKeyDown(KeyCode.F5)) SelectCamera(4);
+            else if (Input.GetKeyDown(KeyCode.F6)) SelectCamera(5);
 
-            // Apply PostProcessing CCTV mode when not on player camera
+            // Cycle Hotkeys (V / C)
+            if (Input.GetKeyDown(KeyCode.V) || Input.GetKeyDown(KeyCode.Tab) && Input.GetKey(KeyCode.LeftControl))
+            {
+                CycleCamera(1);
+            }
+            else if (Input.GetKeyDown(KeyCode.C) && Input.GetKey(KeyCode.LeftAlt))
+            {
+                CycleCamera(-1);
+            }
+
+            // Sync CCTV Post-Processing mode
             if (PostProcessingController.Instance != null)
             {
                 PostProcessingController.Instance.SetCctvModeActive(activeCameraIndex > 0);
             }
         }
 
+        public void CycleCamera(int direction)
+        {
+            if (allCameras.Count == 0) RefreshCameraList();
+            if (allCameras.Count == 0) return;
+
+            int nextIndex = (activeCameraIndex + direction) % allCameras.Count;
+            if (nextIndex < 0) nextIndex += allCameras.Count;
+            SelectCamera(nextIndex);
+        }
+
         public void SelectCamera(int index)
         {
-            if (allCameras == null || allCameras.Length == 0) return;
+            if (allCameras.Count == 0) RefreshCameraList();
+            if (allCameras.Count == 0) return;
 
-            activeCameraIndex = Mathf.Clamp(index, 0, allCameras.Length - 1);
+            activeCameraIndex = Mathf.Clamp(index, 0, allCameras.Count - 1);
 
-            for (int i = 0; i < allCameras.Length; i++)
+            for (int i = 0; i < allCameras.Count; i++)
             {
                 if (allCameras[i] != null)
                 {
-                    allCameras[i].gameObject.SetActive(i == activeCameraIndex);
-                    
-                    // Enable AudioListener only on active camera to avoid multi-listener warnings
+                    bool isActive = (i == activeCameraIndex);
+                    allCameras[i].gameObject.SetActive(isActive);
+
+                    // Ensure single AudioListener to prevent audio warnings
                     AudioListener listener = allCameras[i].GetComponent<AudioListener>();
                     if (listener != null)
                     {
-                        listener.enabled = (i == activeCameraIndex);
+                        listener.enabled = isActive;
                     }
                 }
             }
 
-            // Lock/unlock cursor based on camera mode
-            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            // Manage mouse look lock when viewing facility CCTV vs Player FPS
+            FirstPersonResponderController responder = FirstPersonResponderController.Instance;
             if (responder != null)
             {
                 responder.SetCursorLock(activeCameraIndex == 0);
             }
 
-            Debug.Log($"[CBRS-X MultiCam] Active View: {GetCameraName(activeCameraIndex)} (Index: {activeCameraIndex})");
+            Debug.Log($"<color=#00FFCC><b>[CBRS-X MultiCam] Switched View: {GetCameraName(activeCameraIndex)} [Key: F{activeCameraIndex + 1}]</b></color>");
         }
 
         public string GetCameraName(int index)
         {
             switch (index)
             {
-                case 0: return "Responder First-Person (FPS)";
-                case 1: return "CCTV-01: Storage Bay Overview";
-                case 2: return "CCTV-02: Chemical Hazard & Spill Pallet";
-                case 3: return "CCTV-03: Decontamination Shower Tent";
-                case 4: return "CCTV-04: High-Bay Facility Crane Angle";
-                default: return "Unknown Camera";
+                case 0: return "RESPONDER HELMET CAM [FPS]";
+                case 1: return "CCTV-01: STORAGE BAY OVERVIEW";
+                case 2: return "CCTV-02: CHEMICAL HAZARD & SPILL BREACH";
+                case 3: return "CCTV-03: DECON SHOWER & WASHDOWN ARCH";
+                case 4: return "CCTV-04: HIGH-BAY CRANE (BIRD'S-EYE)";
+                case 5: return "CCTV-05: LEVEL-B PPE STAGING DEPOT";
+                default: return $"FACILITY CAM-{index:00}";
             }
         }
 
-        /// <summary>
-        /// Returns true if the player FPS camera is currently active.
-        /// Other systems can use this to disable FPS-only controls during CCTV view.
-        /// </summary>
         public bool IsPlayerCameraActive()
         {
             return activeCameraIndex == 0;
+        }
+
+        private void OnGUI()
+        {
+            if (!showCctvOverlay) return;
+
+            if (overlayStyle == null)
+            {
+                overlayStyle = new GUIStyle(GUI.skin.box);
+                overlayStyle.alignment = TextAnchor.MiddleLeft;
+                overlayStyle.fontSize = 14;
+                overlayStyle.normal.textColor = new Color(0.95f, 0.95f, 0.95f, 0.95f);
+            }
+
+            if (recDotStyle == null)
+            {
+                recDotStyle = new GUIStyle(GUI.skin.label);
+                recDotStyle.fontSize = 14;
+                recDotStyle.fontStyle = FontStyle.Bold;
+            }
+
+            // Top-Left Camera Switcher Banner
+            GUILayout.BeginArea(new Rect(15, 15, 620, 75));
+            GUILayout.BeginVertical("box");
+
+            GUILayout.BeginHorizontal();
+            // Blinking Recording Indicator
+            bool blink = (Mathf.FloorToInt(Time.time * 2f) % 2 == 0);
+            GUI.color = blink ? Color.red : Color.gray;
+            GUILayout.Label("REC 🔴", recDotStyle, GUILayout.Width(65));
+            GUI.color = Color.white;
+
+            int minutes = Mathf.FloorToInt(sessionTimer / 60F);
+            int seconds = Mathf.FloorToInt(sessionTimer - minutes * 60);
+            GUILayout.Label($"[{minutes:00}:{seconds:00}]  <b>{GetCameraName(activeCameraIndex)}</b>", GUILayout.ExpandWidth(true));
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(2);
+            GUILayout.Label("<color=#FFCC00>[F1-F6]</color> Direct Cam Select  |  <color=#00FFCC>[V]</color> Next Cam  |  <color=#00FFCC>[Alt+C]</color> Prev Cam");
+
+            GUILayout.EndVertical();
+            GUILayout.EndArea();
+
+            // Bottom-Right Camera Thumbnail Selection Bar
+            GUILayout.BeginArea(new Rect(Screen.width - 480, Screen.height - 48, 465, 40));
+            GUILayout.BeginHorizontal();
+            for (int i = 0; i < allCameras.Count; i++)
+            {
+                GUI.backgroundColor = (i == activeCameraIndex) ? new Color(0.2f, 0.9f, 0.3f, 0.9f) : new Color(0.2f, 0.2f, 0.25f, 0.75f);
+                if (GUILayout.Button($"F{i + 1}: Cam {i + 1}", GUILayout.Height(32), GUILayout.Width(72)))
+                {
+                    SelectCamera(i);
+                }
+            }
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
         }
     }
 }

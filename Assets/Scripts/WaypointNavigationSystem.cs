@@ -86,7 +86,8 @@ namespace CBRSX.Unity
         {
             if (playerCamera == null)
             {
-                FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+                FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+                if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
                 if (responder != null) playerCamera = responder.GetComponentInChildren<Camera>();
                 if (playerCamera == null) playerCamera = Camera.main;
             }
@@ -101,46 +102,31 @@ namespace CBRSX.Unity
             if (ppeGo == null) ppeGo = GameObject.Find("PPE_EQUIPMENT_STAGING_BENCHES");
             if (ppeGo == null)
             {
-                PpeStation ppeStation = FindFirstObjectByType<PpeStation>();
+                PpeStation ppeStation = FindAnyObjectByType<PpeStation>();
                 if (ppeStation != null) ppeGo = ppeStation.gameObject;
             }
             if (ppeGo != null)
             {
                 waypoints.Add(new Waypoint {
-                    label = "Don Level-B PPE Ensemble",
+                    label = "Don Level-B PPE Ensemble (Vest, Mask, Gloves)",
                     target = ppeGo.transform,
                     activeDuringStage = GameManager.ScenarioStage.PerimeterAssessment
                 });
             }
 
-            // 2. Stage: Chemical Spectrometry -> Gas Detector / Leak Drum
-            GameObject detGo = GameObject.Find("PROP_GasDetector_WallDock");
-            if (detGo == null)
-            {
-                GasDetector detector = FindFirstObjectByType<GasDetector>();
-                if (detector != null && detector.transform.root != transform.root) detGo = detector.gameObject;
-            }
-            if (detGo != null)
-            {
-                waypoints.Add(new Waypoint {
-                    label = "Equip Handheld PID Spectrometer",
-                    target = detGo.transform,
-                    activeDuringStage = GameManager.ScenarioStage.ChemicalSpectrometry
-                });
-            }
-
-            LeakDrum drum = FindFirstObjectByType<LeakDrum>();
+            // 2. Stage: Bay 03 Entry & Leak Location -> Leaking Chemical Drum
+            LeakDrum drum = FindAnyObjectByType<LeakDrum>();
             if (drum != null)
             {
                 waypoints.Add(new Waypoint {
-                    label = "Scan Toxic Chemical Drum",
+                    label = "Enter Bay 03 & Locate Toxic Chemical Leak",
                     target = drum.transform,
                     activeDuringStage = GameManager.ScenarioStage.ChemicalSpectrometry
                 });
             }
 
             // 3. Stage: Civilian Extraction -> Injured Worker
-            Civilian civ = FindFirstObjectByType<Civilian>();
+            Civilian civ = FindAnyObjectByType<Civilian>();
             if (civ != null)
             {
                 waypoints.Add(new Waypoint {
@@ -161,7 +147,7 @@ namespace CBRSX.Unity
             }
 
             // 5. Stage: Decon Neutralization -> Decon Station Arch
-            DeconStation decon = FindFirstObjectByType<DeconStation>();
+            DeconStation decon = FindAnyObjectByType<DeconStation>();
             if (decon != null)
             {
                 waypoints.Add(new Waypoint {
@@ -243,13 +229,36 @@ namespace CBRSX.Unity
         private void UpdateActiveWaypoint()
         {
             activeWaypointIndex = -1;
+            GameManager gm = GameManager.Instance;
 
             for (int i = 0; i < waypoints.Count; i++)
             {
                 var wp = waypoints[i];
                 if (wp.target == null) continue;
 
-                bool isActiveStage = (wp.activeDuringStage == currentStage);
+                // Check dynamic sub-objective completion
+                if (wp.label.Contains("Don Level-B") && gm != null && gm.isPpeFullyEquipped)
+                {
+                    wp.isCompleted = true;
+                }
+                else if (wp.label.Contains("Toxic Chemical Leak") && gm != null && gm.leakSourceIdentified)
+                {
+                    wp.isCompleted = true;
+                }
+                else if (wp.label.Contains("Evacuate Incapacitated") && gm != null && gm.evacuatedCiviliansCount >= gm.totalCiviliansCount)
+                {
+                    wp.isCompleted = true;
+                }
+                else if (wp.label.Contains("Apply Magnetic") && gm != null && gm.containmentComplete)
+                {
+                    wp.isCompleted = true;
+                }
+                else if (wp.label.Contains("Decontamination") && gm != null && gm.decontaminationComplete)
+                {
+                    wp.isCompleted = true;
+                }
+
+                bool isActiveStage = (wp.activeDuringStage == currentStage) && !wp.isCompleted;
                 if (wp.markerInstance != null)
                 {
                     wp.markerInstance.SetActive(isActiveStage);
@@ -270,6 +279,7 @@ namespace CBRSX.Unity
         private void Update()
         {
             EnsurePlayerCameraReference();
+            UpdateActiveWaypoint();
             UpdateMarkerAnimations();
             UpdateFloorArrow();
         }
@@ -295,7 +305,8 @@ namespace CBRSX.Unity
             Waypoint activeWp = waypoints[activeWaypointIndex];
             if (activeWp.target == null) return;
 
-            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+            if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
             if (responder == null) return;
 
             Vector3 playerPos = responder.transform.position;
@@ -319,7 +330,8 @@ namespace CBRSX.Unity
             Waypoint activeWp = waypoints[activeWaypointIndex];
             if (activeWp == null || activeWp.target == null) return -1f;
 
-            FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+            FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+            if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
             if (responder == null) return -1f;
 
             return Vector3.Distance(responder.transform.position, activeWp.target.position);

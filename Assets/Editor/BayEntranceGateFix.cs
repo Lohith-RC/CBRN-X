@@ -46,7 +46,7 @@ public class BayEntranceGateFix
         // 2. Fix containment berm colliders that are too high and block walking
         // Berms should be step-overable (CharacterController stepOffset = 0.35)
         // but their colliders might extend too high
-        GameObject[] allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        GameObject[] allObjects = Object.FindObjectsByType<GameObject>();
         foreach (var obj in allObjects)
         {
             if (obj.name.StartsWith("Berm_"))

@@ -76,15 +76,18 @@ namespace CBRSX.Unity
 
         private void BootstrapSubsystems()
         {
+            // Ensure PpeStation is running
+            PpeStation.EnsureInstance();
+
             // Ensure WaypointNavigationSystem is running
-            if (FindFirstObjectByType<WaypointNavigationSystem>() == null)
+            if (FindAnyObjectByType<WaypointNavigationSystem>() == null)
             {
                 GameObject navGo = new GameObject("System_WaypointNavigation");
                 navGo.AddComponent<WaypointNavigationSystem>();
             }
 
             // Ensure BayEntranceDoorController is running
-            if (FindFirstObjectByType<BayEntranceDoorController>() == null)
+            if (FindAnyObjectByType<BayEntranceDoorController>() == null)
             {
                 GameObject doorGo = new GameObject("System_BayEntranceDoorController");
                 doorGo.AddComponent<BayEntranceDoorController>();
@@ -116,7 +119,7 @@ namespace CBRSX.Unity
             }
 
             // Ensure entrance door is open for trainees
-            BayEntranceDoorController door = FindFirstObjectByType<BayEntranceDoorController>();
+            BayEntranceDoorController door = FindAnyObjectByType<BayEntranceDoorController>();
             if (door != null)
             {
                 door.OpenDoor();
@@ -138,14 +141,14 @@ namespace CBRSX.Unity
             OnFullPpeCompletedEvent?.Invoke();
             SetStage(ScenarioStage.ChemicalSpectrometry);
 
-            // Ensure door is fully open
-            BayEntranceDoorController door = FindFirstObjectByType<BayEntranceDoorController>();
+            // Ensure door is fully open for Bay 03 entry
+            BayEntranceDoorController door = BayEntranceDoorController.Instance ?? FindAnyObjectByType<BayEntranceDoorController>();
             if (door != null)
             {
                 door.OpenDoor();
             }
 
-            Debug.Log("[CBRS-X V3.1] Full Level B CBRN PPE confirmed. Transitioning to ChemicalSpectrometry.");
+            Debug.Log("[CBRS-X V3.1] Full Level-B PPE confirmed (Vest, Mask, Gloves). Trainee authorized to enter Bay 03.");
         }
 
         public void RegisterDetectorEquipped()
@@ -240,10 +243,10 @@ namespace CBRSX.Unity
             {
                 case ScenarioStage.BriefingOperational:
                 case ScenarioStage.PerimeterAssessment:
-                    return "OBJECTIVE: Approach staging bench [E] and don complete Level-B PPE ensemble.";
+                    return "OBJECTIVE: Don complete Level-B PPE ensemble (Vest, Mask, Gloves) at the staging bench [E].";
                 case ScenarioStage.LevelBDonning:
                 case ScenarioStage.ChemicalSpectrometry:
-                    return "OBJECTIVE: Equip Handheld PID Spectrometer [1/G], enter Bay 03, and locate leaking drum.";
+                    return "OBJECTIVE: Level-B PPE Secured. Enter Bay 03 and locate the leaking chemical drum.";
                 case ScenarioStage.CivilianExtraction:
                     return "OBJECTIVE: Approach incapacitated worker in Bay 03 and lead them to safety.";
                 case ScenarioStage.HazardContainment:

@@ -4,18 +4,19 @@ using UnityEngine.UI;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// PlayerInteraction V3.0 — High-Tolerance Tactical Interaction & Equipping Engine.
+    /// PlayerInteraction V4.0 — Pure Spatial Crosshair & Proximity Mouse-Click Interaction Engine.
     /// Features:
-    /// - Generous SphereCast acquisition + Proximity auto-target fallback
-    /// - Instant equipping on [E], [Left Click], or [Space]
-    /// - Comprehensive recognition of all PPE items, PID Detector, Containment Kit, and Leak Drums
+    /// - All interaction keybinds removed: fully driven by Mouse Left-Click and Reticle Pointing
+    /// - 0.45m SphereCast + 4.0m Proximity Fallback for natural, reliable targeting
+    /// - Contextual dynamic crosshair color lock and action prompts
+    /// - One-click equipping for Hazmat gear, PID Detector, Containment Kit, and Drum Scans
     /// </summary>
     public class PlayerInteraction : MonoBehaviour
     {
         [Header("Raycast & Spatial Acquisition")]
         public float interactionRange = 5.5f;
         public float sphereCastRadius = 0.45f;
-        public float proximityFallbackRadius = 3.5f;
+        public float proximityFallbackRadius = 4.0f;
         public LayerMask interactionLayer;
 
         [Header("Tactical HUD Reticle Feedback")]
@@ -66,20 +67,41 @@ namespace CBRSX.Unity
         {
             EnsureCameraReference();
             PerformSpatialRaycast();
-            HandleDirectKeyShortcuts();
+            HandleMouseClickInteraction();
         }
 
-        private void HandleDirectKeyShortcuts()
+        private void HandleMouseClickInteraction()
         {
-            // Global Proximity Fallback on E or Click if no raycast target is centered
-            if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0))
             {
-                if (currentHoverTarget == null)
+                TriggerInteraction();
+            }
+        }
+
+        public void TriggerInteraction()
+        {
+            if (currentHoverTarget != null)
+            {
+                DispatchInteractionEvent(currentHoverTarget);
+            }
+            else
+            {
+                GameObject proximityTarget = FindClosestInteractableInProximity();
+                if (proximityTarget != null)
                 {
-                    GameObject proximityTarget = FindClosestInteractableInProximity();
-                    if (proximityTarget != null)
+                    DispatchInteractionEvent(proximityTarget);
+                }
+                else
+                {
+                    // Staging fallback if near bench in early stages
+                    GameManager gm = GameManager.Instance;
+                    if (gm != null && !gm.isPpeFullyEquipped)
                     {
-                        DispatchInteractionEvent(proximityTarget);
+                        PpeStation ppe = PpeStation.EnsureInstance();
+                        if (ppe != null)
+                        {
+                            ppe.EquipItem("auto");
+                        }
                     }
                 }
             }
@@ -102,13 +124,13 @@ namespace CBRSX.Unity
                 targetCandidate = ResolveInteractableObject(hit.collider.gameObject);
             }
 
-            // If raycast didn't find anything, try close proximity fallback
+            // Fallback to closest interactable in 4m proximity
             if (targetCandidate == null)
             {
                 targetCandidate = FindClosestInteractableInProximity();
             }
 
-            // Update Reticle Feedback
+            // Update Reticle Scale & Color
             if (crosshairImage != null)
             {
                 Color targetColor = (targetCandidate != null) ? lockedReticleColor : defaultReticleColor;
@@ -124,11 +146,6 @@ namespace CBRSX.Unity
                 {
                     currentHoverTarget = targetCandidate;
                     DisplayContextualTooltip(targetCandidate);
-                }
-
-                if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
-                {
-                    DispatchInteractionEvent(targetCandidate);
                 }
             }
             else
@@ -194,7 +211,7 @@ namespace CBRSX.Unity
             if (go.CompareTag("PpeItem") || lower.Contains("vest") || lower.Contains("mask") || 
                 lower.Contains("glove") || lower.Contains("suit") || lower.Contains("respirator") || 
                 lower.Contains("gasmask") || lower.Contains("cbrn") || lower.Contains("hardhat") || 
-                lower.Contains("helmet") || lower.Contains("bench") || lower.Contains("ppe"))
+                lower.Contains("helmet") || lower.Contains("bench") || lower.Contains("staging") || lower.Contains("ppe"))
             {
                 return true;
             }
@@ -206,6 +223,7 @@ namespace CBRSX.Unity
                    lower.Contains("detector") ||
                    lower.Contains("spectrometer") ||
                    lower.Contains("drum") ||
+                   lower.Contains("barrel") ||
                    lower.Contains("kit") ||
                    lower.Contains("decon");
         }
@@ -222,9 +240,9 @@ namespace CBRSX.Unity
                 targetNameLower.Contains("suit") || targetNameLower.Contains("respirator") ||
                 targetNameLower.Contains("gasmask") || targetNameLower.Contains("cbrn") ||
                 targetNameLower.Contains("hardhat") || targetNameLower.Contains("helmet") ||
-                targetNameLower.Contains("bench") || targetNameLower.Contains("ppe"))
+                targetNameLower.Contains("bench") || targetNameLower.Contains("staging") || targetNameLower.Contains("ppe"))
             {
-                PpeStation ppeStation = FindFirstObjectByType<PpeStation>();
+                PpeStation ppeStation = PpeStation.EnsureInstance();
                 if (ppeStation != null)
                 {
                     string itemName = ParsePpeItemIdentifier(target.name);
@@ -242,24 +260,18 @@ namespace CBRSX.Unity
             if (detector == null && target.transform.parent != null) detector = target.transform.parent.GetComponent<GasDetector>();
             if (detector != null || targetNameLower.Contains("detector") || targetNameLower.Contains("spectrometer") || targetNameLower.Contains("pid"))
             {
-                FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+                FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+                if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
                 if (responder != null)
                 {
                     GasDetector playerDet = responder.GetComponentInChildren<GasDetector>(true);
+                    if (playerDet == null) playerDet = FindAnyObjectByType<GasDetector>();
                     if (playerDet != null)
                     {
-                        playerDet.EquipDetector();
+                        playerDet.ToggleEquip();
                     }
-                    else if (detector != null)
-                    {
-                        detector.EquipDetector();
-                    }
+                    responder.StripAllChildColliders();
                 }
-                else if (detector != null)
-                {
-                    detector.EquipDetector();
-                }
-
                 if (target.transform.root != transform.root)
                 {
                     target.SetActive(false);
@@ -272,7 +284,7 @@ namespace CBRSX.Unity
             if (drum == null && target.transform.parent != null) drum = target.transform.parent.GetComponent<LeakDrum>();
             if (drum != null || targetNameLower.Contains("drum") || targetNameLower.Contains("barrel"))
             {
-                if (drum == null) drum = FindFirstObjectByType<LeakDrum>();
+                if (drum == null) drum = FindAnyObjectByType<LeakDrum>();
                 if (drum != null)
                 {
                     HandleDrumInteraction(drum);
@@ -285,10 +297,21 @@ namespace CBRSX.Unity
             if (kit == null && target.transform.parent != null) kit = target.transform.parent.GetComponent<ContainmentKit>();
             if (kit != null || targetNameLower.Contains("kit") || targetNameLower.Contains("sealant"))
             {
-                if (kit == null) kit = FindFirstObjectByType<ContainmentKit>();
-                if (kit != null)
+                FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+                if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
+                if (responder != null)
                 {
-                    kit.EquipKit();
+                    ContainmentKit playerKit = responder.GetComponentInChildren<ContainmentKit>(true);
+                    if (playerKit == null) playerKit = FindAnyObjectByType<ContainmentKit>();
+                    if (playerKit != null)
+                    {
+                        playerKit.EquipKit();
+                    }
+                    responder.StripAllChildColliders();
+                }
+                if (target.transform.root != transform.root)
+                {
+                    target.SetActive(false);
                 }
                 return;
             }
@@ -298,7 +321,7 @@ namespace CBRSX.Unity
             if (civilian == null && target.transform.parent != null) civilian = target.transform.parent.GetComponent<Civilian>();
             if (civilian != null || targetNameLower.Contains("civilian") || targetNameLower.Contains("worker"))
             {
-                if (civilian == null) civilian = FindFirstObjectByType<Civilian>();
+                if (civilian == null) civilian = FindAnyObjectByType<Civilian>();
                 if (civilian != null)
                 {
                     civilian.InstructFollow(transform.root);
@@ -329,15 +352,11 @@ namespace CBRSX.Unity
                 }
             }
 
-            // Spectrometer Scanning
-            GasDetector activeDetector = FindFirstObjectByType<GasDetector>();
-            if (activeDetector != null && activeDetector.isEquipped)
+            // Direct Inspection & Leak Source Confirmation
+            drum.InspectDrum();
+            if (drum.isLeaking && gm != null && !gm.leakSourceIdentified)
             {
-                activeDetector.ScanDrum(drum);
-            }
-            else
-            {
-                drum.InspectDrum();
+                gm.RegisterLeakIdentified(drum.drumId);
             }
         }
 
@@ -368,24 +387,22 @@ namespace CBRSX.Unity
             if (tooltipRoot == null || tooltipText == null) return;
 
             string targetNameLower = target.name.ToLower();
-            string prompt = "[E / CLICK] INTERACT";
+            string prompt = "[CLICK / E] INTERACT";
 
             if (targetNameLower.Contains("mask") || targetNameLower.Contains("respirator"))
-                prompt = "[E / CLICK] DON CBRN FULL-FACE RESPIRATOR";
+                prompt = "[CLICK / E] DON CBRN FULL-FACE RESPIRATOR";
             else if (targetNameLower.Contains("suit") || targetNameLower.Contains("hazmat") || targetNameLower.Contains("vest"))
-                prompt = "[E / CLICK] DON LEVEL-B HAZMAT ENSEMBLE";
+                prompt = "[CLICK / E] DON LEVEL-B HAZMAT SUIT / VEST";
             else if (targetNameLower.Contains("glove"))
-                prompt = "[E / CLICK] DON CHEMICAL GAUNTLETS";
-            else if (targetNameLower.Contains("bench") || targetNameLower.Contains("ppe"))
-                prompt = "[E / CLICK] DON NEXT REQUIRED PPE GEAR";
-            else if (targetNameLower.Contains("detector") || targetNameLower.Contains("spectrometer") || targetNameLower.Contains("pid"))
-                prompt = "[E / CLICK] EQUIP HANDHELD PID SPECTROMETER";
+                prompt = "[CLICK / E] DON CHEMICAL GAUNTLETS";
+            else if (targetNameLower.Contains("bench") || targetNameLower.Contains("staging") || targetNameLower.Contains("ppe"))
+                prompt = "[CLICK / E] DON NEXT REQUIRED PPE GEAR";
             else if (targetNameLower.Contains("drum") || targetNameLower.Contains("barrel"))
-                prompt = "[E / CLICK] SCAN CHEMICAL DRUM PPM CONCENTRATION";
+                prompt = "[CLICK / E] LOCATE & INSPECT CHEMICAL LEAK";
             else if (targetNameLower.Contains("kit"))
-                prompt = "[E / CLICK] EQUIP LEAK CONTAINMENT SEALANT KIT";
+                prompt = "[CLICK / E] EQUIP LEAK CONTAINMENT SEALANT KIT";
             else if (targetNameLower.Contains("civilian") || targetNameLower.Contains("worker"))
-                prompt = "[E / CLICK] EVACUATE INJURED PERSONNEL";
+                prompt = "[CLICK / E] EVACUATE INJURED PERSONNEL";
 
             tooltipText.text = prompt;
             tooltipRoot.SetActive(true);

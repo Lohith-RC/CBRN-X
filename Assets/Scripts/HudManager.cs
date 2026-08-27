@@ -74,8 +74,53 @@ namespace CBRSX.Unity
         private float ppeEquipPulseTimer = 0f;
         private string lastEquippedItem = "";
 
+        private void Awake()
+        {
+            AutoBindUIReferences();
+        }
+
+        public void AutoBindUIReferences()
+        {
+            TextMeshProUGUI[] tmps = GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var t in tmps)
+            {
+                string n = t.name.ToLower();
+                if (stagePromptText == null && (n.Contains("prompt") || n.Contains("objective") || n.Contains("ribbon"))) stagePromptText = t;
+                else if (missionTimerText == null && (n.Contains("timer") || n.Contains("clock"))) missionTimerText = t;
+                else if (compassHeadingText == null && (n.Contains("compass") || n.Contains("heading"))) compassHeadingText = t;
+                else if (distanceToObjectiveText == null && (n.Contains("distance") || n.Contains("range") || n.Contains("dist"))) distanceToObjectiveText = t;
+                else if (keyHintsText == null && (n.Contains("key") || n.Contains("hint") || n.Contains("control"))) keyHintsText = t;
+                else if (mistakeToastText == null && (n.Contains("toast") || n.Contains("mistake") || n.Contains("warn"))) mistakeToastText = t;
+                else if (achievementBannerText == null && (n.Contains("achievement") || n.Contains("banner") || n.Contains("title"))) achievementBannerText = t;
+                else if (stageProgressLabel == null && (n.Contains("progress") && n.Contains("label"))) stageProgressLabel = t;
+            }
+
+            Image[] imgs = GetComponentsInChildren<Image>(true);
+            foreach (var img in imgs)
+            {
+                string n = img.name.ToLower();
+                if (suitIcon == null && (n.Contains("suit") || n.Contains("vest"))) suitIcon = img;
+                else if (maskIcon == null && (n.Contains("mask") || n.Contains("respirator"))) maskIcon = img;
+                else if (glovesIcon == null && (n.Contains("glove") || n.Contains("gauntlet"))) glovesIcon = img;
+                else if (stageProgressFill == null && n.Contains("fill")) stageProgressFill = img;
+            }
+
+            Transform[] allTrans = GetComponentsInChildren<Transform>(true);
+            foreach (var tr in allTrans)
+            {
+                string n = tr.name.ToLower();
+                if (suitCheckmark == null && n.Contains("suit") && n.Contains("check")) suitCheckmark = tr.gameObject;
+                else if (maskCheckmark == null && n.Contains("mask") && n.Contains("check")) maskCheckmark = tr.gameObject;
+                else if (glovesCheckmark == null && n.Contains("glove") && n.Contains("check")) glovesCheckmark = tr.gameObject;
+                else if (mistakeToastRoot == null && (n.Contains("toast") || n.Contains("mistake_root"))) mistakeToastRoot = tr.gameObject;
+                else if (achievementBannerRoot == null && (n.Contains("banner_root") || n.Contains("achievement_root"))) achievementBannerRoot = tr.gameObject;
+                else if (objectiveIndicatorArrow == null && (n.Contains("indicator") || n.Contains("arrow"))) objectiveIndicatorArrow = tr as RectTransform;
+            }
+        }
+
         private void Start()
         {
+            AutoBindUIReferences();
             gm = GameManager.Instance;
             mainCam = Camera.main;
 
@@ -352,19 +397,21 @@ namespace CBRSX.Unity
             switch (gm.currentStage)
             {
                 case GameManager.ScenarioStage.BriefingOperational:
-                    keyHintsText.text = "[WASD] Move  [SHIFT] Sprint  [C] Crouch  [ESC] Menu";
-                    break;
+                case GameManager.ScenarioStage.PerimeterAssessment:
                 case GameManager.ScenarioStage.LevelBDonning:
-                    keyHintsText.text = "[E] Equip PPE Item  [G] Toggle Detector";
+                    keyHintsText.text = "[WASD] Move  [E/CLICK] Don PPE (Vest, Mask, Gloves)  [SHIFT] Sprint";
                     break;
                 case GameManager.ScenarioStage.ChemicalSpectrometry:
-                    keyHintsText.text = "[G] Toggle Detector  [RMB] Aim Down Sights  [E] Scan Drum";
+                    keyHintsText.text = "[WASD] Enter Bay 03 Corridor  [E/CLICK] Inspect Leaking Drum  [SHIFT] Sprint";
                     break;
                 case GameManager.ScenarioStage.CivilianExtraction:
-                    keyHintsText.text = "[E] Command Civilian  [G] Toggle Detector";
+                    keyHintsText.text = "[E/CLICK] Command Injured Civilian to Follow  [WASD] Move";
                     break;
                 case GameManager.ScenarioStage.HazardContainment:
-                    keyHintsText.text = "[E] Pick Up Kit  [HOLD LMB] Inject Sealant";
+                    keyHintsText.text = "[2] Equip Sealant Kit  [HOLD LMB] Inject Pneumatic Sealant";
+                    break;
+                case GameManager.ScenarioStage.DeconNeutralization:
+                    keyHintsText.text = "Walk into Decontamination Deluge Shower Archway";
                     break;
                 default:
                     keyHintsText.text = "[WASD] Move  [SHIFT] Sprint  [C] Crouch  [SPACE] Jump";

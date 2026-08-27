@@ -68,6 +68,8 @@ namespace CBRSX.Unity
         public float groundCheckDistance = 0.35f;
         public LayerMask groundCheckMask = ~0;
 
+        public static FirstPersonResponderController Instance { get; private set; }
+
         [Header("Protocol State")]
         public bool hasFullPpe = false;
         public bool inHazardZone = false;
@@ -92,16 +94,29 @@ namespace CBRSX.Unity
 
         private void Awake()
         {
+            if (Instance == null)
+            {
+                Instance = this;
+            }
+            else if (Instance != this)
+            {
+                // In case of duplicate or inactive responder, prioritize active one
+                if (gameObject.activeInHierarchy)
+                {
+                    Instance = this;
+                }
+            }
+
             characterController = GetComponent<CharacterController>();
             playerCamera = GetComponentInChildren<Camera>();
 
             if (characterController != null)
             {
-                characterController.stepOffset = 0.45f;
-                characterController.slopeLimit = 50f;
+                characterController.stepOffset = 0.5f;
+                characterController.slopeLimit = 60f;
                 characterController.minMoveDistance = 0f;
-                characterController.skinWidth = 0.05f;
-                characterController.radius = 0.35f;
+                characterController.skinWidth = 0.03f;
+                characterController.radius = 0.3f;
             }
 
             if (playerCamera == null)
@@ -115,6 +130,32 @@ namespace CBRSX.Unity
                 if (defaultCameraY < 1.0f) defaultCameraY = 1.65f;
                 crouchCameraY = defaultCameraY - (standingHeight - crouchHeight) * 0.5f;
             }
+
+            // Strip any rogue child colliders that could collide with CharacterController
+            StripAllChildColliders();
+        }
+
+        public void StripAllChildColliders()
+        {
+            Collider[] childCols = GetComponentsInChildren<Collider>(true);
+            foreach (var col in childCols)
+            {
+                // Don't disable the CharacterController component itself
+                if (col is CharacterController) continue;
+
+                col.enabled = false;
+                if (Application.isPlaying)
+                {
+                    Destroy(col);
+                }
+            }
+
+            Rigidbody[] childRbs = GetComponentsInChildren<Rigidbody>(true);
+            foreach (var rb in childRbs)
+            {
+                rb.isKinematic = true;
+                rb.detectCollisions = false;
+            }
         }
 
         private void Start()
@@ -122,19 +163,46 @@ namespace CBRSX.Unity
             currentHeight = standingHeight;
             SetCursorLock(true);
             UpdateAcousticEnvironment(false);
+            StripAllChildColliders();
         }
 
         private void Update()
         {
             HandleCursorToggle();
+            HandleEquipmentHotkeys();
             HandleMouseLook();
             HandleLocomotion();
             HandleCrouch();
-            HandleToolToggle();
             HandleCameraKinematics();
             HandleTraumaShake();
             HandleVisorCondensation();
             HandleSprintFov();
+        }
+
+        private void HandleEquipmentHotkeys()
+        {
+            // [2] -> Equip / Toggle Containment Sealant Kit
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                ContainmentKit kit = GetComponentInChildren<ContainmentKit>(true);
+                if (kit == null) kit = FindAnyObjectByType<ContainmentKit>();
+                if (kit != null)
+                {
+                    kit.EquipKit();
+                }
+            }
+
+            // [E] -> Primary Contextual Interaction
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                PlayerInteraction interaction = GetComponent<PlayerInteraction>();
+                if (interaction == null) interaction = GetComponentInChildren<PlayerInteraction>();
+                if (interaction == null) interaction = FindAnyObjectByType<PlayerInteraction>();
+                if (interaction != null)
+                {
+                    interaction.TriggerInteraction();
+                }
+            }
         }
 
         private void HandleCursorToggle()
@@ -255,37 +323,6 @@ namespace CBRSX.Unity
             }
         }
 
-        private void HandleToolToggle()
-        {
-            // Key 1 or G -> Gas Detector
-            if (Input.GetKeyDown(KeyCode.G) || Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                GasDetector detector = GetComponentInChildren<GasDetector>(true);
-                if (detector == null)
-                {
-                    detector = FindFirstObjectByType<GasDetector>();
-                }
-
-                if (detector != null)
-                {
-                    detector.ToggleEquip();
-                }
-            }
-
-            // Key 2 -> Containment Kit
-            if (Input.GetKeyDown(KeyCode.Alpha2))
-            {
-                ContainmentKit kit = GetComponentInChildren<ContainmentKit>(true);
-                if (kit == null)
-                {
-                    kit = FindFirstObjectByType<ContainmentKit>();
-                }
-                if (kit != null)
-                {
-                    kit.EquipKit();
-                }
-            }
-        }
 
         private void HandleCameraKinematics()
         {
