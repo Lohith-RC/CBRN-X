@@ -11,6 +11,7 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
 
   // Portal Transition State
   const [isInitializing, setIsInitializing] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
 
   // Deep Space Ambient Particle Canvas
   useEffect(() => {
@@ -247,6 +248,8 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
               strokeWidth="1.8"
               strokeDasharray="4 6"
               opacity="0.75"
+              className="animate-logo-spin"
+              style={{ transformOrigin: '50px 50px' }}
             />
 
             {/* Mid Hexagonal Nodes */}
@@ -416,8 +419,8 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
           </button>
         </div>
 
-        {/* Secondary Quick-Launch Pill */}
-        <div style={{ marginTop: '18px' }}>
+        {/* Secondary Quick-Launch Pill & Team Credits Toggle */}
+        <div style={{ marginTop: '18px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <a
             href="/unity-sim/index.html"
             target="_blank"
@@ -427,7 +430,7 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
               alignItems: 'center',
               gap: '6px',
               padding: '8px 18px',
-              borderRadius: '9999px', // STRICTLY OVAL PILL
+              borderRadius: '9999px',
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgba(51, 65, 85, 0.6)',
               color: '#67e8f9',
@@ -451,7 +454,58 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
             <Play size={11} style={{ fill: '#06b6d4', color: '#06b6d4' }} />
             Direct 3D Simulation Viewport
           </a>
+
+          <button
+            type="button"
+            onClick={() => setShowTeam(!showTeam)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '9999px',
+              background: showTeam ? 'rgba(139, 92, 246, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+              border: `1px solid ${showTeam ? 'rgba(139, 92, 246, 0.5)' : 'rgba(51, 65, 85, 0.6)'}`,
+              color: showTeam ? '#c4b5fd' : '#94a3b8',
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Users size={12} />
+            {showTeam ? 'Hide Team' : 'Task Force'}
+          </button>
         </div>
+
+        {/* Expandable Team Task Force Credits */}
+        {showTeam && (
+          <div
+            className="animate-fade-in"
+            style={{
+              marginTop: '20px',
+              width: '100%',
+              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              padding: '16px',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              SIH260088 Task Force Engineering Team
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {teamMembers.map((member, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < teamMembers.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>{member.name}</span>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontFamily: 'var(--font-mono)', maxWidth: '58%', textAlign: 'right' }}>{member.role}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
