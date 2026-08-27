@@ -65,7 +65,7 @@ namespace CBRSX.Unity
         {
             currentCalculatedPpm = baselinePpm;
             peakRecordedPpm = baselinePpm;
-            playerCamera = Camera.main;
+            EnsurePlayerCameraReference();
 
             LocateLeakingDrumInScene();
 
@@ -74,6 +74,22 @@ namespace CBRSX.Unity
 
             if (firstPersonHeldModel != null)
                 firstPersonHeldModel.SetActive(false);
+        }
+
+        private void EnsurePlayerCameraReference()
+        {
+            if (playerCamera == null)
+            {
+                FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
+                if (responder != null)
+                {
+                    playerCamera = responder.GetComponentInChildren<Camera>();
+                }
+                if (playerCamera == null)
+                {
+                    playerCamera = Camera.main;
+                }
+            }
         }
 
         private void LocateLeakingDrumInScene()
@@ -93,6 +109,7 @@ namespace CBRSX.Unity
         {
             if (!isEquipped) return;
 
+            EnsurePlayerCameraReference();
             HandleAimDownSights();
             CalculateAtmosphericDiffusionModel();
             SimulateNeedleSpringDamperPhysics();
@@ -114,9 +131,23 @@ namespace CBRSX.Unity
 
         public void EquipDetector()
         {
+            // If this component is on a world dock/pickup rather than the active player, forward to player
+            FirstPersonResponderController responder = FindObjectOfType<FirstPersonResponderController>();
+            if (responder != null && transform.root != responder.transform)
+            {
+                GasDetector playerDet = responder.GetComponentInChildren<GasDetector>();
+                if (playerDet != null && playerDet != this)
+                {
+                    playerDet.EquipDetector();
+                    gameObject.SetActive(false);
+                    return;
+                }
+            }
+
             if (isEquipped) return;
 
             isEquipped = true;
+            EnsurePlayerCameraReference();
 
             MeshRenderer mr = GetComponent<MeshRenderer>();
             if (mr != null) mr.enabled = false;
@@ -126,6 +157,11 @@ namespace CBRSX.Unity
             if (firstPersonHeldModel != null)
             {
                 firstPersonHeldModel.SetActive(true);
+                Collider[] colliders = firstPersonHeldModel.GetComponentsInChildren<Collider>(true);
+                foreach (var c in colliders)
+                {
+                    Destroy(c);
+                }
             }
 
             if (detectorHudPanel != null)
@@ -151,6 +187,11 @@ namespace CBRSX.Unity
 
             if (detectorHudPanel != null)
                 detectorHudPanel.SetActive(false);
+
+            if (playerCamera != null)
+            {
+                playerCamera.fieldOfView = defaultFov;
+            }
 
             Debug.Log("<color=grey>[CBRS-X] Handheld Gas Detector STOWED / UNEQUIPPED.</color>");
         }
