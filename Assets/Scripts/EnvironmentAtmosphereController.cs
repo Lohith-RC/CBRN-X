@@ -132,7 +132,7 @@ namespace CBRSX.Unity
 
             // Increase fog emission near the leaking drum
             LeakDrum leakingDrum = null;
-            LeakDrum[] drums = FindObjectsByType<LeakDrum>(FindObjectsSortMode.None);
+            LeakDrum[] drums = FindObjectsByType<LeakDrum>();
             foreach (var d in drums)
             {
                 if (d.isLeaking && !d.isContained)
@@ -166,6 +166,7 @@ namespace CBRSX.Unity
             dustGO.transform.position = new Vector3(0f, 3.5f, 0f);
 
             ParticleSystem ps = dustGO.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
             main.duration = 5f;
             main.loop = true;
@@ -198,6 +199,20 @@ namespace CBRSX.Unity
             noise.frequency = 0.5f;
             noise.scrollSpeed = 0.2f;
 
+            var renderer = dustGO.GetComponent<ParticleSystemRenderer>();
+            Shader urpParticleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (urpParticleShader != null)
+            {
+                Material mat = new Material(urpParticleShader);
+                mat.SetFloat("_Surface", 1);
+                mat.SetFloat("_Blend", 1); // Additive for dust motes
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                renderer.sharedMaterial = mat;
+            }
+
             return ps;
         }
 
@@ -208,6 +223,7 @@ namespace CBRSX.Unity
             fogGO.transform.position = new Vector3(0f, 0.15f, 2f);
 
             ParticleSystem ps = fogGO.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
             main.duration = 4f;
             main.loop = true;
@@ -242,6 +258,20 @@ namespace CBRSX.Unity
                 new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.25f, 0.3f), new GradientAlphaKey(0f, 1f) }
             );
             colorOverLife.color = grad;
+
+            var renderer = fogGO.GetComponent<ParticleSystemRenderer>();
+            Shader urpParticleShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (urpParticleShader != null)
+            {
+                Material mat = new Material(urpParticleShader);
+                mat.SetFloat("_Surface", 1);
+                mat.SetFloat("_Blend", 0); // Alpha blend for fog
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.renderQueue = 3000;
+                renderer.sharedMaterial = mat;
+            }
 
             return ps;
         }

@@ -15,7 +15,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -34,13 +33,22 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sessions")
-@RequiredArgsConstructor
 public class SessionController {
 
     private final SessionService sessionService;
     private final ScoringService scoringService;
     private final CertificateService certificateService;
     private final SessionQueryService sessionQueryService;
+
+    public SessionController(SessionService sessionService,
+                             ScoringService scoringService,
+                             CertificateService certificateService,
+                             SessionQueryService sessionQueryService) {
+        this.sessionService = sessionService;
+        this.scoringService = scoringService;
+        this.certificateService = certificateService;
+        this.sessionQueryService = sessionQueryService;
+    }
 
     @GetMapping
     public ResponseEntity<PagedSessionsDTO> listSessions(

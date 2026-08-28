@@ -49,6 +49,7 @@ public class Bay03ChemicalPlantElevator
         Material matBlueDrum = AssetDatabase.LoadAssetAtPath<Material>("Assets/Mat_ChemicalDrum.mat");
         Material matGrating = AssetDatabase.LoadAssetAtPath<Material>("Assets/Mat_CatwalkGrating.mat");
         Material matGlass = AssetDatabase.LoadAssetAtPath<Material>("Assets/Mat_IbcTote.mat");
+        Material matPitchBlack = AssetDatabase.LoadAssetAtPath<Material>("Assets/Mat_PitchBlackFloor.mat");
 
         // Helper: Create Primitive
         GameObject CreatePrim(PrimitiveType type, string name, Transform parent, Vector3 pos, Vector3 rot, Vector3 scale, Material mat)
@@ -149,9 +150,9 @@ public class Bay03ChemicalPlantElevator
             CreatePrim(PrimitiveType.Cube, "HazmatVest_Folded_1", bench.transform, new Vector3(tablePos.x - 0.6f, tablePos.y + 0.98f, tablePos.z + 0.25f), Vector3.zero, new Vector3(0.45f, 0.08f, 0.35f), matYellow);
             CreatePrim(PrimitiveType.Cube, "HazmatVest_Folded_2", bench.transform, new Vector3(tablePos.x + 0.4f, tablePos.y + 0.98f, tablePos.z + 0.25f), Vector3.zero, new Vector3(0.45f, 0.08f, 0.35f), matOrange);
 
-            // 4. Respirator Half-Masks on Lower Shelf
-            CreatePrim(PrimitiveType.Sphere, "Respirator_Mask_1", bench.transform, new Vector3(tablePos.x - 0.5f, tablePos.y + 0.38f, tablePos.z), Vector3.zero, new Vector3(0.25f, 0.2f, 0.25f), matSteel);
-            CreatePrim(PrimitiveType.Sphere, "Respirator_Mask_2", bench.transform, new Vector3(tablePos.x + 0.5f, tablePos.y + 0.38f, tablePos.z), Vector3.zero, new Vector3(0.25f, 0.2f, 0.25f), matSteel);
+            // 4. CBRN Gas Masks & Respirators (Table Top Center)
+            CreatePrim(PrimitiveType.Sphere, "Respirator_Mask_1", bench.transform, new Vector3(tablePos.x - 0.05f, tablePos.y + 1.06f, tablePos.z - 0.15f), Vector3.zero, new Vector3(0.38f, 0.32f, 0.38f), matPitchBlack != null ? matPitchBlack : matSteel);
+            CreatePrim(PrimitiveType.Sphere, "Respirator_Mask_2", bench.transform, new Vector3(tablePos.x - 0.4f, tablePos.y + 1.06f, tablePos.z + 0.15f), Vector3.zero, new Vector3(0.38f, 0.32f, 0.38f), matPitchBlack != null ? matPitchBlack : matSteel);
         }
 
         // Place PPE Workbenches in Staging Safe Zones

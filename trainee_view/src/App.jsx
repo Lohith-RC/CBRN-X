@@ -422,7 +422,11 @@ export default function App() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 25
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Shield size={20} color="var(--accent-ndrf-orange)" />
+          <img
+            src="/cbrn_x_logo.jpg"
+            alt="CBRN-X Logo"
+            style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid rgba(245,130,32,0.5)', objectFit: 'cover' }}
+          />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#fff' }}>
@@ -456,7 +460,11 @@ export default function App() {
         {!isActive ? (
           /* ═══ PRE-GAME LOBBY ═══ */
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', zIndex: 20, position: 'relative', padding: '20px' }}>
-            <Flame size={48} color="var(--accent-ndrf-orange)" className="handheld-motion" />
+            <img
+              src="/cbrn_x_logo.jpg"
+              alt="CBRN-X Project Logo"
+              style={{ width: '84px', height: '84px', borderRadius: '18px', border: '1px solid rgba(245, 130, 32, 0.6)', boxShadow: '0 0 25px rgba(245, 130, 32, 0.4)', objectFit: 'cover' }}
+            />
             <h2 style={{ color: '#fff', fontSize: '1.35rem', fontWeight: '800', letterSpacing: '0.5px', margin: 0 }}>
               CBRN TACTICAL SIMULATION STATION
             </h2>

@@ -47,6 +47,20 @@ namespace CBRSX.Unity
 
         public void EquipKit()
         {
+            FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+            if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
+
+            if (responder != null && transform.root != responder.transform)
+            {
+                ContainmentKit playerKit = responder.GetComponentInChildren<ContainmentKit>(true);
+                if (playerKit != null && playerKit != this)
+                {
+                    playerKit.EquipKit();
+                    gameObject.SetActive(false);
+                    return;
+                }
+            }
+
             if (isEquipped) return;
 
             isEquipped = true;
@@ -57,7 +71,30 @@ namespace CBRSX.Unity
             if (col != null) col.enabled = false;
 
             if (firstPersonHeldTool != null)
+            {
+                Collider[] colliders = firstPersonHeldTool.GetComponentsInChildren<Collider>(true);
+                foreach (var c in colliders)
+                {
+                    c.enabled = false;
+                    c.isTrigger = true;
+                    if (Application.isPlaying) Destroy(c);
+                }
+
+                Rigidbody[] rbs = firstPersonHeldTool.GetComponentsInChildren<Rigidbody>(true);
+                foreach (var rb in rbs)
+                {
+                    rb.isKinematic = true;
+                    rb.detectCollisions = false;
+                    if (Application.isPlaying) Destroy(rb);
+                }
+
                 firstPersonHeldTool.SetActive(true);
+            }
+
+            if (responder != null)
+            {
+                responder.StripAllChildColliders();
+            }
 
             if (GameManager.Instance != null)
                 GameManager.Instance.RegisterContainmentKitEquipped();
@@ -111,7 +148,7 @@ namespace CBRSX.Unity
         {
             if (!isInjectingSealant) return;
 
-            if (Input.GetMouseButton(0) || Input.GetKey(KeyCode.E))
+            if (Input.GetMouseButton(0))
             {
                 currentHoldProgress += Time.deltaTime;
                 float normalizedProgress = Mathf.Clamp01(currentHoldProgress / containmentHoldDuration);

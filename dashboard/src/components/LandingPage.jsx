@@ -11,6 +11,7 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
 
   // Portal Transition State
   const [isInitializing, setIsInitializing] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
 
   // Deep Space Ambient Particle Canvas
   useEffect(() => {
@@ -215,84 +216,33 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
             justifyContent: 'center',
           }}
         >
-          {/* Ambient Glow behind SVG */}
+          {/* Ambient Glow behind Logo */}
           <div
             style={{
               position: 'absolute',
-              width: '80px',
-              height: '80px',
+              width: '120px',
+              height: '120px',
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(6,182,212,0.3) 0%, rgba(16,185,129,0.1) 50%, transparent 80%)',
-              filter: 'blur(12px)',
+              background: 'radial-gradient(circle, rgba(245,130,32,0.4) 0%, rgba(6,182,212,0.2) 50%, transparent 80%)',
+              filter: 'blur(16px)',
               pointerEvents: 'none',
             }}
           />
 
-          <svg
-            width="72"
-            height="72"
-            viewBox="0 0 100 100"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+          <img
+            src="/cbrn_x_logo.jpg"
+            alt="CBRN-X Project Logo"
             style={{
-              filter: 'drop-shadow(0 0 12px rgba(6, 182, 212, 0.5))',
+              width: '120px',
+              height: '120px',
+              borderRadius: '24px',
+              border: '1px solid rgba(245, 130, 32, 0.6)',
+              boxShadow: '0 0 30px rgba(245, 130, 32, 0.4), 0 0 10px rgba(6, 182, 212, 0.3)',
+              objectFit: 'cover',
+              position: 'relative',
+              zIndex: 1,
             }}
-          >
-            {/* Outer Cybernetic Ring */}
-            <circle
-              cx="50"
-              cy="50"
-              r="44"
-              stroke="url(#outerGrad)"
-              strokeWidth="1.8"
-              strokeDasharray="4 6"
-              opacity="0.75"
-            />
-
-            {/* Mid Hexagonal Nodes */}
-            <circle
-              cx="50"
-              cy="50"
-              r="34"
-              stroke="url(#midGrad)"
-              strokeWidth="1.2"
-              opacity="0.85"
-            />
-
-            {/* Inner Stylized CBRS-X Tactical Cross / Core */}
-            <path
-              d="M32 32L68 68M68 32L32 68"
-              stroke="url(#coreGrad)"
-              strokeWidth="4.2"
-              strokeLinecap="round"
-            />
-
-            {/* Micro Node Dots on Ring Vertices */}
-            <circle cx="50" cy="6" r="3" fill="#38bdf8" />
-            <circle cx="50" cy="94" r="3" fill="#34d399" />
-            <circle cx="6" cy="50" r="3" fill="#38bdf8" />
-            <circle cx="94" cy="50" r="3" fill="#34d399" />
-
-            {/* Central Bio-Hazard Core Point */}
-            <circle cx="50" cy="50" r="4.5" fill="#ffffff" />
-
-            <defs>
-              <linearGradient id="outerGrad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#38bdf8" />
-                <stop offset="0.5" stopColor="#34d399" />
-                <stop offset="1" stopColor="#2563eb" />
-              </linearGradient>
-              <linearGradient id="midGrad" x1="100" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#06b6d4" />
-                <stop offset="1" stopColor="#10b981" />
-              </linearGradient>
-              <linearGradient id="coreGrad" x1="32" y1="32" x2="68" y2="68" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#ffffff" />
-                <stop offset="0.45" stopColor="#38bdf8" />
-                <stop offset="1" stopColor="#34d399" />
-              </linearGradient>
-            </defs>
-          </svg>
+          />
         </div>
 
         {/* Security Classification Pill */}
@@ -416,8 +366,8 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
           </button>
         </div>
 
-        {/* Secondary Quick-Launch Pill */}
-        <div style={{ marginTop: '18px' }}>
+        {/* Secondary Quick-Launch Pill & Team Credits Toggle */}
+        <div style={{ marginTop: '18px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <a
             href="/unity-sim/index.html"
             target="_blank"
@@ -427,7 +377,7 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
               alignItems: 'center',
               gap: '6px',
               padding: '8px 18px',
-              borderRadius: '9999px', // STRICTLY OVAL PILL
+              borderRadius: '9999px',
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgba(51, 65, 85, 0.6)',
               color: '#67e8f9',
@@ -451,55 +401,59 @@ export default function LandingPage({ onEnterDashboard, onLaunchSim }) {
             <Play size={11} style={{ fill: '#06b6d4', color: '#06b6d4' }} />
             Direct 3D Simulation Viewport
           </a>
+
+          <button
+            type="button"
+            onClick={() => setShowTeam(!showTeam)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '9999px',
+              background: showTeam ? 'rgba(139, 92, 246, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+              border: `1px solid ${showTeam ? 'rgba(139, 92, 246, 0.5)' : 'rgba(51, 65, 85, 0.6)'}`,
+              color: showTeam ? '#c4b5fd' : '#94a3b8',
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Users size={12} />
+            {showTeam ? 'Hide Team' : 'Task Force'}
+          </button>
         </div>
+
+        {/* Expandable Team Task Force Credits */}
+        {showTeam && (
+          <div
+            className="animate-fade-in"
+            style={{
+              marginTop: '20px',
+              width: '100%',
+              background: 'rgba(0, 0, 0, 0.35)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '16px',
+              padding: '16px',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              SIH260088 Task Force Engineering Team
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {teamMembers.map((member, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < teamMembers.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', fontFamily: "'Inter', sans-serif" }}>{member.name}</span>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontFamily: 'var(--font-mono)', maxWidth: '58%', textAlign: 'right' }}>{member.role}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* ─────────────────────────────────────────────────────────────
-          CREDITS & TEAM ROSTER FOOTER (OUTSIDE MAIN CARD)
-      ───────────────────────────────────────────────────────────── */}
-      <footer
-        style={{
-          position: 'absolute',
-          bottom: '18px',
-          left: '20px',
-          right: '20px',
-          textAlign: 'center',
-          zIndex: 10,
-          pointerEvents: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '6px',
-        }}
-      >
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: '11px',
-            color: 'rgba(148, 163, 184, 0.65)',
-            letterSpacing: '0.04em',
-            margin: 0,
-            lineHeight: 1.5,
-          }}
-        >
-          <strong style={{ color: 'rgba(56, 189, 248, 0.8)' }}>SIH260088</strong> &bull; Department of Computer Science & Engineering, Kalpataru Institute of Technology
-        </p>
-
-        {/* Team Members Roster */}
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-            fontSize: '10.5px',
-            color: 'rgba(148, 163, 184, 0.65)',
-            letterSpacing: '0.02em',
-            margin: 0,
-            lineHeight: 1.6,
-            maxWidth: '1200px',
-          }}
-        >
-          {teamMembers.map((m) => `${m.name} [${m.role}]`).join('  •  ')}
-        </p>
-      </footer>
     </div>
   );
 }

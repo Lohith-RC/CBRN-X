@@ -27,22 +27,24 @@ export default function Login({ onSuccess }) {
         padding: '24px',
       }}
     >
-      <div className="glass-card-deep" style={{ width: '100%', maxWidth: '420px', padding: '36px' }}>
+      <div className="glass-card-deep animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '36px' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              border: '1px solid rgba(245, 130, 32, 0.4)',
-              boxShadow: '0 0 24px rgba(245, 130, 32, 0.2)',
+              width: '80px',
+              height: '80px',
+              borderRadius: '18px',
+              overflow: 'hidden',
+              border: '1px solid rgba(245, 130, 32, 0.5)',
+              boxShadow: '0 0 30px rgba(245, 130, 32, 0.35)',
               marginBottom: '16px',
+              background: '#000',
             }}
           >
-            <ShieldCheck size={30} color="var(--accent-ndrf-orange)" />
+            <img src="/cbrn_x_logo.jpg" alt="CBRN-X Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', letterSpacing: '0.02em' }}>
             CBRS-X Command Access
@@ -53,11 +55,11 @@ export default function Login({ onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="login-username" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <label htmlFor="login-username" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
             Username
           </label>
           <div style={{ position: 'relative', marginBottom: '18px' }}>
-            <UserIcon size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <UserIcon size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
             <input
               id="login-username"
               type="text"
@@ -66,25 +68,16 @@ export default function Login({ onSuccess }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '10px',
-                padding: '11px 14px 11px 38px',
-                color: '#fff',
-                fontSize: '0.9rem',
-                outline: 'none',
-              }}
+              className="input-field input-with-icon"
+              placeholder="Enter your username"
             />
           </div>
 
-          <label htmlFor="login-password" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <label htmlFor="login-password" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
             Password
           </label>
           <div style={{ position: 'relative', marginBottom: '18px' }}>
-            <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
             <input
               id="login-password"
               type="password"
@@ -92,17 +85,8 @@ export default function Login({ onSuccess }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '10px',
-                padding: '11px 14px 11px 38px',
-                color: '#fff',
-                fontSize: '0.9rem',
-                outline: 'none',
-              }}
+              className="input-field input-with-icon"
+              placeholder="Enter your password"
             />
           </div>
 

@@ -53,7 +53,7 @@ export default function MetricCards({ stats }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
       {cards.map(([title, isCounter, valueNode, subtext, trend, Icon, color], idx) => (
-        <div key={idx} className="glass-card-deep animate-fade-in glow-ring" style={{ padding: '22px 24px', animationDelay: `${idx * 0.1}s`, border: `1px solid ${color}25` }}>
+        <div key={idx} className={`glass-card-deep animate-fade-in glow-ring animate-stagger-${idx + 1}`} style={{ padding: '22px 24px', border: `1px solid ${color}25` }}>
           {/* Background glow orb */}
           <div style={{ ...GLOW_ORB, background: `${color.slice(0, 7)}26` }} />
 
@@ -69,6 +69,9 @@ export default function MetricCards({ stats }) {
           <div style={{ fontSize: isCounter ? '2.1rem' : '1.85rem', fontWeight: '900', letterSpacing: '-0.03em', color: '#ffffff', marginBottom: '6px', display: 'flex', alignItems: 'baseline', gap: '6px', ...Z2 }}>
             {valueNode}
           </div>
+
+          {/* Subtle separator */}
+          <div className="metric-separator" />
 
           {/* Subtext with trend pill */}
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: '600', ...Z2 }}>

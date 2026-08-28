@@ -117,7 +117,7 @@ namespace CBRSX.Unity
             Camera cam = Camera.main;
             if (cam == null) return;
 
-            LeakDrum[] drums = FindObjectsByType<LeakDrum>(FindObjectsSortMode.None);
+            LeakDrum[] drums = FindObjectsByType<LeakDrum>();
             float nearestDist = float.MaxValue;
             bool anyActive = false;
 
@@ -309,6 +309,14 @@ namespace CBRSX.Unity
         {
             isVisorActive = active;
             isCctvActive = false;
+        }
+
+        public void SetVisorFogIntensity(float intensity)
+        {
+            if (vignette != null && isVisorActive)
+            {
+                targetVisorVignette = Mathf.Clamp(0.65f + intensity * 0.2f, 0.4f, 0.95f);
+            }
         }
 
         public void SetCctvModeActive(bool active)

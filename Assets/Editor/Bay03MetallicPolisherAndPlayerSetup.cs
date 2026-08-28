@@ -215,7 +215,7 @@ public class Bay03MetallicPolisherAndPlayerSetup
         }
 
         // Disable other standalone cameras so PlayerCamera is main
-        Camera[] allCams = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+        Camera[] allCams = Object.FindObjectsByType<Camera>();
         foreach (var c in allCams)
         {
             if (c != cam && c.gameObject.name != "SceneCamera")

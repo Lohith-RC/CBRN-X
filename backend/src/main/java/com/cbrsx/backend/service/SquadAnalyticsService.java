@@ -6,8 +6,8 @@ import com.cbrsx.backend.entity.Trainee;
 import com.cbrsx.backend.entity.TrainingSession;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +15,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class SquadAnalyticsService {
+
+    private static final Logger log = LoggerFactory.getLogger(SquadAnalyticsService.class);
 
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
+
+    public SquadAnalyticsService(SessionRepository sessionRepository, TraineeRepository traineeRepository) {
+        this.sessionRepository = sessionRepository;
+        this.traineeRepository = traineeRepository;
+    }
 
     @Transactional(readOnly = true)
     public SquadSummaryDTO getSquadSummary(String squadId) {

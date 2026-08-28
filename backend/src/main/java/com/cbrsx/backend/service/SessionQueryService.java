@@ -9,7 +9,7 @@ import com.cbrsx.backend.repository.ScenarioRepository;
 import com.cbrsx.backend.repository.SessionRepository;
 import com.cbrsx.backend.repository.TraineeRepository;
 import jakarta.persistence.criteria.Predicate;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
  * started-at date range filtering.
  */
 @Service
-@RequiredArgsConstructor
 public class SessionQueryService {
 
     private static final int MAX_PAGE_SIZE = 100;
@@ -55,6 +54,14 @@ public class SessionQueryService {
     private final SessionRepository sessionRepository;
     private final TraineeRepository traineeRepository;
     private final ScenarioRepository scenarioRepository;
+
+    public SessionQueryService(SessionRepository sessionRepository,
+                               TraineeRepository traineeRepository,
+                               ScenarioRepository scenarioRepository) {
+        this.sessionRepository = sessionRepository;
+        this.traineeRepository = traineeRepository;
+        this.scenarioRepository = scenarioRepository;
+    }
 
     @Transactional(readOnly = true)
     public PagedSessionsDTO getSessions(int page, int size, String status, String traineeId,

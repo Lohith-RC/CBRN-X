@@ -254,7 +254,7 @@ namespace CBRSX.Unity
                     brownoutActiveTimer = brownoutDuration;
 
                     // Add trauma for dramatic effect
-                    FirstPersonResponderController responder = FindFirstObjectByType<FirstPersonResponderController>();
+                    FirstPersonResponderController responder = FindAnyObjectByType<FirstPersonResponderController>();
                     if (responder != null)
                     {
                         responder.AddTrauma(0.1f);

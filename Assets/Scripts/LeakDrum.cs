@@ -98,7 +98,7 @@ namespace CBRSX.Unity
 
         private void UpdateCorrosiveMaterial()
         {
-            if (drumMaterialInstance != null)
+            if (drumMaterialInstance != null && drumMaterialInstance.HasProperty(corrosionShaderProperty))
             {
                 float currentCorrosion = drumMaterialInstance.GetFloat(corrosionShaderProperty);
                 if (currentCorrosion < 0.85f)
@@ -109,6 +109,11 @@ namespace CBRSX.Unity
         }
 
         public void InspectDrum()
+        {
+            ScanDrum();
+        }
+
+        public void ScanDrum()
         {
             if (CbrsEventLogger.Instance != null)
             {
@@ -128,7 +133,7 @@ namespace CBRSX.Unity
                 return;
             }
 
-            ContainmentKit kit = FindObjectOfType<ContainmentKit>();
+            ContainmentKit kit = FindAnyObjectByType<ContainmentKit>();
             if (kit != null && kit.isEquipped)
             {
                 kit.BeginSealSequence(this);

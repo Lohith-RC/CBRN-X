@@ -64,9 +64,12 @@ namespace CBRSX.Unity
             if (Instance == null)
             {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
+                if (transform.parent == null)
+                {
+                    DontDestroyOnLoad(gameObject);
+                }
             }
-            else
+            else if (Instance != this)
             {
                 Destroy(gameObject);
             }

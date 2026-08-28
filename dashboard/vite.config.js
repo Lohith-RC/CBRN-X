@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
+    chunkSizeWarningLimit: 300,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -16,6 +17,9 @@ export default defineConfig({
             }
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
+            }
+            if (id.includes('@stomp/stompjs') || id.includes('sockjs-client')) {
+              return 'vendor-stomp';
             }
           }
         },

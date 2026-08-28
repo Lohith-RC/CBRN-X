@@ -4,18 +4,19 @@ using UnityEngine.UI;
 namespace CBRSX.Unity
 {
     /// <summary>
-    /// PlayerInteraction V2.0 — Central Desktop-Simulated VR Raycast Dispatcher.
+    /// PlayerInteraction V4.0 — Pure Spatial Crosshair & Proximity Mouse-Click Interaction Engine.
     /// Features:
-    /// - SphereCast Assist & Raycast Smoothing for effortless object acquisition
-    /// - Tactical Crosshair Color & Scale Interpolation (Pulsing corner brackets on hover)
-    /// - Contextual Tooltip Formatting with military/NDRF command verb indicators
-    /// - Comprehensive Dispatch across PPE, Spectrometer, Chemical Drums, Civilians, and Containment Kits
+    /// - All interaction keybinds removed: fully driven by Mouse Left-Click and Reticle Pointing
+    /// - 0.45m SphereCast + 4.0m Proximity Fallback for natural, reliable targeting
+    /// - Contextual dynamic crosshair color lock and action prompts
+    /// - One-click equipping for Hazmat gear, PID Detector, Containment Kit, and Drum Scans
     /// </summary>
     public class PlayerInteraction : MonoBehaviour
     {
         [Header("Raycast & Spatial Acquisition")]
-        public float interactionRange = 2.8f;
-        public float sphereCastRadius = 0.12f;
+        public float interactionRange = 5.5f;
+        public float sphereCastRadius = 0.45f;
+        public float proximityFallbackRadius = 4.0f;
         public LayerMask interactionLayer;
 
         [Header("Tactical HUD Reticle Feedback")]
@@ -34,21 +35,76 @@ namespace CBRSX.Unity
         private Vector3 defaultReticleScale = Vector3.one;
         private Vector3 lockedReticleScale = new Vector3(1.35f, 1.35f, 1.35f);
 
+        private void Awake()
+        {
+            if (interactionLayer.value == 0)
+            {
+                interactionLayer = ~LayerMask.GetMask("Ignore Raycast");
+            }
+        }
+
         private void Start()
         {
-            mainCamera = GetComponent<Camera>();
-            if (mainCamera == null)
-            {
-                mainCamera = Camera.main;
-            }
+            EnsureCameraReference();
 
             if (tooltipRoot != null)
                 tooltipRoot.SetActive(false);
         }
 
+        private void EnsureCameraReference()
+        {
+            if (mainCamera == null)
+            {
+                mainCamera = GetComponent<Camera>();
+                if (mainCamera == null)
+                {
+                    mainCamera = Camera.main;
+                }
+            }
+        }
+
         private void Update()
         {
+            EnsureCameraReference();
             PerformSpatialRaycast();
+            HandleMouseClickInteraction();
+        }
+
+        private void HandleMouseClickInteraction()
+        {
+            if (Input.GetMouseButtonDown(0))
+            {
+                TriggerInteraction();
+            }
+        }
+
+        public void TriggerInteraction()
+        {
+            if (currentHoverTarget != null)
+            {
+                DispatchInteractionEvent(currentHoverTarget);
+            }
+            else
+            {
+                GameObject proximityTarget = FindClosestInteractableInProximity();
+                if (proximityTarget != null)
+                {
+                    DispatchInteractionEvent(proximityTarget);
+                }
+                else
+                {
+                    // Staging fallback if near bench in early stages
+                    GameManager gm = GameManager.Instance;
+                    if (gm != null && !gm.isPpeFullyEquipped)
+                    {
+                        PpeStation ppe = PpeStation.EnsureInstance();
+                        if (ppe != null)
+                        {
+                            ppe.EquipItem("auto");
+                        }
+                    }
+                }
+            }
         }
 
         private void PerformSpatialRaycast()
@@ -58,30 +114,38 @@ namespace CBRSX.Unity
             Ray ray = mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             RaycastHit hit;
 
-            bool isTargetAcquired = Physics.SphereCast(ray, sphereCastRadius, out hit, interactionRange, interactionLayer);
+            LayerMask mask = interactionLayer.value != 0 ? interactionLayer : (LayerMask)(~LayerMask.GetMask("Ignore Raycast"));
+            bool isTargetAcquired = Physics.SphereCast(ray, sphereCastRadius, out hit, interactionRange, mask) ||
+                                    Physics.Raycast(ray, out hit, interactionRange, mask);
 
-            // Smooth Reticle Transition
+            GameObject targetCandidate = null;
+            if (isTargetAcquired)
+            {
+                targetCandidate = ResolveInteractableObject(hit.collider.gameObject);
+            }
+
+            // Fallback to closest interactable in 4m proximity
+            if (targetCandidate == null)
+            {
+                targetCandidate = FindClosestInteractableInProximity();
+            }
+
+            // Update Reticle Scale & Color
             if (crosshairImage != null)
             {
-                Color targetColor = isTargetAcquired ? lockedReticleColor : defaultReticleColor;
+                Color targetColor = (targetCandidate != null) ? lockedReticleColor : defaultReticleColor;
                 crosshairImage.color = Color.Lerp(crosshairImage.color, targetColor, Time.deltaTime * reticleScaleSpeed);
 
-                Vector3 targetScale = isTargetAcquired ? lockedReticleScale : defaultReticleScale;
+                Vector3 targetScale = (targetCandidate != null) ? lockedReticleScale : defaultReticleScale;
                 crosshairImage.transform.localScale = Vector3.Lerp(crosshairImage.transform.localScale, targetScale, Time.deltaTime * reticleScaleSpeed);
             }
 
-            if (isTargetAcquired)
+            if (targetCandidate != null)
             {
-                GameObject hitObject = hit.collider.gameObject;
-                if (currentHoverTarget != hitObject)
+                if (currentHoverTarget != targetCandidate)
                 {
-                    currentHoverTarget = hitObject;
-                    DisplayContextualTooltip(hitObject);
-                }
-
-                if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E))
-                {
-                    DispatchInteractionEvent(hitObject);
+                    currentHoverTarget = targetCandidate;
+                    DisplayContextualTooltip(targetCandidate);
                 }
             }
             else
@@ -94,50 +158,174 @@ namespace CBRSX.Unity
             }
         }
 
-        private void DispatchInteractionEvent(GameObject target)
+        private GameObject FindClosestInteractableInProximity()
         {
-            // 1. PPE Station Items
-            if (target.CompareTag("PpeItem"))
+            Vector3 playerPos = transform.position;
+            Collider[] hits = Physics.OverlapSphere(playerPos, proximityFallbackRadius);
+            
+            float closestDist = float.MaxValue;
+            GameObject bestTarget = null;
+
+            foreach (var h in hits)
             {
-                PpeStation ppeStation = FindObjectOfType<PpeStation>();
+                if (h.transform.root == transform.root) continue; // skip self
+
+                GameObject resolved = ResolveInteractableObject(h.gameObject);
+                if (resolved != null && IsInteractableTarget(resolved))
+                {
+                    float dist = Vector3.Distance(playerPos, resolved.transform.position);
+                    if (dist < closestDist)
+                    {
+                        closestDist = dist;
+                        bestTarget = resolved;
+                    }
+                }
+            }
+
+            return bestTarget;
+        }
+
+        private GameObject ResolveInteractableObject(GameObject raw)
+        {
+            if (raw == null) return null;
+            if (IsInteractableTarget(raw)) return raw;
+
+            Transform current = raw.transform.parent;
+            while (current != null)
+            {
+                if (IsInteractableTarget(current.gameObject))
+                {
+                    return current.gameObject;
+                }
+                current = current.parent;
+            }
+
+            return raw;
+        }
+
+        private bool IsInteractableTarget(GameObject go)
+        {
+            if (go == null) return false;
+            string lower = go.name.ToLower();
+
+            if (go.CompareTag("PpeItem") || lower.Contains("vest") || lower.Contains("mask") || 
+                lower.Contains("glove") || lower.Contains("suit") || lower.Contains("respirator") || 
+                lower.Contains("gasmask") || lower.Contains("cbrn") || lower.Contains("hardhat") || 
+                lower.Contains("helmet") || lower.Contains("bench") || lower.Contains("staging") || lower.Contains("ppe"))
+            {
+                return true;
+            }
+
+            return go.GetComponent<GasDetector>() != null || 
+                   go.GetComponent<LeakDrum>() != null || 
+                   go.GetComponent<ContainmentKit>() != null || 
+                   go.GetComponent<Civilian>() != null ||
+                   lower.Contains("detector") ||
+                   lower.Contains("spectrometer") ||
+                   lower.Contains("drum") ||
+                   lower.Contains("barrel") ||
+                   lower.Contains("kit") ||
+                   lower.Contains("decon");
+        }
+
+        public void DispatchInteractionEvent(GameObject target)
+        {
+            if (target == null) return;
+
+            string targetNameLower = target.name.ToLower();
+
+            // 1. PPE Station Items (Suit, CBRN Mask, Gloves, HardHat, Workbench)
+            if (target.CompareTag("PpeItem") || targetNameLower.Contains("vest") || 
+                targetNameLower.Contains("mask") || targetNameLower.Contains("glove") || 
+                targetNameLower.Contains("suit") || targetNameLower.Contains("respirator") ||
+                targetNameLower.Contains("gasmask") || targetNameLower.Contains("cbrn") ||
+                targetNameLower.Contains("hardhat") || targetNameLower.Contains("helmet") ||
+                targetNameLower.Contains("bench") || targetNameLower.Contains("staging") || targetNameLower.Contains("ppe"))
+            {
+                PpeStation ppeStation = PpeStation.EnsureInstance();
                 if (ppeStation != null)
                 {
                     string itemName = ParsePpeItemIdentifier(target.name);
                     ppeStation.EquipItem(itemName);
-                    target.SetActive(false);
+                    if (!targetNameLower.Contains("bench") && !targetNameLower.Contains("staging"))
+                    {
+                        target.SetActive(false);
+                    }
                 }
                 return;
             }
 
             // 2. Handheld Multi-Gas Detector
             GasDetector detector = target.GetComponent<GasDetector>();
-            if (detector != null)
+            if (detector == null && target.transform.parent != null) detector = target.transform.parent.GetComponent<GasDetector>();
+            if (detector != null || targetNameLower.Contains("detector") || targetNameLower.Contains("spectrometer") || targetNameLower.Contains("pid"))
             {
-                detector.EquipDetector();
+                FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+                if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
+                if (responder != null)
+                {
+                    GasDetector playerDet = responder.GetComponentInChildren<GasDetector>(true);
+                    if (playerDet == null) playerDet = FindAnyObjectByType<GasDetector>();
+                    if (playerDet != null)
+                    {
+                        playerDet.ToggleEquip();
+                    }
+                    responder.StripAllChildColliders();
+                }
+                if (target.transform.root != transform.root)
+                {
+                    target.SetActive(false);
+                }
                 return;
             }
 
             // 3. Chemical Drum (Scanning or Containment)
             LeakDrum drum = target.GetComponent<LeakDrum>();
-            if (drum != null)
+            if (drum == null && target.transform.parent != null) drum = target.transform.parent.GetComponent<LeakDrum>();
+            if (drum != null || targetNameLower.Contains("drum") || targetNameLower.Contains("barrel"))
             {
-                HandleDrumInteraction(drum);
+                if (drum == null) drum = FindAnyObjectByType<LeakDrum>();
+                if (drum != null)
+                {
+                    HandleDrumInteraction(drum);
+                }
                 return;
             }
 
             // 4. Containment Sealant Kit
             ContainmentKit kit = target.GetComponent<ContainmentKit>();
-            if (kit != null)
+            if (kit == null && target.transform.parent != null) kit = target.transform.parent.GetComponent<ContainmentKit>();
+            if (kit != null || targetNameLower.Contains("kit") || targetNameLower.Contains("sealant"))
             {
-                kit.EquipKit();
+                FirstPersonResponderController responder = FirstPersonResponderController.Instance;
+                if (responder == null) responder = FindAnyObjectByType<FirstPersonResponderController>();
+                if (responder != null)
+                {
+                    ContainmentKit playerKit = responder.GetComponentInChildren<ContainmentKit>(true);
+                    if (playerKit == null) playerKit = FindAnyObjectByType<ContainmentKit>();
+                    if (playerKit != null)
+                    {
+                        playerKit.EquipKit();
+                    }
+                    responder.StripAllChildColliders();
+                }
+                if (target.transform.root != transform.root)
+                {
+                    target.SetActive(false);
+                }
                 return;
             }
 
             // 5. Civilian NPC
             Civilian civilian = target.GetComponent<Civilian>();
-            if (civilian != null)
+            if (civilian == null && target.transform.parent != null) civilian = target.transform.parent.GetComponent<Civilian>();
+            if (civilian != null || targetNameLower.Contains("civilian") || targetNameLower.Contains("worker"))
             {
-                civilian.InstructFollow(transform.root);
+                if (civilian == null) civilian = FindAnyObjectByType<Civilian>();
+                if (civilian != null)
+                {
+                    civilian.InstructFollow(transform.root);
+                }
                 return;
             }
         }
@@ -164,66 +352,60 @@ namespace CBRSX.Unity
                 }
             }
 
-            // Spectrometer Scanning
-            GasDetector activeDetector = FindObjectOfType<GasDetector>();
-            if (activeDetector != null && activeDetector.isEquipped)
+            // Direct Inspection & Leak Source Confirmation
+            drum.InspectDrum();
+            if (drum.isLeaking && gm != null && !gm.leakSourceIdentified)
             {
-                activeDetector.ScanDrum(drum);
-            }
-            else
-            {
-                drum.InspectDrum();
+                gm.RegisterLeakIdentified(drum.drumId);
             }
         }
 
-        private string ParsePpeItemIdentifier(string gameObjectName)
+        public static string ParsePpeItemIdentifier(string gameObjectName)
         {
             string lower = gameObjectName.ToLower();
-            if (lower.Contains("suit") || lower.Contains("hazmat")) return "suit";
-            if (lower.Contains("mask") || lower.Contains("respirator")) return "mask";
-            if (lower.Contains("glove")) return "gloves";
-            return gameObjectName;
+            if (lower.Contains("mask") || lower.Contains("respirator") || lower.Contains("gasmask") || lower.Contains("cbrn") || lower.Contains("filter") || lower.Contains("visor"))
+            {
+                return "mask";
+            }
+            if (lower.Contains("suit") || lower.Contains("hazmat") || lower.Contains("vest") || lower.Contains("jacket"))
+            {
+                return "suit";
+            }
+            if (lower.Contains("glove") || lower.Contains("gauntlet") || lower.Contains("hand"))
+            {
+                return "gloves";
+            }
+            if (lower.Contains("hardhat") || lower.Contains("helmet") || lower.Contains("head"))
+            {
+                return "hardhat";
+            }
+            return "ppe_gear";
         }
 
         private void DisplayContextualTooltip(GameObject target)
         {
-            if (tooltipText == null) return;
+            if (tooltipRoot == null || tooltipText == null) return;
 
-            string verbPrompt = "";
-            if (target.CompareTag("PpeItem"))
-            {
-                verbPrompt = $"[E] EQUIP {target.name.Replace("INT_PPE_", "").ToUpper()}";
-            }
-            else if (target.GetComponent<GasDetector>() != null)
-            {
-                verbPrompt = "[E] EQUIP ANALYTICAL SPECTROMETER";
-            }
-            else if (target.GetComponent<LeakDrum>() != null)
-            {
-                GameManager gm = GameManager.Instance;
-                if (gm != null && gm.containmentKitEquipped && gm.leakSourceIdentified)
-                {
-                    verbPrompt = "[E / HOLD CLICK] INJECT PNEUMATIC SEALANT";
-                }
-                else
-                {
-                    verbPrompt = "[E] SCAN DRUM CONCENTRATION";
-                }
-            }
-            else if (target.GetComponent<ContainmentKit>() != null)
-            {
-                verbPrompt = "[E] EQUIP CONTAINMENT SEAL KIT";
-            }
-            else if (target.GetComponent<Civilian>() != null)
-            {
-                verbPrompt = "[E] ORDER CIVILIAN TO FOLLOW";
-            }
+            string targetNameLower = target.name.ToLower();
+            string prompt = "[CLICK / E] INTERACT";
 
-            if (!string.IsNullOrEmpty(verbPrompt))
-            {
-                tooltipText.text = verbPrompt;
-                if (tooltipRoot != null) tooltipRoot.SetActive(true);
-            }
+            if (targetNameLower.Contains("mask") || targetNameLower.Contains("respirator"))
+                prompt = "[CLICK / E] DON CBRN FULL-FACE RESPIRATOR";
+            else if (targetNameLower.Contains("suit") || targetNameLower.Contains("hazmat") || targetNameLower.Contains("vest"))
+                prompt = "[CLICK / E] DON LEVEL-B HAZMAT SUIT / VEST";
+            else if (targetNameLower.Contains("glove"))
+                prompt = "[CLICK / E] DON CHEMICAL GAUNTLETS";
+            else if (targetNameLower.Contains("bench") || targetNameLower.Contains("staging") || targetNameLower.Contains("ppe"))
+                prompt = "[CLICK / E] DON NEXT REQUIRED PPE GEAR";
+            else if (targetNameLower.Contains("drum") || targetNameLower.Contains("barrel"))
+                prompt = "[CLICK / E] LOCATE & INSPECT CHEMICAL LEAK";
+            else if (targetNameLower.Contains("kit"))
+                prompt = "[CLICK / E] EQUIP LEAK CONTAINMENT SEALANT KIT";
+            else if (targetNameLower.Contains("civilian") || targetNameLower.Contains("worker"))
+                prompt = "[CLICK / E] EVACUATE INJURED PERSONNEL";
+
+            tooltipText.text = prompt;
+            tooltipRoot.SetActive(true);
         }
 
         private void HideContextualTooltip()
