@@ -38,7 +38,7 @@ describe('Login Component', () => {
 
     fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'admin' } });
     fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'ndrf-admin-123' } });
-    fireEvent.click(screen.getByRole('button', { name: /Authenticate/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Authenticate$/i }));
 
     expect(loginMock).toHaveBeenCalledWith('admin', 'ndrf-admin-123');
   });

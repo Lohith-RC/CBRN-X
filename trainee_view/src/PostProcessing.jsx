@@ -17,6 +17,7 @@ export default function PostProcessing({ cursorPos, isActive, screenShake, visor
     if (!canvas || !isActive) return;
 
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    if (!ctx) return;
     const w = canvas.width;
     const h = canvas.height;
     timeRef.current = timestamp * 0.001; // seconds
